@@ -1,0 +1,17 @@
+{
+  "name": "ripple-of-history",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "allowScripts": {
+    "esbuild": true
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  }
+}

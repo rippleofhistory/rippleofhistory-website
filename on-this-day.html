@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>On This Day — Ripple of History</title>
+    <meta name="description" content="A living history book: pick any date, watch the daily short if it exists, and read the ripples across the centuries.">
+    <meta name="theme-color" content="#07131f">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <meta property="og:title" content="On This Day — Ripple of History">
+    <meta property="og:description" content="Pick a date. See what moved. Watch the short if we’ve already thrown the stone.">
+    <meta property="og:image" content="/images/on-this-day.jpg">
+    <script type="module" src="/src/js/main.js"></script>
+    <script type="module" src="/src/js/calendar.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#content">Skip to content</a>
+    <div class="grain" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <nav class="nav" aria-label="Primary">
+        <a class="brand" href="index.html" data-nav>
+          <img src="/images/wordmark.png" alt="Ripple of History" width="140" height="78">
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-label="Open menu">
+          <span></span>
+        </button>
+        <div class="nav-links">
+          <a href="index.html" data-nav>Home</a>
+          <a href="on-this-day.html" data-nav>On This Day</a>
+          <a href="support.html" data-nav>Support</a>
+          <a class="btn btn-gold" data-external="youtube" href="https://www.youtube.com/@RippleOfHistory" target="_blank" rel="noreferrer">Watch</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="content">
+      <section class="page-hero">
+        <div class="hero-media">
+          <img src="/images/on-this-day.jpg" alt="An antique chronicle, compass and candle on a dark wooden desk, gold ripples of light above the pages.">
+        </div>
+        <div class="hero-shade"></div>
+        <div class="particles" data-particles aria-hidden="true"></div>
+        <div class="hero-inner wrap">
+          <p class="kicker">The living book</p>
+          <h1>On this <em>day</em></h1>
+          <p class="lede">Open a date the way you’d open a chronicle. The daily short if we’ve filmed it — then the centuries underneath, one ripple at a time.</p>
+        </div>
+      </section>
+
+      <section class="section today-band" style="padding-bottom: 1.5rem">
+        <div class="wrap">
+          <article class="today-card" data-todays-ripple></article>
+        </div>
+      </section>
+
+      <section class="section" id="daybook">
+        <div class="wrap">
+          <div class="jump-bar">
+            <label class="jump-label">
+              Jump to date
+              <input class="jump-input" type="date" data-jump>
+            </label>
+            <div class="month-pills" data-month-pills></div>
+          </div>
+
+          <p class="mobile-date" data-date-label></p>
+
+          <div class="calendar-shell">
+            <div class="panel cal-panel">
+              <div class="cal-toolbar">
+                <div class="month-nav">
+                  <button class="icon-btn" type="button" data-prev-month aria-label="Previous month">‹</button>
+                  <div class="month-title" data-month-title>August</div>
+                  <button class="icon-btn" type="button" data-next-month aria-label="Next month">›</button>
+                </div>
+                <div class="cal-actions">
+                  <button class="btn btn-ghost" type="button" data-today-btn>Today</button>
+                  <button class="btn btn-ghost" type="button" data-random>Surprise me</button>
+                </div>
+              </div>
+              <div class="weekdays" aria-hidden="true">
+                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+              </div>
+              <div class="days" data-days role="grid" aria-label="Calendar days"></div>
+              <div class="filters" data-filters></div>
+              <p class="cal-hint">Gold dots are days with a mapped YouTube short. Teal means the book has a chapter.</p>
+            </div>
+
+            <aside class="panel detail-panel" data-detail></aside>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-grid">
+        <div class="footer-brand">
+          <img src="/images/wordmark.png" alt="Ripple of History" width="180" height="100">
+          <p>Daily On This Day history, long-form deep dives and site visits. Discovering the ripple of history.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Explore</h3>
+          <a href="index.html" data-nav>Home</a>
+          <a href="on-this-day.html" data-nav>On This Day</a>
+          <a href="support.html" data-nav>Support</a>
+        </div>
+        <div class="footer-col">
+          <h3>Out there</h3>
+          <a data-external="youtube" href="https://www.youtube.com/@RippleOfHistory" target="_blank" rel="noreferrer">YouTube</a>
+          <a data-external="x" href="https://x.com/RippleOfHistory" target="_blank" rel="noreferrer">X · @RippleOfHistory</a>
+          <a data-external="substack" href="https://rippleofhistory.substack.com/" target="_blank" rel="noreferrer">Substack</a>
+          <a data-external="coffee" href="https://buymeacoffee.com/rippleofhistory" target="_blank" rel="noreferrer">Buy Me a Coffee</a>
+        </div>
+      </div>
+      <div class="wrap legal">
+        <span>© <span data-year></span> Daniel Sellings · Ripple of History</span>
+        <span>The calendar is a starting point, not a textbook.</span>
+      </div>
+    </footer>
+
+    <div class="lightbox" data-lightbox role="dialog" aria-modal="true" aria-label="Video player">
+      <button class="lightbox-close" type="button" data-lightbox-close aria-label="Close video">×</button>
+      <div class="lightbox-frame" data-lightbox-frame></div>
+    </div>
+  </body>
+</html>
