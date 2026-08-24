@@ -1,3 +1,7 @@
+export const SITE_URL = "https://rippleofhistory.com";
+export const SITE_NAME = "Ripple of History";
+export const CHANNEL_ID = "UClKb54sR_nVBVudB9JoE81g";
+
 export const LINKS = {
   youtube: "https://www.youtube.com/@RippleOfHistory",
   x: "https://x.com/RippleOfHistory",
@@ -67,6 +71,56 @@ export const FEATURED_LONGFORM = [
     tag: "Deep dive",
     length: "41:13",
     blurb: "A colossal defeat that somehow became a miracle.",
+  },
+];
+
+/** Eastbourne Airbourne — long-form days plus standout aircraft. */
+export const AIRSHOWS = [
+  {
+    id: "mK0XAP6jM2U",
+    title: "Airbourne 2026 — Sunday, Eastbourne",
+    tag: "Airshow",
+    length: "37:00",
+    blurb: "Merlins over the Channel. The Sunday display from Eastbourne’s seafront — history, still flying.",
+  },
+  {
+    id: "GT6g3jvULNo",
+    title: "Airbourne 2026 — Saturday, Eastbourne",
+    tag: "Airshow",
+    length: "30:20",
+    blurb: "The Saturday programme from Airbourne. Still making a mess of the sky.",
+  },
+  {
+    id: "6dqgh0vaGZk",
+    title: "Airbourne 2026 — Friday, Eastbourne",
+    tag: "Airshow",
+    length: "31:39",
+    blurb: "Opening day on the seafront. Spitfires, the crowd, and a very loud argument with the weather.",
+  },
+  {
+    id: "oxGRUTzv3gY",
+    title: "RAF Typhoon — Airbourne 2026",
+    tag: "Airshow",
+    length: "6:08",
+    blurb: "The Typhoon display over Eastbourne. Loud, fast, and not remotely civilian.",
+  },
+  {
+    id: "0gLS8f7Rojw",
+    title: "Battle of Britain Memorial Flight at Airbourne",
+    tag: "Airshow",
+    kind: "short",
+  },
+  {
+    id: "I_yZaQN9EGw",
+    title: "P-51D Mustang Marinell",
+    tag: "Airshow",
+    kind: "short",
+  },
+  {
+    id: "9wIpbs8VH4g",
+    title: "Royal Navy Black Cats",
+    tag: "Airshow",
+    kind: "short",
   },
 ];
 

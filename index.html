@@ -3,15 +3,35 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ripple of History — Daily history, slightly irreverent</title>
-    <meta name="description" content="Ripple of History: daily On This Day shorts, long-form deep dives, site visits and debates from a British host. Romans, Tudors, Civil Wars, WW2 and the rest.">
+    <title>Ripple of History | On This Day shorts, WW2 &amp; British history</title>
+    <meta name="description" content="Daily On This Day history shorts and long-form films from Daniel Sellings in Eastbourne: WW2, Churchill, Airbourne, Romans, Tudors and the British story.">
+    <meta name="author" content="Daniel Sellings">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="theme-color" content="#07131f">
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <meta property="og:title" content="Ripple of History">
-    <meta property="og:description" content="History is HUGE. Daily ripples from the past — shorts, site visits, speeches and the occasional argument with the present.">
-    <meta property="og:image" content="/images/hero-banner.png">
-    <meta property="og:type" content="website">
     <link rel="canonical" href="https://rippleofhistory.com/">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/images/logo.jpg">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="alternate" type="application/rss+xml" title="Ripple of History on YouTube" href="https://www.youtube.com/feeds/videos.xml?channel_id=UClKb54sR_nVBVudB9JoE81g">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://i.ytimg.com">
+    <link rel="preconnect" href="https://www.youtube-nocookie.com">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Ripple of History">
+    <meta property="og:url" content="https://rippleofhistory.com/">
+    <meta property="og:title" content="Ripple of History | On This Day shorts, WW2 &amp; British history">
+    <meta property="og:description" content="Daily On This Day shorts and long-form films from Eastbourne: Churchill, Forgotten Voices, Airbourne and the British story.">
+    <meta property="og:image" content="https://rippleofhistory.com/images/hero-banner.png">
+    <meta property="og:image:width" content="1280">
+    <meta property="og:image:height" content="720">
+    <meta property="og:image:alt" content="Ripple of History gold logo over a collage of Rome, Egypt, Liberty and the world wars.">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@RippleOfHistory">
+    <meta name="twitter:title" content="Ripple of History | On This Day shorts, WW2 &amp; British history">
+    <meta name="twitter:description" content="Daily history shorts and long-form films from Daniel Sellings in Eastbourne.">
+    <meta name="twitter:image" content="https://rippleofhistory.com/images/hero-banner.png">
     <script type="module" src="/src/js/main.js"></script>
   </head>
   <body>
@@ -28,6 +48,7 @@
         </button>
         <div class="nav-links">
           <a href="index.html" data-nav>Home</a>
+          <a href="#airshows">Airshows</a>
           <a href="on-this-day.html" data-nav>On This Day</a>
           <a href="support.html" data-nav>Support</a>
           <a class="btn btn-gold" data-external="youtube" href="https://www.youtube.com/@RippleOfHistory" target="_blank" rel="noreferrer">Watch</a>
@@ -48,26 +69,47 @@
       <div class="hero-cta-bar">
         <div class="wrap">
           <div class="hero-actions">
-            <a class="btn btn-gold" href="#long-form">Watch Latest Videos</a>
+            <a class="btn btn-gold" href="#latest">Watch</a>
             <a class="btn btn-ghost" href="on-this-day.html" data-nav>Explore On This Day</a>
           </div>
         </div>
       </div>
 
-      <section class="section today-band">
+      <section class="section" id="latest">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>Daily ripples</h2>
+            <p>The newest shorts and films, as they go up.</p>
+          </div>
+          <div class="video-rail" data-latest></div>
+          <p class="watch-more">
+            <a class="btn btn-gold" data-external="youtube" href="https://www.youtube.com/@RippleOfHistory" target="_blank" rel="noreferrer">Subscribe on YouTube</a>
+          </p>
+        </div>
+      </section>
+
+      <section class="section today-band" style="padding-top: 0">
         <div class="wrap">
           <article class="today-card" data-today></article>
         </div>
       </section>
 
-      <section class="section" id="long-form">
+      <section class="section" id="airshows">
         <div class="wrap">
           <div class="section-head">
-            <div>
-              <p class="eyebrow">Featured long-form</p>
-              <h2>Watch Latest Videos</h2>
-            </div>
-            <p>Churchill in full, a Norman church with a plague pit, Civil War generals, Spitfire vs Hurricane, tanks, and Forgotten Voices. Press play — they open here.</p>
+            <h2>Airbourne</h2>
+            <p>Eastbourne seafront. Friday, Saturday, Sunday — Typhoon, Mustang, Memorial Flight, Black Cats.</p>
+          </div>
+          <div class="featured-video" data-airshow-featured></div>
+          <div class="video-rail" data-airshows></div>
+        </div>
+      </section>
+
+      <section class="section" id="long-form" style="padding-top: 0">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>The long films</h2>
+            <p>Churchill for half an hour. A Norman church with a plague pit. A row about tanks. The ones you sit down for.</p>
           </div>
           <div class="featured-video" data-featured></div>
           <div class="video-grid" data-videos></div>
@@ -77,29 +119,10 @@
       <section class="section" id="deep-dives" style="padding-top: 0">
         <div class="wrap">
           <div class="section-head">
-            <div>
-              <p class="eyebrow">Deep dives</p>
-              <h2>Forgotten Voices of WW2</h2>
-            </div>
-            <p>The series, in order. Outbreak, the Phoney War, Norway, France, Dunkirk, then the Battle of Britain.</p>
+            <h2>Forgotten Voices of WW2</h2>
+            <p>They were there. Outbreak to the Battle of Britain, told in order.</p>
           </div>
           <div class="video-rail" data-deep-dives></div>
-        </div>
-      </section>
-
-      <section class="section" id="latest" style="padding-top: 0">
-        <div class="wrap">
-          <div class="section-head">
-            <div>
-              <p class="eyebrow">Latest from the channel</p>
-              <h2>New ripples</h2>
-            </div>
-            <p>Whatever just went up on the channel — shorts and long-form, as they land.</p>
-          </div>
-          <div class="video-rail" data-latest></div>
-          <p class="watch-more">
-            <a class="btn btn-gold" data-external="youtube" href="https://www.youtube.com/@RippleOfHistory" target="_blank" rel="noreferrer">Subscribe on YouTube</a>
-          </p>
         </div>
       </section>
 
@@ -109,7 +132,6 @@
             <img src="/images/support.jpg" alt="A Martello tower on the English Channel at dusk, lantern light in the doorway.">
           </div>
           <div class="about-copy">
-            <p class="eyebrow">The host</p>
             <h2>Daniel Sellings, with a camera and a calendar</h2>
             <p class="quote">“History is HUGE.”</p>
             <p>
@@ -138,6 +160,7 @@
         <div class="footer-col">
           <h3>Explore</h3>
           <a href="index.html" data-nav>Home</a>
+          <a href="#airshows">Airshows</a>
           <a href="on-this-day.html" data-nav>On This Day</a>
           <a href="support.html" data-nav>Support</a>
         </div>

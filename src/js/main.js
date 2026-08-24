@@ -2,6 +2,7 @@ import {
   LINKS,
   FEATURED_LONGFORM,
   DEEP_DIVES,
+  AIRSHOWS,
   LATEST_VIDEOS,
   youtubeThumb,
   youtubeShortThumb,
@@ -13,9 +14,11 @@ import {
   prefersReducedMotion,
 } from "./site.js";
 import { eventsFor } from "./events.js";
+import { applySeo } from "./seo.js";
 import "../css/styles.css";
 
 document.body.classList.add("is-entering");
+applySeo();
 
 const header = document.querySelector(".site-header");
 const toggle = document.querySelector(".menu-toggle");
@@ -147,24 +150,32 @@ function renderToday() {
 }
 renderToday();
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/"/g, "&quot;");
+}
+
 function videoCard(video, large = false) {
   const isShort = video.kind === "short";
   const fallback = youtubeThumb(video.id);
   const src = isShort ? youtubeShortThumb(video.id) : youtubeThumb(video.id, large);
   const kindAttr = isShort ? ` data-kind="short"` : "";
   const meta = [video.tag, video.length].filter(Boolean).join(" · ");
+  const title = escapeHtml(video.title);
   return `
     <article class="video-card${large ? " is-featured" : ""}${isShort ? " is-short" : ""}">
-      <button class="thumb" data-play="${video.id}"${kindAttr} aria-label="Play ${video.title}">
-        <img src="${src}" alt="" width="${isShort ? 480 : large ? 1280 : 640}" height="${isShort ? 854 : large ? 720 : 400}" onerror="this.onerror=null;this.src='${fallback}'">
+      <button class="thumb" data-play="${video.id}"${kindAttr} aria-label="Play ${title}">
+        <img src="${src}" alt="${title}" width="${isShort ? 480 : large ? 1280 : 640}" height="${isShort ? 854 : large ? 720 : 400}" onerror="this.onerror=null;this.src='${fallback}'">
         <span class="play" aria-hidden="true">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 1.5v11l10-5.5L3 1.5z"/></svg>
         </span>
       </button>
       <div class="video-meta">
-        <span class="tag">${meta}</span>
-        <h3>${video.title}</h3>
-        ${video.blurb && large ? `<p>${video.blurb}</p>` : ""}
+        <span class="tag">${escapeHtml(meta)}</span>
+        <h3>${title}</h3>
+        ${video.blurb && large ? `<p>${escapeHtml(video.blurb)}</p>` : ""}
         ${large ? `<button class="btn btn-gold play-inline" type="button" data-play="${video.id}">Play episode</button>` : ""}
       </div>
     </article>
@@ -187,6 +198,11 @@ function renderVideos() {
     gridRoot.innerHTML = FEATURED_LONGFORM.slice(1).map((video) => videoCard(video)).join("");
   }
   fillRail("[data-deep-dives]", DEEP_DIVES);
+  const airshowFeatured = document.querySelector("[data-airshow-featured]");
+  if (airshowFeatured && AIRSHOWS[0]) {
+    airshowFeatured.innerHTML = videoCard(AIRSHOWS[0], true);
+  }
+  fillRail("[data-airshows]", AIRSHOWS.slice(1));
   fillRail("[data-latest]", LATEST_VIDEOS);
   loadLatest();
 }

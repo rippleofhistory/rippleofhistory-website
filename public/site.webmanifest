@@ -1,0 +1,25 @@
+{
+  "name": "Ripple of History",
+  "short_name": "Ripple of History",
+  "description": "Daily On This Day history shorts, long-form films and Eastbourne airshows from Daniel Sellings.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "background_color": "#05080f",
+  "theme_color": "#07131f",
+  "lang": "en-GB",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/logo.jpg",
+      "sizes": "1024x1024",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

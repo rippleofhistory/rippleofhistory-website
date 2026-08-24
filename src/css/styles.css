@@ -335,7 +335,8 @@ p {
 
 #long-form,
 #deep-dives,
-#latest {
+#latest,
+#airshows {
   scroll-margin-top: calc(var(--nav-h) + 1rem);
 }
 
@@ -508,7 +509,8 @@ p {
 }
 
 .section h2 {
-  font-size: clamp(2rem, 4vw, 3.3rem);
+  font-size: clamp(2.35rem, 5vw, 3.85rem);
+  letter-spacing: -0.02em;
 }
 
 .today-band {

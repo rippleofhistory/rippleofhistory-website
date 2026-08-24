@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://rippleofhistory.com/</loc>
+    <lastmod>2026-08-23</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://rippleofhistory.com/images/hero-banner.png</image:loc>
+      <image:title>Ripple of History</image:title>
+    </image:image>
+    <video:video>
+      <video:thumbnail_loc>https://i.ytimg.com/vi/mK0XAP6jM2U/hqdefault.jpg</video:thumbnail_loc>
+      <video:title>Airbourne 2026 — Sunday, Eastbourne</video:title>
+      <video:description>Merlins over the Channel. The Sunday display from Eastbourne’s seafront airshow.</video:description>
+      <video:player_loc>https://www.youtube.com/embed/mK0XAP6jM2U</video:player_loc>
+      <video:duration>2220</video:duration>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://i.ytimg.com/vi/GT6g3jvULNo/hqdefault.jpg</video:thumbnail_loc>
+      <video:title>Airbourne 2026 — Saturday, Eastbourne</video:title>
+      <video:description>The Saturday programme from Airbourne, Eastbourne seafront.</video:description>
+      <video:player_loc>https://www.youtube.com/embed/GT6g3jvULNo</video:player_loc>
+      <video:duration>1820</video:duration>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://i.ytimg.com/vi/6dqgh0vaGZk/hqdefault.jpg</video:thumbnail_loc>
+      <video:title>Airbourne 2026 — Friday, Eastbourne</video:title>
+      <video:description>Opening day of Airbourne on Eastbourne seafront.</video:description>
+      <video:player_loc>https://www.youtube.com/embed/6dqgh0vaGZk</video:player_loc>
+      <video:duration>1899</video:duration>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://i.ytimg.com/vi/oxGRUTzv3gY/hqdefault.jpg</video:thumbnail_loc>
+      <video:title>RAF Typhoon — Airbourne 2026</video:title>
+      <video:description>RAF Typhoon display over Eastbourne Airbourne 2026.</video:description>
+      <video:player_loc>https://www.youtube.com/embed/oxGRUTzv3gY</video:player_loc>
+      <video:duration>368</video:duration>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://i.ytimg.com/vi/BcU5deW_Nys/hqdefault.jpg</video:thumbnail_loc>
+      <video:title>Churchill: Their Finest Hour — full speech</video:title>
+      <video:description>Winston Churchill, 18 June 1940. The full Finest Hour speech.</video:description>
+      <video:player_loc>https://www.youtube.com/embed/BcU5deW_Nys</video:player_loc>
+      <video:duration>1794</video:duration>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://i.ytimg.com/vi/K-Y2gQodq6I/hqdefault.jpg</video:thumbnail_loc>
+      <video:title>Forgotten Voices of WW2, Part 1 — 1939 Outbreak</video:title>
+      <video:description>The lights go out. Readings from the people who were actually there.</video:description>
+      <video:player_loc>https://www.youtube.com/embed/K-Y2gQodq6I</video:player_loc>
+      <video:duration>2497</video:duration>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+  </url>
+  <url>
+    <loc>https://rippleofhistory.com/on-this-day.html</loc>
+    <lastmod>2026-08-23</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://rippleofhistory.com/images/on-this-day.jpg</image:loc>
+      <image:title>On This Day — Ripple of History</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://rippleofhistory.com/support.html</loc>
+    <lastmod>2026-08-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <image:image>
+      <image:loc>https://rippleofhistory.com/images/support.jpg</image:loc>
+      <image:title>Support Ripple of History</image:title>
+    </image:image>
+  </url>
+</urlset>
