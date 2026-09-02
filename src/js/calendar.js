@@ -1,6 +1,6 @@
 import { pad, monthName, formatOrdinal, todayParts, youtubeShortThumb, youtubeThumb } from "./site.js";
 import { ERAS, eventsFor, hasVideo, eraLabel, randomEvent } from "./events.js";
-import { shortFor, hasShort } from "./shorts.js";
+import { shortFor, hasShort, hydrateShorts } from "./shorts.js";
 
 const state = {
   month: todayParts().month,
@@ -223,11 +223,11 @@ function renderTodayRipple() {
   `;
 }
 
-function render() {
+function render(animate = true) {
   renderFilters();
   renderMonthPills();
   renderCalendar();
-  renderDetail();
+  renderDetail(animate);
   writeHash();
 }
 
@@ -313,3 +313,19 @@ window.addEventListener("hashchange", () => {
 parseHash();
 renderTodayRipple();
 render();
+
+async function loadLiveShorts() {
+  try {
+    const response = await fetch("/api/on-this-day-shorts.json", { cache: "no-store" });
+    if (!response.ok) return;
+    const map = await response.json();
+    if (!map || typeof map !== "object") return;
+    hydrateShorts(map);
+    renderTodayRipple();
+    render(false);
+  } catch {
+    /* keep the built-in shorts map */
+  }
+}
+
+loadLiveShorts();
