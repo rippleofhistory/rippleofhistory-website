@@ -7,6 +7,7 @@ export const LINKS = {
   x: "https://x.com/RippleOfHistory",
   substack: "https://rippleofhistory.substack.com/",
   coffee: "https://buymeacoffee.com/rippleofhistory",
+  email: "mailto:rippleofhistory@gmail.com",
 };
 
 /**

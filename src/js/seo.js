@@ -44,6 +44,7 @@ const organization = {
   name: SITE_NAME,
   alternateName: ["Ripple Of History", "Daniel Sellings"],
   url: SITE_URL,
+  email: "rippleofhistory@gmail.com",
   logo: `${SITE_URL}/images/wordmark.png`,
   image: `${SITE_URL}/images/hero-banner.png`,
   description:
@@ -58,6 +59,14 @@ const organization = {
     addressRegion: "East Sussex",
     addressCountry: "GB",
   },
+  contactPoint: {
+    "@type": "ContactPoint",
+    contactType: "customer support",
+    email: "rippleofhistory@gmail.com",
+    areaServed: "GB",
+    availableLanguage: ["en-GB", "en"],
+    url: `${SITE_URL}/contact.html`,
+  },
   sameAs: [LINKS.youtube, LINKS.x, LINKS.substack, LINKS.coffee, `https://www.youtube.com/channel/${CHANNEL_ID}`],
 };
 
@@ -70,22 +79,35 @@ const website = {
   publisher: { "@id": `${SITE_URL}/#organization` },
 };
 
-export function applySeo() {
-  const path = location.pathname.replace(/index\.html$/, "") || "/";
-  const isHome = path === "/" || path === "";
-  const isDay = path.includes("on-this-day");
-  const isAbout = path.includes("about");
+function pageMeta(pathname) {
+  const path = pathname.replace(/index\.html$/, "") || "/";
+  if (path === "/" || path === "") {
+    return { id: "home", type: "WebPage", crumb: null, image: "hero-banner.png", url: `${SITE_URL}/` };
+  }
+  const pages = [
+    ["on-this-day", { id: "day", type: "WebPage", crumb: "On This Day", image: "on-this-day.jpg", url: `${SITE_URL}/on-this-day.html` }],
+    ["about", { id: "about", type: "AboutPage", crumb: "About", image: "support.jpg", url: `${SITE_URL}/about.html` }],
+    ["support", { id: "support", type: "WebPage", crumb: "Support", image: "support.jpg", url: `${SITE_URL}/support.html` }],
+    ["contact", { id: "contact", type: "ContactPage", crumb: "Contact", image: "support.jpg", url: `${SITE_URL}/contact.html` }],
+    ["disclaimer", { id: "disclaimer", type: "WebPage", crumb: "Disclaimer", image: "support.jpg", url: `${SITE_URL}/disclaimer.html` }],
+    ["privacy", { id: "privacy", type: "WebPage", crumb: "Privacy", image: "support.jpg", url: `${SITE_URL}/privacy.html` }],
+    ["terms", { id: "terms", type: "WebPage", crumb: "Terms", image: "support.jpg", url: `${SITE_URL}/terms.html` }],
+  ];
+  const match = pages.find(([key]) => path.includes(key));
+  return match
+    ? match[1]
+    : { id: "home", type: "WebPage", crumb: null, image: "hero-banner.png", url: `${SITE_URL}/` };
+}
 
-  const pageUrl = isHome
-    ? `${SITE_URL}/`
-    : isDay
-      ? `${SITE_URL}/on-this-day.html`
-      : isAbout
-        ? `${SITE_URL}/about.html`
-        : `${SITE_URL}/support.html`;
+export function applySeo() {
+  const meta = pageMeta(location.pathname);
+  const isHome = meta.id === "home";
+  const isAbout = meta.id === "about";
+  const isContact = meta.id === "contact";
+  const pageUrl = meta.url;
 
   const webPage = {
-    "@type": isAbout ? "AboutPage" : "WebPage",
+    "@type": meta.type,
     "@id": `${pageUrl}#webpage`,
     url: pageUrl,
     name: document.title,
@@ -95,18 +117,19 @@ export function applySeo() {
     about: { "@id": `${SITE_URL}/#organization` },
     primaryImageOfPage: {
       "@type": "ImageObject",
-      url: isHome
-        ? `${SITE_URL}/images/hero-banner.png`
-        : isDay
-          ? `${SITE_URL}/images/on-this-day.jpg`
-          : `${SITE_URL}/images/support.jpg`,
+      url: `${SITE_URL}/images/${meta.image}`,
     },
   };
 
+  if (!isHome) {
+    webPage.dateModified = document.querySelector(".legal-updated")
+      ? "2026-09-02"
+      : undefined;
+  }
+
   const graph = [organization, website, webPage];
 
-  if (!isHome) {
-    const crumbName = isDay ? "On This Day" : isAbout ? "About" : "Support";
+  if (meta.crumb) {
     graph.push({
       "@type": "BreadcrumbList",
       itemListElement: [
@@ -114,7 +137,7 @@ export function applySeo() {
         {
           "@type": "ListItem",
           position: 2,
-          name: crumbName,
+          name: meta.crumb,
           item: pageUrl,
         },
       ],
@@ -139,6 +162,10 @@ export function applySeo() {
       worksFor: { "@id": `${SITE_URL}/#organization` },
     });
     webPage.mainEntity = { "@id": `${SITE_URL}/about.html#person` };
+  }
+
+  if (isContact) {
+    webPage.mainEntity = { "@id": `${SITE_URL}/#organization` };
   }
 
   if (isHome) {
