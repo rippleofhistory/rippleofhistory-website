@@ -74,16 +74,18 @@ export function applySeo() {
   const path = location.pathname.replace(/index\.html$/, "") || "/";
   const isHome = path === "/" || path === "";
   const isDay = path.includes("on-this-day");
-  const isSupport = path.includes("support");
+  const isAbout = path.includes("about");
 
   const pageUrl = isHome
     ? `${SITE_URL}/`
     : isDay
       ? `${SITE_URL}/on-this-day.html`
-      : `${SITE_URL}/support.html`;
+      : isAbout
+        ? `${SITE_URL}/about.html`
+        : `${SITE_URL}/support.html`;
 
   const webPage = {
-    "@type": "WebPage",
+    "@type": isAbout ? "AboutPage" : "WebPage",
     "@id": `${pageUrl}#webpage`,
     url: pageUrl,
     name: document.title,
@@ -104,6 +106,7 @@ export function applySeo() {
   const graph = [organization, website, webPage];
 
   if (!isHome) {
+    const crumbName = isDay ? "On This Day" : isAbout ? "About" : "Support";
     graph.push({
       "@type": "BreadcrumbList",
       itemListElement: [
@@ -111,11 +114,31 @@ export function applySeo() {
         {
           "@type": "ListItem",
           position: 2,
-          name: isDay ? "On This Day" : "Support",
+          name: crumbName,
           item: pageUrl,
         },
       ],
     });
+  }
+
+  if (isAbout) {
+    graph.push({
+      "@type": "Person",
+      "@id": `${SITE_URL}/about.html#person`,
+      name: "Daniel Sellings",
+      url: `${SITE_URL}/about.html`,
+      image: `${SITE_URL}/images/support.jpg`,
+      jobTitle: "Historian and filmmaker",
+      description:
+        "Daniel Sellings films Ripple of History from Eastbourne: daily On This Day shorts, long-form WW2 films, and Eastbourne airshows.",
+      homeLocation: {
+        "@type": "Place",
+        name: "Eastbourne, East Sussex, England",
+      },
+      sameAs: [LINKS.youtube, LINKS.x, LINKS.substack, LINKS.coffee],
+      worksFor: { "@id": `${SITE_URL}/#organization` },
+    });
+    webPage.mainEntity = { "@id": `${SITE_URL}/about.html#person` };
   }
 
   if (isHome) {

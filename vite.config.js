@@ -10,6 +10,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, "index.html"),
         onThisDay: resolve(__dirname, "on-this-day.html"),
+        about: resolve(__dirname, "about.html"),
         support: resolve(__dirname, "support.html"),
       },
     },

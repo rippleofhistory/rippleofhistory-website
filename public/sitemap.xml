@@ -71,6 +71,16 @@
     </image:image>
   </url>
   <url>
+    <loc>https://rippleofhistory.com/about.html</loc>
+    <lastmod>2026-09-02</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://rippleofhistory.com/images/support.jpg</image:loc>
+      <image:title>Daniel Sellings — Ripple of History</image:title>
+    </image:image>
+  </url>
+  <url>
     <loc>https://rippleofhistory.com/support.html</loc>
     <lastmod>2026-08-23</lastmod>
     <changefreq>monthly</changefreq>

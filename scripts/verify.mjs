@@ -28,6 +28,12 @@ async function run(width, height, prefix) {
   await page.waitForSelector("[data-videos] .video-card");
   const homeActive = await page.$eval(".nav-links a.is-active", (el) => el.textContent.trim());
   if (homeActive !== "Home") throw new Error(`${prefix} home nav not active: ${homeActive}`);
+  const homeHasBio = await page.evaluate(() => document.body.innerText.includes("Daniel Sellings, with a camera"));
+  if (homeHasBio) throw new Error(`${prefix} home still has the about bio`);
+  const homeButtons = await page.$$eval(".home-cta .hero-actions a", (els) => els.map((el) => el.textContent.trim()));
+  if (!homeButtons.includes("Subscribe on YouTube") || !homeButtons.includes("Support the channel")) {
+    throw new Error(`${prefix} home missing bottom buttons`);
+  }
   await shot(page, `${prefix}-home`);
 
   if (width >= 800) {
@@ -63,6 +69,14 @@ async function run(width, height, prefix) {
   await new Promise((r) => setTimeout(r, 250));
   await shot(page, `${prefix}-calendar-random`);
 
+  await page.goto(`${BASE}/about.html`, { waitUntil: "networkidle0" });
+  await page.waitForSelector(".about-copy h1");
+  const aboutTitle = await page.$eval(".about-copy h1", (el) => el.textContent.trim());
+  if (!aboutTitle.includes("Daniel Sellings")) throw new Error(`${prefix} about title failed: ${aboutTitle}`);
+  const aboutClipped = await page.$eval(".about-copy h1", (el) => el.scrollWidth > el.clientWidth + 2);
+  if (aboutClipped) throw new Error(`${prefix} about title overflows`);
+  await shot(page, `${prefix}-about`);
+
   await page.goto(`${BASE}/support.html`, { waitUntil: "networkidle0" });
   await page.waitForSelector(".tier-list");
   await shot(page, `${prefix}-support`);
@@ -82,7 +96,7 @@ page.on("console", (msg) => {
   if (/youtube|googletag|playback\.svta|Failed to load resource/i.test(text)) return;
   errors.push(text);
 });
-for (const url of ["/", "/on-this-day.html", "/support.html"]) {
+for (const url of ["/", "/on-this-day.html", "/about.html", "/support.html"]) {
   await page.goto(`${BASE}${url}`, { waitUntil: "networkidle0" });
 }
 await page.close();
