@@ -1,10 +1,11 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import { latestVideosPlugin } from "./scripts/latest-videos-plugin.js";
+import { shopPlugin } from "./scripts/shop-plugin.js";
 
 export default defineConfig({
   appType: "mpa",
-  plugins: [latestVideosPlugin()],
+  plugins: [latestVideosPlugin(), shopPlugin()],
   build: {
     rollupOptions: {
       input: {

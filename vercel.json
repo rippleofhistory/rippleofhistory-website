@@ -4,6 +4,7 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/latest-videos.json", "destination": "/api/latest-videos" },
-    { "source": "/api/on-this-day-shorts.json", "destination": "/api/on-this-day-shorts" }
+    { "source": "/api/on-this-day-shorts.json", "destination": "/api/on-this-day-shorts" },
+    { "source": "/api/shop-products.json", "destination": "/api/shop-products" }
   ]
 }
