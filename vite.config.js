@@ -11,6 +11,8 @@ export default defineConfig({
         main: resolve(__dirname, "index.html"),
         onThisDay: resolve(__dirname, "on-this-day.html"),
         about: resolve(__dirname, "about.html"),
+        shop: resolve(__dirname, "shop.html"),
+        games: resolve(__dirname, "games.html"),
         support: resolve(__dirname, "support.html"),
         contact: resolve(__dirname, "contact.html"),
         disclaimer: resolve(__dirname, "disclaimer.html"),

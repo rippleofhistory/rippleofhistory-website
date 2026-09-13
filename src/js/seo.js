@@ -87,6 +87,8 @@ function pageMeta(pathname) {
   const pages = [
     ["on-this-day", { id: "day", type: "WebPage", crumb: "On This Day", image: "on-this-day.jpg", url: `${SITE_URL}/on-this-day.html` }],
     ["about", { id: "about", type: "AboutPage", crumb: "About", image: "support.jpg", url: `${SITE_URL}/about.html` }],
+    ["shop", { id: "shop", type: "CollectionPage", crumb: "Shop", image: "still-crown.jpg", url: `${SITE_URL}/shop.html` }],
+    ["games", { id: "games", type: "WebPage", crumb: "Games", image: "still-compass.jpg", url: `${SITE_URL}/games.html` }],
     ["support", { id: "support", type: "WebPage", crumb: "Support", image: "support.jpg", url: `${SITE_URL}/support.html` }],
     ["contact", { id: "contact", type: "ContactPage", crumb: "Contact", image: "support.jpg", url: `${SITE_URL}/contact.html` }],
     ["disclaimer", { id: "disclaimer", type: "WebPage", crumb: "Disclaimer", image: "support.jpg", url: `${SITE_URL}/disclaimer.html` }],
@@ -166,6 +168,17 @@ export function applySeo() {
 
   if (isContact) {
     webPage.mainEntity = { "@id": `${SITE_URL}/#organization` };
+  }
+
+  if (meta.id === "shop") {
+    webPage.mainEntity = {
+      "@type": "OfferCatalog",
+      name: "Ripple of History and WW2Hub merchandise",
+      itemListElement: [
+        { "@type": "OfferCatalog", name: "Ripple of History" },
+        { "@type": "OfferCatalog", name: "WW2Hub" },
+      ],
+    };
   }
 
   if (isHome) {

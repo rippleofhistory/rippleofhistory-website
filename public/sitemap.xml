@@ -81,6 +81,26 @@
     </image:image>
   </url>
   <url>
+    <loc>https://rippleofhistory.com/shop.html</loc>
+    <lastmod>2026-09-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://rippleofhistory.com/images/still-crown.jpg</image:loc>
+      <image:title>Ripple of History shop</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://rippleofhistory.com/games.html</loc>
+    <lastmod>2026-09-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <image:image>
+      <image:loc>https://rippleofhistory.com/images/still-compass.jpg</image:loc>
+      <image:title>Ripple of History games — coming soon</image:title>
+    </image:image>
+  </url>
+  <url>
     <loc>https://rippleofhistory.com/support.html</loc>
     <lastmod>2026-08-23</lastmod>
     <changefreq>monthly</changefreq>

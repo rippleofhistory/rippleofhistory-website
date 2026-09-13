@@ -3,3 +3,5 @@ dist
 .DS_Store
 *.log
 scripts/shots
+.env
+.env.local

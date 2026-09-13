@@ -3,33 +3,33 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>About Daniel Sellings | Ripple of History</title>
-    <meta name="description" content="Daniel Sellings films Ripple of History from Eastbourne: daily On This Day shorts, long-form WW2 films, and Airbourne on the seafront. History is HUGE.">
+    <title>Shop | Ripple of History and WW2Hub merchandise</title>
+    <meta name="description" content="Buy Ripple of History and WW2Hub merchandise. Tees, prints and mugs — checkout through Shopify when the shop is live.">
     <meta name="author" content="Daniel Sellings">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="theme-color" content="#07131f">
-    <link rel="canonical" href="https://rippleofhistory.com/about.html">
+    <link rel="canonical" href="https://rippleofhistory.com/shop.html">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/images/logo.jpg">
     <link rel="manifest" href="/site.webmanifest">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <meta property="og:locale" content="en_GB">
-    <meta property="og:type" content="profile">
+    <meta property="og:type" content="website">
     <meta property="og:site_name" content="Ripple of History">
-    <meta property="og:url" content="https://rippleofhistory.com/about.html">
-    <meta property="og:title" content="About Daniel Sellings | Ripple of History">
-    <meta property="og:description" content="South East England, a camera, and a calendar. Daily shorts, long-form films, and the odd Martello tower.">
-    <meta property="og:image" content="https://rippleofhistory.com/images/support.jpg">
+    <meta property="og:url" content="https://rippleofhistory.com/shop.html">
+    <meta property="og:title" content="Shop | Ripple of History and WW2Hub merchandise">
+    <meta property="og:description" content="Tees, prints and mugs for Ripple of History and WW2Hub. Shopify checkout when the till opens.">
+    <meta property="og:image" content="https://rippleofhistory.com/images/still-crown.jpg">
     <meta property="og:image:width" content="1280">
     <meta property="og:image:height" content="720">
-    <meta property="og:image:alt" content="A Martello tower on the English Channel at dusk, lantern light in the doorway.">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@RippleOfHistory">
-    <meta name="twitter:title" content="About Daniel Sellings | Ripple of History">
-    <meta name="twitter:description" content="South East England, a camera, and a calendar. Daily shorts and long-form films.">
-    <meta name="twitter:image" content="https://rippleofhistory.com/images/support.jpg">
+    <meta name="twitter:title" content="Shop | Ripple of History and WW2Hub merchandise">
+    <meta name="twitter:description" content="Tees, prints and mugs. Shopify checkout when the till opens.">
+    <meta name="twitter:image" content="https://rippleofhistory.com/images/still-crown.jpg">
     <script type="module" src="/src/js/main.js"></script>
+    <script type="module" src="/src/js/shop.js"></script>
   </head>
   <body>
     <a class="skip" href="#content">Skip to content</a>
@@ -56,31 +56,67 @@
       </nav>
     </header>
 
-    <main id="content">
-      <section class="section">
-        <div class="wrap about">
-          <div class="about-panel">
-            <img src="/images/support.jpg" alt="A Martello tower on the English Channel at dusk, lantern light in the doorway.">
-          </div>
-          <div class="about-copy">
-            <h1>Daniel Sellings, with a camera and a calendar</h1>
-            <p class="quote">“History is HUGE.”</p>
-            <p>
-              I’m based in the South East, which means Martello towers, airshows, and more 1804 brickwork than is strictly reasonable.
-              The daily shorts are the heartbeat. The long-form is where we sit down properly — Churchill in full, Waterloo, forgotten voices from 1940.
-            </p>
-            <p>
-              The tone is personal, humorous, and only slightly irreverent. We take the dead seriously. We do not take ourselves that seriously.
-              Longer essays live on Substack. If a coffee keeps the camera charged, there is a jar for that too.
-            </p>
-            <div class="hero-actions">
-              <a class="btn btn-gold" data-external="youtube" href="https://www.youtube.com/@RippleOfHistory" target="_blank" rel="noreferrer">Subscribe on YouTube</a>
-              <a class="btn btn-ghost" href="support.html" data-nav>Support the channel</a>
-            </div>
+    <main id="content" data-shop>
+      <section class="page-hero">
+        <div class="hero-media">
+          <img src="/images/still-crown.jpg" alt="A gold crown on dark stone — the shop mark for Ripple of History merchandise.">
+        </div>
+        <div class="hero-shade"></div>
+        <div class="particles" data-particles aria-hidden="true"></div>
+        <div class="hero-inner wrap">
+          <h1>The <em>shop</em></h1>
+          <p class="lede">Ripple of History and WW2Hub merch. Checkout through Shopify once the shop is live — nothing takes a card today.</p>
+          <div class="hero-actions">
+            <button class="btn btn-gold" type="button" data-cart-open>Basket (<span data-cart-count>0</span>)</button>
+            <a class="btn btn-ghost" href="support.html" data-nav>Or buy a coffee</a>
           </div>
         </div>
       </section>
+
+      <section class="section">
+        <div class="wrap">
+          <aside class="shop-status" data-shop-status hidden></aside>
+
+          <div class="shop-tabs" role="tablist" aria-label="Merchandise">
+            <button class="chip is-active" type="button" data-shop-tab="all">All</button>
+            <button class="chip" type="button" data-shop-tab="ripple">Ripple of History</button>
+            <button class="chip" type="button" data-shop-tab="ww2hub">WW2Hub</button>
+          </div>
+
+          <section class="shop-pane" data-shop-pane="ripple">
+            <div class="section-head">
+              <h2>Ripple of History</h2>
+              <p>The channel on a shirt, a mug, a print. Gold on navy, as it should be.</p>
+            </div>
+            <div class="product-grid" data-collection="ripple"></div>
+          </section>
+
+          <section class="shop-pane" data-shop-pane="ww2hub">
+            <div class="section-head">
+              <h2>WW2Hub</h2>
+              <p>The archive, worn. Maps, the Few, and a hub badge that does not apologise.</p>
+            </div>
+            <div class="product-grid" data-collection="ww2hub"></div>
+          </section>
+        </div>
+      </section>
     </main>
+
+    <div class="cart-drawer" data-cart aria-hidden="true" role="dialog" aria-label="Basket">
+      <div class="cart-backdrop" data-cart-backdrop></div>
+      <aside class="cart-panel">
+        <header class="cart-head">
+          <h2>Basket</h2>
+          <button class="icon-btn" type="button" data-cart-close aria-label="Close basket">×</button>
+        </header>
+        <div class="cart-list" data-cart-list></div>
+        <footer class="cart-foot">
+          <p class="cart-total">Total <b data-cart-total>£0.00</b></p>
+          <p class="cart-note" data-cart-note>Shopify checkout is not live yet. When the shop is connected, this button will take you there.</p>
+          <button class="btn btn-gold" type="button" data-checkout disabled>Checkout not live yet</button>
+        </footer>
+      </aside>
+    </div>
 
     <footer class="site-footer">
       <div class="wrap footer-grid">
