@@ -102,6 +102,30 @@
       </section>
     </main>
 
+    <div class="product-dialog" data-product-dialog aria-hidden="true" role="dialog" aria-modal="true" aria-label="Product details">
+      <div class="product-dialog-backdrop" data-product-close></div>
+      <div class="product-dialog-panel">
+        <button class="icon-btn product-dialog-close" type="button" data-product-close aria-label="Close product">×</button>
+        <div class="product-dialog-grid">
+          <div class="product-gallery">
+            <div class="product-zoom" data-zoom-stage>
+              <img data-zoom-image alt="">
+              <button class="gallery-nav is-prev" type="button" data-gallery-prev aria-label="Previous view">‹</button>
+              <button class="gallery-nav is-next" type="button" data-gallery-next aria-label="Next view">›</button>
+              <p class="zoom-hint">Hover or tap to zoom · click for full size</p>
+            </div>
+            <div class="product-thumbs" data-thumbs></div>
+          </div>
+          <div class="product-dialog-copy" data-product-sheet></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="zoom-lite" data-zoom-lite aria-hidden="true" role="dialog" aria-label="Zoomed product image">
+      <button class="icon-btn lightbox-close" type="button" data-zoom-lite-close aria-label="Close zoom">×</button>
+      <img data-zoom-lite-image alt="">
+    </div>
+
     <div class="cart-drawer" data-cart aria-hidden="true" role="dialog" aria-label="Basket">
       <div class="cart-backdrop" data-cart-backdrop></div>
       <aside class="cart-panel">

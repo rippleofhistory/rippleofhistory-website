@@ -21,9 +21,33 @@ function stripHtml(html) {
 }
 
 function blurbFrom(product) {
-  const text = stripHtml(product.body_html).split(/Size guide|Age restrictions|In compliance|EU Warranty/i)[0].trim();
+  const text = detailsFrom(product);
   if (!text) return `${product.title} — Ripple of History shop.`;
   return text.length > 180 ? `${text.slice(0, 177).trim()}…` : text;
+}
+
+function detailsFrom(product) {
+  return stripHtml(product.body_html).split(/Size guide|Age restrictions|In compliance|EU Warranty/i)[0].trim();
+}
+
+function sanitizeHtml(html) {
+  return String(html || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<\/?([a-z0-9]+)([^>]*)>/gi, (full, tag) => {
+      const name = String(tag).toLowerCase();
+      const allowed = ["table", "thead", "tbody", "tr", "th", "td", "p", "br", "strong", "b", "em", "ul", "ol", "li"];
+      if (!allowed.includes(name)) return "";
+      if (name === "br") return "<br>";
+      return full.startsWith("</") ? `</${name}>` : `<${name}>`;
+    });
+}
+
+function sizeGuideFrom(html) {
+  const raw = String(html || "");
+  const match = raw.search(/size[\s-]?guide/i);
+  if (match < 0) return "";
+  return sanitizeHtml(raw.slice(match));
 }
 
 function guessCollection(product) {
@@ -59,14 +83,28 @@ function mapProduct(product, collection) {
   });
 
   const first = variants.find((variant) => variant.available) || variants[0];
-  const image = first?.image || product.images?.[0]?.src || "/images/wordmark.png";
+  const images = [];
+  const seen = new Set();
+  for (const img of product.images || []) {
+    if (!img?.src || seen.has(img.src)) continue;
+    seen.add(img.src);
+    images.push({
+      src: img.src,
+      alt: img.alt || product.title,
+      variantIds: (img.variant_ids || []).map(String),
+    });
+  }
+  const image = first?.image || images[0]?.src || "/images/wordmark.png";
 
   return {
     id: String(product.id),
     handle: product.handle,
     title: product.title,
     blurb: blurbFrom(product),
+    details: detailsFrom(product),
+    sizeGuide: sizeGuideFrom(product.body_html),
     image,
+    images,
     amount: first?.amount || "0",
     currency: "GBP",
     variantId: first?.id || null,

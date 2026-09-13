@@ -14,6 +14,8 @@ const root = document.querySelector("[data-shop]");
 if (root) initShop();
 
 let storeHost = SHOPIFY_STORE_URL.replace(/^https?:\/\//, "");
+let gallery = [];
+let galleryIndex = 0;
 
 function escapeHtml(value) {
   return String(value)
@@ -41,14 +43,16 @@ function optionControls(product) {
 function productCard(product) {
   const price = formatMoney(product.amount, product.currency);
   const disabled = !product.variantId || !product.available;
+  const views = (product.images || []).length;
   return `
     <article class="product-card" data-product-id="${escapeHtml(product.id)}" data-variant-id="${escapeHtml(product.variantId || "")}">
-      <div class="product-media">
+      <button class="product-media" type="button" data-open-product="${escapeHtml(product.id)}" aria-label="View ${escapeHtml(product.title)}">
         <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.title)}" width="640" height="640">
-      </div>
+        <span class="product-peek">${views > 1 ? `${views} views` : "Details"}</span>
+      </button>
       <div class="product-copy">
         <span class="tag">${product.collection === "ww2hub" ? "WW2Hub" : "Ripple of History"}</span>
-        <h3>${escapeHtml(product.title)}</h3>
+        <h3><button type="button" data-open-product="${escapeHtml(product.id)}">${escapeHtml(product.title)}</button></h3>
         <p>${escapeHtml(product.blurb)}</p>
         ${optionControls(product)}
         <div class="product-buy">
@@ -124,7 +128,7 @@ function renderCart() {
   const canPay = items.some((item) => item.variantId);
   if (pay) {
     pay.disabled = !canPay || !items.length;
-    pay.textContent = canPay ? "Checkout with Shopify" : "Checkout with Shopify";
+    pay.textContent = "Checkout with Shopify";
   }
   if (note) note.hidden = canPay;
 }
@@ -134,12 +138,13 @@ function setCartOpen(open) {
   if (!drawer) return;
   drawer.classList.toggle("is-open", open);
   drawer.setAttribute("aria-hidden", String(!open));
-  document.body.style.overflow = open ? "hidden" : "";
+  if (open) document.body.style.overflow = "hidden";
+  else if (!document.querySelector("[data-product-dialog].is-open")) document.body.style.overflow = "";
 }
 
-function selectedOptions(card) {
+function selectedOptions(scope) {
   const opts = {};
-  card.querySelectorAll("[data-option]").forEach((select) => {
+  scope.querySelectorAll("[data-option]").forEach((select) => {
     opts[select.getAttribute("data-option")] = select.value;
   });
   return opts;
@@ -154,34 +159,153 @@ function matchVariant(product, opts) {
   );
 }
 
-function applyVariant(card, product) {
-  const variant = matchVariant(product, selectedOptions(card));
+function colorSlug(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function galleryFor(product, variantId) {
+  const images = product.images || [];
+  const id = String(variantId || "");
+  const variant = product.variants.find((row) => String(row.id) === id);
+  const colorOption = product.options.find((option) => /colou?r/i.test(option.name));
+  const slugs = (colorOption?.values || []).map(colorSlug).filter(Boolean).sort((a, b) => b.length - a.length);
+  const wanted = colorSlug(variant?.options?.Color || variant?.options?.Colour);
+  let picked = [];
+  if (wanted) {
+    picked = images.filter((img) => {
+      const file = decodeURIComponent(img.src).toLowerCase();
+      const matched = slugs.find((slug) => new RegExp(`-${slug}-(front|back|left|right)(?:-|&|\\.|$)`).test(file));
+      return matched === wanted;
+    });
+  }
+  if (!picked.length) {
+    picked = images.filter((img) => img.variantIds?.includes(id));
+  }
+  if (!picked.length) picked = images;
+  const list = picked.map((img) => img.src);
+  const featured = variant?.image;
+  const ordered = featured ? [featured, ...list] : list;
+  const seen = new Set();
+  return ordered.filter((src) => {
+    if (!src || seen.has(src)) return false;
+    seen.add(src);
+    return true;
+  });
+}
+
+function renderThumbs() {
+  const mount = document.querySelector("[data-thumbs]");
+  if (!mount) return;
+  mount.hidden = gallery.length < 2;
+  mount.innerHTML = gallery
+    .map(
+      (src, index) =>
+        `<button type="button" class="product-thumb${index === galleryIndex ? " is-active" : ""}" data-thumb="${index}" aria-label="View ${index + 1}">
+          <img src="${escapeHtml(src)}" alt="">
+        </button>`,
+    )
+    .join("");
+}
+
+function showGalleryImage() {
+  const img = document.querySelector("[data-zoom-image]");
+  if (!img || !gallery.length) return;
+  img.src = gallery[galleryIndex];
+  renderThumbs();
+  const prev = document.querySelector("[data-gallery-prev]");
+  const next = document.querySelector("[data-gallery-next]");
+  const many = gallery.length > 1;
+  if (prev) prev.hidden = !many;
+  if (next) next.hidden = !many;
+}
+
+function stepGallery(delta) {
+  if (!gallery.length) return;
+  galleryIndex = (galleryIndex + delta + gallery.length) % gallery.length;
+  showGalleryImage();
+}
+
+function applyVariant(scope, product, refreshGallery = false) {
+  const variant = matchVariant(product, selectedOptions(scope));
   if (!variant) return;
-  card.setAttribute("data-variant-id", variant.id);
-  const img = card.querySelector(".product-media img");
+  scope.setAttribute("data-variant-id", variant.id);
+  const img = scope.querySelector(".product-media img");
   if (img && (variant.image || product.image)) img.src = variant.image || product.image;
-  const price = card.querySelector("[data-price]");
+  const price = scope.querySelector("[data-price]");
   if (price) price.textContent = formatMoney(variant.amount, product.currency);
-  const add = card.querySelector("[data-add]");
+  const add = scope.querySelector("[data-add]");
   if (add) {
     add.disabled = !variant.available;
     add.textContent = variant.available ? "Add to basket" : "Sold out";
     add.classList.toggle("btn-gold", variant.available);
     add.classList.toggle("btn-ghost", !variant.available);
   }
+  if (refreshGallery) {
+    gallery = galleryFor(product, variant.id);
+    galleryIndex = 0;
+    showGalleryImage();
+  }
 }
 
-function lineFromCard(card, product) {
-  const variant = product.variants.find((row) => String(row.id) === card.getAttribute("data-variant-id")) || product.variants[0];
+function lineFromScope(scope, product) {
+  const variant =
+    product.variants.find((row) => String(row.id) === scope.getAttribute("data-variant-id")) || product.variants[0];
   const extra = variant?.title ? ` · ${variant.title}` : "";
   return {
     ...product,
     variantId: variant?.id || product.variantId,
     amount: variant?.amount || product.amount,
-    image: variant?.image || product.image,
+    image: variant?.image || gallery[galleryIndex] || product.image,
     title: `${product.title}${extra}`,
     available: Boolean(variant?.available),
   };
+}
+
+function setProductOpen(open) {
+  const dialog = document.querySelector("[data-product-dialog]");
+  if (!dialog) return;
+  dialog.classList.toggle("is-open", open);
+  dialog.setAttribute("aria-hidden", String(!open));
+  if (open) document.body.style.overflow = "hidden";
+  else if (!document.querySelector("[data-cart].is-open")) document.body.style.overflow = "";
+}
+
+function setZoomLite(open, src = "", alt = "") {
+  const lite = document.querySelector("[data-zoom-lite]");
+  const img = document.querySelector("[data-zoom-lite-image]");
+  if (!lite) return;
+  if (img && src) {
+    img.src = src;
+    img.alt = alt;
+  }
+  lite.classList.toggle("is-open", open);
+  lite.setAttribute("aria-hidden", String(!open));
+}
+
+function openProduct(product, byId) {
+  const dialog = document.querySelector("[data-product-dialog]");
+  const sheet = document.querySelector("[data-product-sheet]");
+  const zoomImg = document.querySelector("[data-zoom-image]");
+  if (!dialog || !sheet) return;
+  dialog.setAttribute("data-product-id", product.id);
+  if (zoomImg) zoomImg.alt = product.title;
+  sheet.innerHTML = `
+    <span class="tag">${product.collection === "ww2hub" ? "WW2Hub" : "Ripple of History"}</span>
+    <h2>${escapeHtml(product.title)}</h2>
+    <p class="product-details">${escapeHtml(product.details || product.blurb)}</p>
+    ${product.sizeGuide ? `<details class="size-guide"><summary>Size guide</summary><div class="size-guide-body">${product.sizeGuide}</div></details>` : ""}
+    ${optionControls(product)}
+    <div class="product-buy">
+      <b data-price>${escapeHtml(formatMoney(product.amount, product.currency))}</b>
+      <button class="btn btn-gold" type="button" data-add="${escapeHtml(product.id)}">Add to basket</button>
+    </div>
+  `;
+  applyVariant(dialog, product, true);
+  void byId;
+  setProductOpen(true);
 }
 
 async function initShop() {
@@ -227,26 +351,86 @@ async function initShop() {
     });
   });
 
+  const stage = document.querySelector("[data-zoom-stage]");
+  const zoomImg = document.querySelector("[data-zoom-image]");
+  stage?.addEventListener("mousemove", (event) => {
+    if (!zoomImg || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia("(hover: none)").matches) return;
+    const box = stage.getBoundingClientRect();
+    const x = ((event.clientX - box.left) / box.width) * 100;
+    const y = ((event.clientY - box.top) / box.height) * 100;
+    zoomImg.style.transformOrigin = `${x}% ${y}%`;
+    zoomImg.style.transform = "scale(2.2)";
+  });
+  stage?.addEventListener("mouseleave", () => {
+    if (zoomImg) zoomImg.style.transform = "";
+  });
+
   document.addEventListener("change", (event) => {
     const select = event.target.closest("[data-option]");
     if (!select) return;
-    const card = select.closest(".product-card");
-    const product = byId.get(card?.getAttribute("data-product-id"));
-    if (card && product) applyVariant(card, product);
+    const scope = select.closest("[data-product-dialog]") || select.closest(".product-card");
+    const product = byId.get(scope?.getAttribute("data-product-id"));
+    if (scope && product) applyVariant(scope, product, Boolean(scope.closest("[data-product-dialog]")));
   });
 
   document.addEventListener("click", (event) => {
+    const openBtn = event.target.closest("[data-open-product]");
+    if (openBtn) {
+      event.preventDefault();
+      const product = byId.get(openBtn.getAttribute("data-open-product"));
+      if (product) openProduct(product, byId);
+      return;
+    }
+
+    const cardClick = event.target.closest(".product-card");
+    if (cardClick && !event.target.closest("[data-add], select, label, .product-options")) {
+      const product = byId.get(cardClick.getAttribute("data-product-id"));
+      if (product) {
+        openProduct(product, byId);
+        return;
+      }
+    }
+
+    const thumb = event.target.closest("[data-thumb]");
+    if (thumb) {
+      galleryIndex = Number(thumb.getAttribute("data-thumb")) || 0;
+      showGalleryImage();
+      return;
+    }
+
+    if (event.target.closest("[data-gallery-prev]")) {
+      stepGallery(-1);
+      return;
+    }
+    if (event.target.closest("[data-gallery-next]")) {
+      stepGallery(1);
+      return;
+    }
+
+    if (event.target.closest("[data-zoom-stage]") && !event.target.closest(".gallery-nav")) {
+      const src = document.querySelector("[data-zoom-image]")?.src;
+      const alt = document.querySelector("[data-zoom-image]")?.alt || "";
+      if (src) setZoomLite(true, src, alt);
+      return;
+    }
+    if (event.target.closest("[data-zoom-lite-close]") || event.target.closest("[data-zoom-lite] img") || event.target.matches("[data-zoom-lite]")) {
+      setZoomLite(false);
+      return;
+    }
+
     const add = event.target.closest("[data-add]");
     if (add && !add.disabled) {
-      const card = add.closest(".product-card");
+      const scope = add.closest("[data-product-dialog]") || add.closest(".product-card");
       const product = byId.get(add.getAttribute("data-add"));
-      if (card && product) {
-        const line = lineFromCard(card, product);
+      if (scope && product) {
+        const line = lineFromScope(scope, product);
         if (!line.variantId || line.available === false) return;
         addToCart(line);
         renderCart();
         setCartOpen(true);
       }
+      return;
     }
 
     const qty = event.target.closest("[data-qty]");
@@ -258,11 +442,15 @@ async function initShop() {
         setCartQty(key, item.quantity + delta);
         renderCart();
       }
+      return;
     }
 
     if (event.target.closest("[data-cart-open]")) setCartOpen(true);
     if (event.target.closest("[data-cart-close]") || event.target.closest("[data-cart-backdrop]")) {
       setCartOpen(false);
+    }
+    if (event.target.closest("[data-product-close]")) {
+      setProductOpen(false);
     }
 
     const pay = event.target.closest("[data-checkout]");
@@ -280,6 +468,13 @@ async function initShop() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") setCartOpen(false);
+    if (event.key === "Escape") {
+      if (document.querySelector("[data-zoom-lite].is-open")) setZoomLite(false);
+      else if (document.querySelector("[data-cart].is-open")) setCartOpen(false);
+      else setProductOpen(false);
+    }
+    if (!document.querySelector("[data-product-dialog].is-open")) return;
+    if (event.key === "ArrowLeft") stepGallery(-1);
+    if (event.key === "ArrowRight") stepGallery(1);
   });
 }
