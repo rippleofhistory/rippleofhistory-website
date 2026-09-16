@@ -6,5 +6,19 @@
     { "source": "/api/latest-videos.json", "destination": "/api/latest-videos" },
     { "source": "/api/on-this-day-shorts.json", "destination": "/api/on-this-day-shorts" },
     { "source": "/api/shop-products.json", "destination": "/api/shop-products" }
+  ],
+  "headers": [
+    {
+      "source": "/api/shop-products",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, s-maxage=60, stale-while-revalidate=300" }
+      ]
+    },
+    {
+      "source": "/api/shop-products.json",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, s-maxage=60, stale-while-revalidate=300" }
+      ]
+    }
   ]
 }

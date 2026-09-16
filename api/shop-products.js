@@ -2,11 +2,14 @@ import { fetchShopifyCatalog } from "../scripts/shopify-catalog.js";
 
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=600");
+  res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+  res.setHeader("CDN-Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+  res.setHeader("Vercel-CDN-Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
   try {
     const catalog = await fetchShopifyCatalog();
     res.status(200).json(catalog);
   } catch (error) {
+    res.setHeader("Cache-Control", "no-store");
     res.status(502).json({ live: false, error: String(error.message || error), ripple: [], ww2hub: [] });
   }
 }

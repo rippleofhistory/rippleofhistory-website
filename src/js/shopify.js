@@ -13,16 +13,34 @@ export const PLACEHOLDER_CATALOG = {
   ww2hub: [],
 };
 
-export async function loadCatalog() {
-  const response = await fetch("/api/shop-products.json", { headers: { accept: "application/json" } });
-  if (!response.ok) throw new Error(`Shop feed ${response.status}`);
-  const data = await response.json();
+function normalizeCatalog(data) {
   return {
     live: Boolean(data.live),
     store: data.store || SHOPIFY_DOMAIN,
-    ripple: data.ripple || [],
-    ww2hub: data.ww2hub || [],
+    ripple: Array.isArray(data.ripple) ? data.ripple : [],
+    ww2hub: Array.isArray(data.ww2hub) ? data.ww2hub : [],
   };
+}
+
+export async function loadCatalog() {
+  const urls = ["/api/shop-products", "/api/shop-products.json"];
+  let lastError;
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, {
+        cache: "no-store",
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) {
+        lastError = new Error(`Shop feed ${response.status}`);
+        continue;
+      }
+      return normalizeCatalog(await response.json());
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error("Shop feed unavailable");
 }
 
 export function formatMoney(amount, currency = "GBP") {
