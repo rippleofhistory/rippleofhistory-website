@@ -15,10 +15,12 @@ import {
 } from "./site.js";
 import { eventsFor } from "./events.js";
 import { applySeo } from "./seo.js";
+import { inject } from "@vercel/analytics";
 import "../css/styles.css";
 
 document.body.classList.add("is-entering");
 applySeo();
+inject();
 
 const header = document.querySelector(".site-header");
 const toggle = document.querySelector(".menu-toggle");
