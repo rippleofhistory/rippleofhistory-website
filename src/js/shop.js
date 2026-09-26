@@ -82,7 +82,7 @@ function renderStatus(live) {
   const el = document.querySelector("[data-shop-status]");
   if (!el) return;
   if (live) {
-    el.innerHTML = `<p>Live from the Shopify shop. New products show up here as you add them. Checkout is on Shopify — card details never sit on this site. <a href="${escapeHtml(SHOPIFY_STORE_URL)}" target="_blank" rel="noreferrer">Open the Shopify store</a>.</p>`;
+    el.innerHTML = `<p>Catalogue updates from Shopify. <a href="${escapeHtml(SHOPIFY_STORE_URL)}" target="_blank" rel="noreferrer">Open the store</a>.</p>`;
     el.hidden = false;
     return;
   }

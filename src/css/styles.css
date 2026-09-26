@@ -2287,13 +2287,40 @@ body.is-entering {
   outline-offset: 3px;
 }
 
+.shop-banner {
+  padding: calc(var(--nav-h) + 1.6rem) 0 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.shop-banner-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.4rem;
+}
+
+.shop-banner h1 {
+  font-size: clamp(1.9rem, 3vw, 2.5rem);
+  letter-spacing: -0.03em;
+}
+
+.shop-banner p {
+  margin-top: 0.35rem;
+  max-width: 34rem;
+  color: var(--muted);
+}
+
+.shop-catalog {
+  padding-top: 2rem;
+}
+
 .shop-status {
-  margin-bottom: 1.8rem;
-  padding: 1rem 1.2rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: rgba(12, 28, 44, 0.7);
-  color: var(--parchment);
+  margin-bottom: 1.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .shop-status a {
@@ -2824,6 +2851,16 @@ body.is-entering {
 @media (max-width: 760px) {
   .product-grid {
     grid-template-columns: 1fr;
+  }
+
+  .shop-banner-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .shop-banner .btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .product-buy {
