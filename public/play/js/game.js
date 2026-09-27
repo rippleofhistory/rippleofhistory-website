@@ -1395,7 +1395,7 @@
     tap.jump = false;
     keys.clear();
     sfx("land");
-    announce(ERA_LABEL[era] || "DUST OF GAUGAMELA", 160);
+    announce(ERA_LABEL[era] || "ERA I  ·  ALEXANDER", 160);
     if (ROH.musicStart && actx) ROH.musicStart(actx, master, era);
   }
 
@@ -1422,7 +1422,7 @@
       sfx("intro");
     } else {
       mode = "play";
-      announce(ERA_LABEL[n] || "DUST OF GAUGAMELA", 140);
+      announce(ERA_LABEL[n] || "ERA I  ·  ALEXANDER", 140);
       if (ROH.musicStart && actx) ROH.musicStart(actx, master, n);
     }
   }
@@ -1436,19 +1436,19 @@
       hint.innerHTML = "The crack is zipped shut.<br />Dawn on the street.";
     } else if (n === 5) {
       h2.textContent = "SEAL V";
-      hint.innerHTML = "Era V — The Iron Century — is bound.<br />Walk the gold door to the next era.";
+      hint.innerHTML = "Era V — World War II — is bound.<br />Walk the gold door to the next era.";
     } else if (n === 4) {
       h2.textContent = "SEAL IV";
-      hint.innerHTML = "Era IV — Smoke of Empire — is bound.<br />Walk the gold door to the next era.";
+      hint.innerHTML = "Era IV — Napoleon — is bound.<br />Walk the gold door to the next era.";
     } else if (n === 3) {
       h2.textContent = "SEAL III";
-      hint.innerHTML = "Era III — The Black Keep — is bound.<br />Walk the gold door to the next era.";
+      hint.innerHTML = "Era III — Knights — is bound.<br />Walk the gold door to the next era.";
     } else if (n === 2) {
       h2.textContent = "SEAL II";
-      hint.innerHTML = "Era II — The Road to Rome — is bound.<br />Walk the gold door to the next era.";
+      hint.innerHTML = "Era II — Rome — is bound.<br />Walk the gold door to the next era.";
     } else {
       h2.textContent = "THE RIFT OPENS";
-      hint.innerHTML = "Era I — Dust of Gaugamela — is bound.<br />Walk the gold door to the next era.";
+      hint.innerHTML = "Era I — Alexander the Great — is bound.<br />Walk the gold door to the next era.";
     }
   }
 
@@ -2789,7 +2789,7 @@
         resetLevel({ era: next, keepLives: true });
         player.lives = lives;
         mode = "play";
-        announce(ERA_LABEL[next] || "ERA II  THE ROAD TO ROME", 150);
+        announce(ERA_LABEL[next] || "ERA II  ·  ROME", 150);
         sfx("land");
         if (ROH.musicStart && actx) ROH.musicStart(actx, master, next);
       }
@@ -3122,7 +3122,7 @@
       { name: "OLD KINGDOM", col: "#24160c", acc: "#6a4a20" },
       { name: "TROY", col: "#2e1c12", acc: "#8a5a28" },
       { name: "MARATHON", col: "#3a2416", acc: "#a07038" },
-      { name: "GAUGAMELA", col: "#c46a38", acc: "#f3e2a0" },
+      { name: "ALEXANDER", col: "#c46a38", acc: "#f3e2a0" },
     ];
     for (let i = 0; i < layers.length; i++) {
       const fall = t * 2.35 - i * 58;
@@ -3690,7 +3690,7 @@
     ctx.fillStyle = "#f3e2a0";
     ctx.font = "13px Cinzel, serif";
     ctx.textAlign = "center";
-    ctx.fillText(ERA_LABEL[warpTo] || "ERA II  THE ROAD TO ROME", VW / 2, VH / 2);
+    ctx.fillText(ERA_LABEL[warpTo] || "ERA II  ·  ROME", VW / 2, VH / 2);
     ctx.fillStyle = "#8a7340";
     ctx.font = "8px Cinzel, serif";
     ctx.fillText("THE PALETTE TEARS", VW / 2, VH / 2 + 16);
@@ -3872,7 +3872,7 @@
     ctx.fillStyle = "#e6c35c";
     ctx.font = "7px Cinzel, serif";
     ctx.textAlign = "right";
-    ctx.fillText(era === 6 ? "ERA VI  NOW" : era === 5 ? "ERA V  IRON" : era === 4 ? "ERA IV  EMPIRE" : era === 3 ? "ERA III  KEEP" : era === 2 ? "ERA II   ROME" : "ERA I   GAUGAMELA", VW - 10, 16);
+    ctx.fillText(era === 6 ? "ERA VI  TODAY" : era === 5 ? "ERA V  WW2" : era === 4 ? "ERA IV  NAPOLEON" : era === 3 ? "ERA III  KNIGHTS" : era === 2 ? "ERA II  ROME" : "ERA I  ALEXANDER", VW - 10, 16);
 
     ctx.textAlign = "left";
     ctx.fillStyle = player.heavyCd > 0 ? "#5a4a28" : "#e6c35c";

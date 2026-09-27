@@ -2,7 +2,7 @@
   "use strict";
   const R = (window.ROH = window.ROH || {});
 
-  R.ERA_LABEL = ["", "ERA I  ·  GAUGAMELA", "ERA II  ·  ROME", "ERA III  ·  THE BLACK KEEP", "ERA IV  ·  SMOKE OF EMPIRE", "ERA V  ·  THE IRON CENTURY", "ERA VI  ·  THE FRACTURED PRESENT"];
+  R.ERA_LABEL = ["", "ERA I  ·  ALEXANDER", "ERA II  ·  ROME", "ERA III  ·  KNIGHTS", "ERA IV  ·  NAPOLEON", "ERA V  ·  WORLD WAR II", "ERA VI  ·  TODAY"];
 
   R.WEAPONS = {
     light: {
@@ -91,7 +91,7 @@
   R.applyEra = function (n, W) {
     const G = W.GROUND;
     if (n === 2) {
-      W.banner = { text: "ERA II  THE ROAD TO ROME", t: 160 };
+      W.banner = { text: "ERA II  ROME", t: 160 };
       W.villaX = 2860;
       R.AQUA_STEPS.forEach((s) => W.ledges.push({ x: s.x, w: s.w, y: s.y }));
       W.ledges.push({ x: R.AQUA.x, w: R.AQUA.w, y: R.AQUA.y });
@@ -128,7 +128,7 @@
       return;
     }
     if (n === 3) {
-      W.banner = { text: "ERA III  THE BLACK KEEP", t: 160 };
+      W.banner = { text: "ERA III  KNIGHTS", t: 160 };
       W.flags.push({ x: 360, y: G, on: false }, { x: 2920, y: G, on: false });
       W.pickups.push({ type: "plus", x: 880, y: G - 18, taken: false });
       W.pickups.push({ type: "plus", x: 2140, y: G - 18, taken: false });
@@ -166,7 +166,7 @@
       return;
     }
     if (n === 4) {
-      W.banner = { text: "ERA IV  SMOKE OF EMPIRE", t: 160 };
+      W.banner = { text: "ERA IV  NAPOLEON", t: 160 };
       W.flags.push({ x: 360, y: G, on: false }, { x: 2860, y: G, on: false });
       W.pickups.push({ type: "plus", x: 840, y: G - 18, taken: false });
       W.pickups.push({ type: "plus", x: 2280, y: G - 18, taken: false });
@@ -199,7 +199,7 @@
       return;
     }
     if (n === 5) {
-      W.banner = { text: "ERA V  THE IRON CENTURY", t: 160 };
+      W.banner = { text: "ERA V  WORLD WAR II", t: 160 };
       R.NEST_RUBBLE.forEach((s) => W.ledges.push({ x: s.x, w: s.w, y: s.y }));
       W.flags.push({ x: 360, y: G, on: false }, { x: 2920, y: G, on: false });
       W.pickups.push({ type: "plus", x: 860, y: G - 18, taken: false });
@@ -236,7 +236,7 @@
       return;
     }
     if (n === 6) {
-      W.banner = { text: "ERA VI  THE FRACTURED PRESENT", t: 160 };
+      W.banner = { text: "ERA VI  TODAY", t: 160 };
       W.flags.push({ x: 360, y: G, on: false }, { x: 2860, y: G, on: false });
       W.pickups.push({ type: "plus", x: 880, y: G - 18, taken: false });
       W.pickups.push({ type: "plus", x: 2280, y: G - 18, taken: false });
@@ -268,7 +268,7 @@
       ]);
       return;
     }
-    W.banner = { text: "DUST OF GAUGAMELA", t: 160 };
+    W.banner = { text: "ALEXANDER THE GREAT", t: 160 };
     W.flags.push({ x: 360, y: G, on: false }, { x: 2920, y: G, on: false });
     W.pickups.push({ type: "plus", x: 880, y: G - 18, taken: false });
     W.pickups.push({ type: "plus", x: 1680, y: G - 18, taken: false });
