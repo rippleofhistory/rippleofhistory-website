@@ -129,11 +129,28 @@ html, body {
 }
 
 .series {
-  letter-spacing: 0.46em;
-  font-size: clamp(9px, 1.7vw, 14px);
-  color: #c9b06a;
-  text-shadow: 0 1px 2px #0a0c16, 0 0 12px rgba(10, 12, 22, 0.9);
-  margin-bottom: 1.1em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.28em;
+  margin-bottom: 0.85em;
+}
+
+.presents-mark {
+  display: block;
+  width: min(220px, 42vw);
+  height: auto;
+  filter: drop-shadow(0 2px 8px rgba(10, 12, 22, 0.85));
+}
+
+.series span {
+  font-family: "Cinzel", serif;
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  font-size: clamp(8px, 1.5vw, 12px);
+  text-transform: lowercase;
+  color: #d4af37;
+  text-shadow: 0 1px 2px #0a0c16;
 }
 
 .title-col h1 {
@@ -152,10 +169,12 @@ html, body {
 }
 
 .era-tag {
-  font-size: clamp(10px, 1.6vw, 14px);
+  font-size: clamp(11px, 1.7vw, 15px);
   letter-spacing: 0.28em;
-  color: #d4af37;
-  text-shadow: 0 1px 2px #0a0c16;
+  color: #7ee0ea;
+  -webkit-text-stroke: 0.6px #0a1c28;
+  paint-order: stroke fill;
+  text-shadow: 0 1px 0 #07131f, 0 0 10px rgba(7, 19, 31, 0.9);
   margin-bottom: 1.6em;
 }
 
