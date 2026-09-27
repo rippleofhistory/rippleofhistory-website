@@ -72,14 +72,20 @@
     list.forEach(([x, type], i) => W.spawns.push({ x, type, i, done: false }));
   }
 
+  function ledge(W, p) {
+    const L = { x: p.x, w: p.w, y: p.y, kind: p.kind || "stone" };
+    if (p.fragile) { L.fragile = true; L.shakeT = 0; L.fall = 0; L.gone = false; }
+    if (p.moveAmp) { L.ox = p.x; L.moveAmp = p.moveAmp; L.moveSpd = p.moveSpd || 0.025; L.lastX = p.x; }
+    W.ledges.push(L);
+  }
+
   function crossing(W, pitX, pitW, platforms) {
     W.pits.push({ x: pitX, w: pitW });
-    platforms.forEach((p) => {
-      const L = { x: p.x, w: p.w, y: p.y, kind: p.kind || "stone" };
-      if (p.fragile) { L.fragile = true; L.shakeT = 0; L.fall = 0; L.gone = false; }
-      if (p.moveAmp) { L.ox = p.x; L.moveAmp = p.moveAmp; L.moveSpd = p.moveSpd || 0.025; L.lastX = p.x; }
-      W.ledges.push(L);
-    });
+    platforms.forEach((p) => ledge(W, p));
+  }
+
+  function hops(W, x, n, pitW, land) {
+    for (let i = 0; i < n; i++) W.pits.push({ x: x + i * (pitW + land), w: pitW });
   }
 
   R.applyEra = function (n, W) {
@@ -96,11 +102,20 @@
       W.pickups.push({ type: "hourglass", x: 3320, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3880, y: G - 18, taken: false });
       W.horse = { x: 240, y: G, hp: 80, maxHp: 80, facing: 1, mounted: false, alive: true, shrineX: 240, kind: 2 };
+      hops(W, 2208, 1, 64, 0);
       crossing(W, 2680, 160, [
         { x: 2692, w: 48, y: 192, kind: "brick" },
         { x: 2754, w: 44, y: 168, kind: "brick", moveAmp: 16, moveSpd: 0.028 },
         { x: 2818, w: 46, y: 192, kind: "brick" },
       ]);
+      crossing(W, 3520, 170, [
+        { x: 3532, w: 46, y: 192, kind: "brick" },
+        { x: 3592, w: 40, y: 166, kind: "brick", fragile: true },
+        { x: 3654, w: 48, y: 188, kind: "brick" },
+      ]);
+      hops(W, 4240, 2, 56, 40);
+      ledge(W, { x: 980, w: 64, y: 186, kind: "brick" });
+      ledge(W, { x: 1056, w: 56, y: 164, kind: "brick" });
       spawn(W, [
         [560, "legionary"], [680, "legionary"], [840, "legionary"],
         [1080, "legionary"], [1220, "legionary"],
@@ -119,12 +134,24 @@
       W.pickups.push({ type: "plus", x: 2140, y: G - 18, taken: false });
       W.pickups.push({ type: "hourglass", x: 3380, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3920, y: G - 18, taken: false });
+      hops(W, 2040, 1, 56, 0);
       crossing(W, 1360, 260, [
         { x: 1372, w: 50, y: 192, kind: "wood" },
         { x: 1440, w: 40, y: 164, kind: "wood", fragile: true },
         { x: 1508, w: 48, y: 178, kind: "wood" },
         { x: 1578, w: 50, y: 192, kind: "wood" },
       ]);
+      crossing(W, 2976, 128, [
+        { x: 2988, w: 44, y: 188, kind: "wood" },
+        { x: 3048, w: 42, y: 164, kind: "wood", moveAmp: 14, moveSpd: 0.032 },
+      ]);
+      crossing(W, 4230, 200, [
+        { x: 4242, w: 46, y: 192, kind: "wood" },
+        { x: 4304, w: 40, y: 168, kind: "wood", fragile: true },
+        { x: 4364, w: 44, y: 176, kind: "wood", moveAmp: 18, moveSpd: 0.024 },
+        { x: 4430, w: 48, y: 192, kind: "wood" },
+      ]);
+      ledge(W, { x: 2360, w: 70, y: 180, kind: "wood" });
       spawn(W, [
         [520, "manatarms"], [640, "manatarms"], [780, "crossbow"],
         [980, "manatarms"], [1120, "crossbow"], [1280, "manatarms"],
@@ -147,11 +174,19 @@
       W.pickups.push({ type: "plus", x: 3880, y: G - 18, taken: false });
       W.cannons.push({ x: 980, facing: -1, t: 20 }, { x: 1480, facing: 1, t: 70 }, { x: 2480, facing: -1, t: 40 }, { x: 3480, facing: 1, t: 10 });
       W.horse = { x: R.CART_X, y: G, hp: 120, maxHp: 120, facing: 1, mounted: false, alive: true, shrineX: R.CART_X, kind: 4 };
+      hops(W, 1336, 1, 60, 0);
+      crossing(W, 2050, 140, [
+        { x: 2062, w: 44, y: 190, kind: "ice" },
+        { x: 2120, w: 40, y: 166, kind: "ice", moveAmp: 16, moveSpd: 0.03 },
+        { x: 2182, w: 44, y: 190, kind: "ice" },
+      ]);
       crossing(W, 2640, 180, [
         { x: 2652, w: 48, y: 192, kind: "ice" },
         { x: 2718, w: 42, y: 166, kind: "ice", moveAmp: 18, moveSpd: 0.022 },
         { x: 2788, w: 44, y: 192, kind: "ice", fragile: true },
       ]);
+      hops(W, 4256, 1, 80, 0);
+      ledge(W, { x: 2388, w: 58, y: 178, kind: "ice" });
       spawn(W, [
         [520, "lineinf"], [640, "lineinf"], [780, "lancer"],
         [1100, "lineinf"], [1240, "lineinf"],
@@ -172,10 +207,21 @@
       W.pickups.push({ type: "hourglass", x: 3380, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3920, y: G - 18, taken: false });
       W.searchlights.push({ x: 720, a: 0.2, da: 0.008, w: 46 }, { x: 1180, a: 1.1, da: -0.007, w: 50 }, { x: 2460, a: 0.6, da: 0.009, w: 44 }, { x: 3640, a: 1.4, da: -0.008, w: 48 });
+      hops(W, 1288, 1, 58, 0);
+      crossing(W, 2070, 160, [
+        { x: 2082, w: 46, y: 190, kind: "rubble" },
+        { x: 2144, w: 40, y: 164, kind: "rubble", fragile: true },
+        { x: 2204, w: 48, y: 186, kind: "rubble" },
+      ]);
       crossing(W, 2680, 180, [
         { x: 2692, w: 50, y: 190, kind: "rubble" },
         { x: 2760, w: 44, y: 164, kind: "rubble", fragile: true },
         { x: 2828, w: 50, y: 188, kind: "rubble" },
+      ]);
+      crossing(W, 4230, 190, [
+        { x: 4242, w: 46, y: 192, kind: "rubble" },
+        { x: 4304, w: 42, y: 168, kind: "rubble", moveAmp: 16, moveSpd: 0.026 },
+        { x: 4370, w: 48, y: 188, kind: "rubble" },
       ]);
       spawn(W, [
         [520, "rifleinf"], [660, "rifleinf"], [820, "rifleinf"],
@@ -199,11 +245,19 @@
       [640, 980, 1320, 2360, 2680, 3480, 3820].forEach((x) => W.wrecks.push({ x, alive: true }));
       W.horse = { x: R.TANK_X, y: G, hp: 200, maxHp: 200, facing: 1, mounted: false, alive: true, shrineX: R.TANK_X, kind: 6 };
       W.droneT = 720;
+      hops(W, 2088, 1, 64, 0);
       crossing(W, 1560, 200, [
         { x: 1572, w: 48, y: 192, kind: "concrete" },
         { x: 1638, w: 42, y: 166, kind: "concrete", moveAmp: 20, moveSpd: 0.03 },
         { x: 1710, w: 46, y: 188, kind: "concrete", fragile: true },
       ]);
+      crossing(W, 2888, 180, [
+        { x: 2900, w: 46, y: 190, kind: "concrete" },
+        { x: 2962, w: 40, y: 164, kind: "concrete", fragile: true },
+        { x: 3024, w: 46, y: 186, kind: "concrete", moveAmp: 14, moveSpd: 0.028 },
+      ]);
+      hops(W, 4270, 1, 86, 0);
+      ledge(W, { x: 2380, w: 64, y: 176, kind: "concrete" });
       spawn(W, [
         [520, "modinf"], [720, "modinf"], [900, "modinf"],
         [1140, "modinf"], [1480, "modinf"],
@@ -220,6 +274,8 @@
     W.pickups.push({ type: "plus", x: 1680, y: G - 18, taken: false });
     W.pickups.push({ type: "hourglass", x: 3180, y: G - 20, taken: false });
     W.pickups.push({ type: "plus", x: 3720, y: G - 18, taken: false });
+    hops(W, 1270, 2, 52, 44);
+    hops(W, 1724, 2, 44, 40);
     crossing(W, 2180, 230, [
       { x: 2194, w: 50, y: 192, kind: "sand" },
       { x: 2260, w: 46, y: 168, kind: "sand", moveAmp: 18, moveSpd: 0.026 },
@@ -227,6 +283,16 @@
       { x: 2396, w: 36, y: 176, kind: "sand", fragile: true },
     ]);
     W.pickups.push({ type: "plus", x: 2283, y: 150, taken: false });
+    crossing(W, 2620, 220, [
+      { x: 2632, w: 48, y: 192, kind: "sand" },
+      { x: 2694, w: 42, y: 168, kind: "sand" },
+      { x: 2752, w: 40, y: 160, kind: "sand", fragile: true },
+      { x: 2810, w: 48, y: 176, kind: "sand" },
+    ]);
+    hops(W, 4240, 1, 90, 0);
+    ledge(W, { x: 1000, w: 62, y: 186, kind: "sand" });
+    ledge(W, { x: 1074, w: 54, y: 164, kind: "sand" });
+    W.pickups.push({ type: "plus", x: 1100, y: 146, taken: false });
     spawn(W, [
       [520, "spear"], [620, "spear"], [760, "slinger"],
       [980, "spear"], [1080, "spear"], [1220, "slinger"],
