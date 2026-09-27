@@ -92,12 +92,22 @@
   </url>
   <url>
     <loc>https://rippleofhistory.com/games.html</loc>
-    <lastmod>2026-09-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <lastmod>2026-09-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
     <image:image>
-      <image:loc>https://rippleofhistory.com/images/still-compass.jpg</image:loc>
-      <image:title>Ripple of History games — coming soon</image:title>
+      <image:loc>https://rippleofhistory.com/images/the-rip-title.png</image:loc>
+      <image:title>The Rip in History</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://rippleofhistory.com/play/</loc>
+    <lastmod>2026-09-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://rippleofhistory.com/images/the-rip-title.png</image:loc>
+      <image:title>Play The Rip in History</image:title>
     </image:image>
   </url>
   <url>

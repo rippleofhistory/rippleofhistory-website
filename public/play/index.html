@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>THE RIP IN HISTORY</title>
+  <base href="/play/" />
+  <link rel="canonical" href="https://rippleofhistory.com/play/" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cinzel+Decorative:wght@700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23000' width='32' height='32'/%3E%3Cpath d='M16 0 L18 8 L15 14 L19 22 L16 32 L13 22 L17 14 L14 8 Z' fill='%23e6c35c'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game" width="480" height="270" aria-label="The Rip in History game canvas"></canvas>
+
+    <div id="scan" aria-hidden="true"></div>
+
+    <div id="title-screen" class="screen active">
+      <div class="void"></div>
+      <svg class="rift" viewBox="0 0 80 270" preserveAspectRatio="none" aria-hidden="true">
+        <polygon points="42,0 46,18 38,40 48,70 36,110 50,150 34,190 47,230 40,270 36,270 32,228 22,188 38,148 24,108 36,68 26,38 34,16 38,0" fill="#3a2a08" />
+        <polygon points="40,0 44,18 40,40 46,70 38,110 48,150 36,190 45,230 40,270 38,270 34,228 28,188 40,148 30,108 40,68 32,38 38,16 40,0" fill="#e6c35c" />
+        <polygon points="40,20 42,80 40,140 43,200 40,250 39,200 38,140 39,80" fill="#fff6c8" opacity="0.85" />
+      </svg>
+      <div class="embers" aria-hidden="true"></div>
+      <div class="title-col">
+        <p class="series">ACROSS THE ERAS</p>
+        <h1>THE RIP<br />IN HISTORY</h1>
+        <p class="era-tag">ERA I  ·  DUST OF GAUGAMELA</p>
+        <div class="btn-col">
+          <button type="button" id="btn-begin" class="gold-btn">BEGIN</button>
+          <button type="button" id="btn-eras" class="gold-btn ghost">ERA SELECT</button>
+          <button type="button" id="btn-how" class="gold-btn ghost">HOW TO PLAY</button>
+          <button type="button" id="btn-mute" class="gold-btn ghost">SOUND ON</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="era-screen" class="screen">
+      <div class="card">
+        <h2>ERA SELECT</h2>
+        <p class="hint">Beaten eras stay bound. Locked eras wait on the rift door.</p>
+        <div class="btn-col era-list">
+          <button type="button" id="era-btn-1" class="gold-btn" data-era="1">ERA I  ·  GAUGAMELA</button>
+          <button type="button" id="era-btn-2" class="gold-btn" data-era="2">ERA II  ·  ROME</button>
+          <button type="button" id="era-btn-3" class="gold-btn" data-era="3">ERA III  ·  THE BLACK KEEP</button>
+          <button type="button" id="era-btn-4" class="gold-btn" data-era="4">ERA IV  ·  SMOKE OF EMPIRE</button>
+          <button type="button" id="era-btn-5" class="gold-btn" data-era="5">ERA V  ·  THE IRON CENTURY</button>
+          <button type="button" id="era-btn-6" class="gold-btn" data-era="6">ERA VI  ·  THE FRACTURED PRESENT</button>
+          <button type="button" id="btn-era-close" class="gold-btn ghost">BACK</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="how-screen" class="screen">
+      <div class="card">
+        <h2>HOW TO PLAY</h2>
+        <dl>
+          <div><dt>MOVE</dt><dd>A / D or Arrow Keys</dd></div>
+          <div><dt>JUMP</dt><dd>W or Up</dd></div>
+          <div><dt>ROLL</dt><dd>S or Down — i-frames, duck cannon fire</dd></div>
+          <div><dt>LIGHT</dt><dd>J or Z — close blade / bayonet / burst. 3-hit combo</dd></div>
+          <div><dt>HEAVY</dt><dd>K or X — long spear, bash, cleave, or a gun / drone</dd></div>
+          <div><dt>BLOCK</dt><dd>L or C — hold, no movement</dd></div>
+          <div><dt>MOUNT</dt><dd>Space — horse, cart, jeep, or tank</dd></div>
+          <div><dt>MUTE</dt><dd>M — silence the tether</dd></div>
+          <div><dt>PAUSE</dt><dd>Esc</dd></div>
+          <div><dt>PAD</dt><dd>Stick move · A jump · X light · Y special · B block</dd></div>
+        </dl>
+        <p class="hint">Each era locks its own weapon — light is close steel, heavy is the era’s special. Pits kill; jump the layered stones, and don’t linger on cracking planks. Vehicles return only at checkpoints. Beat a boss without taking a hit on that life for a bonus tether. Lives and cleared eras persist.</p>
+        <button type="button" id="btn-how-close" class="gold-btn">CLOSE</button>
+      </div>
+    </div>
+
+    <div id="pause-screen" class="screen">
+      <div class="card">
+        <h2>TIME HELD</h2>
+        <p class="hint">The era waits.</p>
+        <div class="btn-col">
+          <button type="button" id="btn-resume" class="gold-btn">RESUME</button>
+          <button type="button" id="btn-pause-mute" class="gold-btn ghost">SOUND ON</button>
+          <button type="button" id="btn-pause-title" class="gold-btn ghost">TITLE</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="dead-screen" class="screen">
+      <div class="card dead">
+        <h2>THE TETHER SNAPS</h2>
+        <p class="hint">Kael is unmoored from this era.</p>
+        <div class="btn-col">
+          <button type="button" id="btn-restart" class="gold-btn">RESTART ERA</button>
+          <button type="button" id="btn-dead-title" class="gold-btn ghost">TITLE</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="win-screen" class="screen">
+      <div class="card">
+        <h2>THE RIFT OPENS</h2>
+        <p class="hint">Era I — Dust of Gaugamela — is bound.<br />Walk the gold door to the next era.</p>
+        <div class="btn-col">
+          <button type="button" id="btn-win-title" class="gold-btn">TITLE</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="load-screen" class="screen active">
+      <p class="load-txt">BINDING THE TETHER…</p>
+    </div>
+
+    <div id="touch" class="touch">
+      <div class="touch-left">
+        <button type="button" data-act="left" aria-label="Left">◀</button>
+        <button type="button" data-act="right" aria-label="Right">▶</button>
+        <button type="button" data-act="jump" class="jump" aria-label="Jump">JUMP</button>
+      </div>
+      <div class="touch-right">
+        <button type="button" data-act="light" aria-label="Light attack">J</button>
+        <button type="button" data-act="heavy" aria-label="Heavy attack">K</button>
+        <button type="button" data-act="block" aria-label="Block">L</button>
+        <button type="button" data-act="roll" class="jump" aria-label="Roll">ROLL</button>
+        <button type="button" data-act="mount" class="jump" aria-label="Mount">MOUNT</button>
+      </div>
+    </div>
+  </div>
+  <script src="js/eras.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/music.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

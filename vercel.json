@@ -2,6 +2,9 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/play", "destination": "/play/", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/api/latest-videos.json", "destination": "/api/latest-videos" },
     { "source": "/api/on-this-day-shorts.json", "destination": "/api/on-this-day-shorts" },
