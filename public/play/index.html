@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>THE RIP IN HISTORY</title>
   <base href="/play/" />
@@ -61,15 +61,15 @@
         <h2>HOW TO PLAY</h2>
         <dl>
           <div><dt>MOVE</dt><dd>A / D or Arrow Keys</dd></div>
-          <div><dt>JUMP</dt><dd>W or Up</dd></div>
-          <div><dt>ROLL</dt><dd>S or Down — i-frames, duck cannon fire</dd></div>
+          <div><dt>JUMP</dt><dd>W, Up, or D-pad ▲</dd></div>
+          <div><dt>ROLL</dt><dd>S, Down, or D-pad ▼ — dash, duck fire</dd></div>
           <div><dt>LIGHT</dt><dd>J or Z — close blade / bayonet / burst. 3-hit combo</dd></div>
           <div><dt>HEAVY</dt><dd>K or X — long spear, bash, cleave, or a gun / drone</dd></div>
           <div><dt>BLOCK</dt><dd>L or C — hold, no movement</dd></div>
           <div><dt>MOUNT</dt><dd>Space — horse, cart, jeep, or tank</dd></div>
           <div><dt>MUTE</dt><dd>M — silence the tether</dd></div>
           <div><dt>PAUSE</dt><dd>Esc</dd></div>
-          <div><dt>PAD</dt><dd>Stick move · A jump · X light · Y special · B block</dd></div>
+          <div><dt>PAD</dt><dd>Stick / D-pad · A jump · X light · Y special · B block</dd></div>
         </dl>
         <p class="hint">Each era locks its own weapon — light is close steel, heavy is the era’s special. Pits kill; jump the layered stones, and don’t linger on cracking planks. Vehicles return only at checkpoints. Beat a boss without taking a hit on that life for a bonus tether. Lives and cleared eras persist.</p>
         <button type="button" id="btn-how-close" class="gold-btn">CLOSE</button>
@@ -113,18 +113,19 @@
       <p class="load-txt">BINDING THE TETHER…</p>
     </div>
 
-    <div id="touch" class="touch">
-      <div class="touch-left">
-        <button type="button" data-act="left" aria-label="Left">◀</button>
-        <button type="button" data-act="right" aria-label="Right">▶</button>
-        <button type="button" data-act="jump" class="jump" aria-label="Jump">JUMP</button>
+    <div id="touch" class="touch" aria-hidden="true">
+      <div class="dpad">
+        <button type="button" data-act="jump" class="dpad-up" aria-label="Jump">▲</button>
+        <button type="button" data-act="left" class="dpad-left" aria-label="Left">◀</button>
+        <button type="button" data-act="right" class="dpad-right" aria-label="Right">▶</button>
+        <button type="button" data-act="roll" class="dpad-down" aria-label="Roll">▼</button>
       </div>
-      <div class="touch-right">
-        <button type="button" data-act="light" aria-label="Light attack">J</button>
-        <button type="button" data-act="heavy" aria-label="Heavy attack">K</button>
-        <button type="button" data-act="block" aria-label="Block">L</button>
-        <button type="button" data-act="roll" class="jump" aria-label="Roll">ROLL</button>
-        <button type="button" data-act="mount" class="jump" aria-label="Mount">MOUNT</button>
+      <button type="button" data-act="pause" class="touch-pause" aria-label="Pause">II</button>
+      <div class="touch-actions">
+        <button type="button" data-act="block" class="act-block" aria-label="Block"><span>GUARD</span></button>
+        <button type="button" data-act="heavy" class="act-heavy" aria-label="Heavy"><span>HEAVY</span></button>
+        <button type="button" data-act="light" class="act-light" aria-label="Light"><span>LIGHT</span></button>
+        <button type="button" data-act="mount" class="act-mount" aria-label="Mount"><span>MOUNT</span></button>
       </div>
     </div>
   </div>

@@ -159,7 +159,7 @@
   let maxLives = LIVES_FLOOR;
   let muted = false;
   let lifeDamaged = false;
-  let gp = { left: false, right: false, jump: false, light: false, heavy: false, block: false, jumpHeld: false, lightHeld: false, heavyHeld: false };
+  let gp = { left: false, right: false, jump: false, light: false, heavy: false, block: false, jumpHeld: false, lightHeld: false, heavyHeld: false, rollHeld: false };
   let camX = 0;
   let shake = 0;
   let shakeDecay = 0.82;
@@ -687,6 +687,9 @@
     player.runT = 0;
     player.trampling = -1;
     player.rollT = 0;
+    player.rollMax = 22;
+    player.rollDir = 1;
+    player.rollCd = 0;
     player.rolling = false;
     lifeDamaged = false;
   }
@@ -1294,6 +1297,7 @@
     const held = new Map();
     function setAct(act, on) {
       if (mode === "intro") { if (on) skipIntro(); return; }
+      if (act === "pause") { if (on) togglePause(); return; }
       if (act === "left") pad.left = on;
       if (act === "right") pad.right = on;
       if (act === "jump") {
@@ -1341,11 +1345,34 @@
     root.addEventListener("touchstart", (e) => fromTouch(e, true), { passive: false });
     root.addEventListener("touchend", (e) => fromTouch(e, false), { passive: false });
     root.addEventListener("touchcancel", (e) => fromTouch(e, false), { passive: false });
+    root.addEventListener("touchmove", (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        const prev = held.get(t.identifier);
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        const btn = el && el.closest ? el.closest("#touch [data-act]") : null;
+        if (prev === btn) continue;
+        if (prev) {
+          prev.classList.remove("held");
+          setAct(prev.dataset.act, false);
+        }
+        if (btn) {
+          held.set(t.identifier, btn);
+          btn.classList.add("held");
+          setAct(btn.dataset.act, true);
+        } else held.delete(t.identifier);
+      }
+    }, { passive: false });
     root.querySelectorAll("[data-act]").forEach((btn) => {
       btn.addEventListener("mousedown", (e) => { e.preventDefault(); setAct(btn.dataset.act, true); btn.classList.add("held"); });
       btn.addEventListener("mouseup", () => { setAct(btn.dataset.act, false); btn.classList.remove("held"); });
       btn.addEventListener("mouseleave", () => { setAct(btn.dataset.act, false); btn.classList.remove("held"); });
     });
+  }
+
+  function refreshPlayTouch() {
+    const st = document.getElementById("stage");
+    if (st) st.classList.toggle("play-touch", mode === "play" || mode === "intro" || mode === "pause");
   }
 
   function togglePause() {
@@ -1498,20 +1525,29 @@
       else if (horse && horse.alive && Math.abs(player.x - horse.x) < 48 && player.onGround) mountHorse();
     }
 
+    if (player.rollCd > 0) player.rollCd--;
     if (player.rollT > 0) {
       player.rollT--;
       player.rolling = player.rollT > 0;
-      player.h = player.rolling ? 22 : 40;
-      player.invuln = Math.max(player.invuln, player.rolling ? 2 : 0);
-      if (!player.rolling) player.h = 40;
-    } else if (canAct && player.onGround && !player.attacking && !player.blocking && !mounted && consumeTap("roll")) {
-      player.rollT = 18;
+      player.h = player.rolling ? 20 : 40;
+      player.vx = player.rollDir * 4.6;
+      if (time % 2 === 0) sparkBurst(player.x - player.rollDir * 8, player.y - 4, 2, false);
+      if (!player.rolling) {
+        player.h = 40;
+        player.rollCd = 12;
+        player.vx *= 0.4;
+      }
+    } else if (canAct && player.onGround && !player.attacking && !player.blocking && !mounted && player.rollCd === 0 && consumeTap("roll")) {
+      player.rollMax = 22;
+      player.rollT = player.rollMax;
       player.rolling = true;
-      player.h = 22;
-      player.vx = player.facing * 3.6;
-      player.invuln = Math.max(player.invuln, 16);
+      player.rollDir = wantLeft() && !wantRight() ? -1 : wantRight() && !wantLeft() ? 1 : player.facing;
+      player.facing = player.rollDir;
+      player.h = 20;
+      player.vx = player.rollDir * 4.6;
       player.anim = "run";
       sfx("jump");
+      sparkBurst(player.x, player.y - 6, 8, true);
     }
 
     if (canAct && !player.blocking && !player.rolling) {
@@ -1557,7 +1593,9 @@
     }
 
     let moving = false;
-    if (!player.blocking && !attackingLocked && player.hurtT === 0) {
+    if (player.rolling) {
+      moving = true;
+    } else if (!player.blocking && !attackingLocked && player.hurtT === 0) {
       const spd = mounted
         ? (player.attacking ? 1.05 : (era === 6 ? 1.35 : era === 5 ? 4.15 : era === 4 ? 2.2 : era === 3 ? 2.45 : 3.55))
         : (player.attacking ? 0.7 : 2.15);
@@ -1568,7 +1606,7 @@
       player.vx *= 0.6;
     }
 
-    if (canAct && player.onGround && !player.blocking && !player.attacking && (consumeTap("jump") || (wantJump() && tap.jump))) {
+    if (canAct && player.onGround && !player.blocking && !player.attacking && !player.rolling && (consumeTap("jump") || (wantJump() && tap.jump))) {
       player.vy = era === 2 ? -7.2 : (era === 3 || era === 5 || era === 6) ? -6.8 : -6.35;
       player.onGround = false;
       sfx("jump");
@@ -1625,7 +1663,7 @@
       muds.push({ x: player.x - player.facing * 8, y: GROUND - 2, vx: -player.facing * rand(0.4, 1.2), vy: -rand(0.6, 1.8), life: 14 });
     }
 
-    if (player.rolling) player.anim = "run";
+    if (player.rolling) player.anim = "jump";
     else if (player.hurtT > 0) player.anim = "hurt";
     else if (player.blocking) player.anim = "block";
     else if (player.attacking) player.anim = player.kind === "heavy" ? "heavy" : "attack";
@@ -2704,21 +2742,26 @@
     if (!g) {
       gp.left = gp.right = gp.jump = gp.light = gp.heavy = gp.block = false;
       gp.jumpHeld = gp.lightHeld = gp.heavyHeld = false;
+      gp.rollHeld = false;
       return;
     }
     const ax = g.axes && g.axes[0] != null ? g.axes[0] : 0;
-    const dpadL = !!(g.buttons[14] && (g.buttons[14].pressed || g.buttons[14].value > 0.5));
-    const dpadR = !!(g.buttons[15] && (g.buttons[15].pressed || g.buttons[15].value > 0.5));
+    const pressed = (i) => !!(g.buttons[i] && (g.buttons[i].pressed || g.buttons[i].value > 0.5));
+    const dpadL = pressed(14);
+    const dpadR = pressed(15);
+    const dpadU = pressed(12);
+    const dpadD = pressed(13);
     gp.left = ax < -0.38 || dpadL;
     gp.right = ax > 0.38 || dpadR;
-    const pressed = (i) => !!(g.buttons[i] && (g.buttons[i].pressed || g.buttons[i].value > 0.5));
     const a = pressed(0);
     const b = pressed(1);
     const x = pressed(2);
     const y = pressed(3);
-    if (a && !gp.jumpHeld) tap.jump = true;
-    gp.jumpHeld = a;
-    gp.jump = a;
+    if ((a || dpadU) && !gp.jumpHeld) tap.jump = true;
+    gp.jumpHeld = a || dpadU;
+    gp.jump = a || dpadU;
+    if (dpadD && !gp.rollHeld) tap.roll = true;
+    gp.rollHeld = dpadD;
     gp.block = b;
     if (x && !gp.lightHeld) tap.light = true;
     gp.lightHeld = x;
@@ -2729,6 +2772,7 @@
   }
 
   function update() {
+    refreshPlayTouch();
     pollGamepad();
     time++;
     if (mode === "intro") {
@@ -2833,14 +2877,27 @@
     const ax = spr.anchor != null ? spr.anchor : 0.5;
     ctx.save();
     ctx.translate(dx, dy);
-    ctx.scale(facing < 0 ? -1 : 1, 1);
     ctx.imageSmoothingEnabled = true;
-    ctx.shadowColor = "rgba(8, 0, 6, 0.9)";
-    ctx.shadowBlur = perfLow ? 0 : 6;
-    ctx.drawImage(spr.canvas, -w * ax, -h, w, h);
+    if (player.rolling) {
+      const p = 1 - player.rollT / Math.max(1, player.rollMax);
+      ctx.rotate(facing * p * Math.PI * 2.1);
+      ctx.scale(facing < 0 ? -1 : 1, 0.7);
+      ctx.shadowColor = "rgba(243, 226, 160, 0.45)";
+      ctx.shadowBlur = 8;
+      ctx.drawImage(spr.canvas, -w * ax, -h * 0.55, w, h);
+    } else {
+      const lean = player.attacking
+        ? (player.phase === "wu" ? -0.22 : player.phase === "active" ? 0.32 : 0.08)
+        : 0;
+      ctx.scale(facing < 0 ? -1 : 1, 1);
+      if (lean) ctx.rotate(lean);
+      ctx.shadowColor = "rgba(8, 0, 6, 0.9)";
+      ctx.shadowBlur = perfLow ? 0 : 6;
+      ctx.drawImage(spr.canvas, -w * ax, -h, w, h);
+    }
     ctx.shadowBlur = 0;
     ctx.restore();
-    if (player.anim !== "death" && player.anim !== "idle") drawScarfTrail(dx, dy, facing, h, bob);
+    if (!player.rolling && player.anim !== "death" && player.anim !== "idle") drawScarfTrail(dx, dy, facing, h, bob);
   }
 
   function drawPits() {
@@ -2974,17 +3031,28 @@
       ctx.arc(ox + dir * 10, oy + 4, 16 + t * 10, 0, Math.PI * 2);
       ctx.stroke();
     } else {
-      const start = dir > 0 ? -1.15 : Math.PI - 0.4;
-      const span = (cleave ? 2.4 : heavy ? 1.9 : player.combo >= 3 ? 1.7 : 1.15) * dir;
-      const r = 10 + reach * (player.phase === "wu" ? 0.45 + t * 0.2 : 0.92);
-      ctx.beginPath();
-      ctx.arc(ox, oy + (cleave ? -8 : 2), r, start, start + span, dir < 0);
-      ctx.stroke();
+      const start = dir > 0 ? (player.combo >= 3 ? -1.6 : -1.15) : Math.PI - (player.combo >= 3 ? 0.1 : 0.4);
+      const span = (cleave ? 2.5 : heavy ? 2.05 : player.combo >= 3 ? 1.95 : player.combo === 2 ? 1.45 : 1.05) * dir;
+      const r = 10 + reach * (player.phase === "wu" ? 0.4 + t * 0.25 : 0.95);
+      const lift = player.combo >= 3 ? -14 : cleave ? -8 : 2;
       if (player.phase === "active") {
-        ctx.strokeStyle = "rgba(255,255,255,0.55)";
-        ctx.lineWidth = 1.2;
+        for (let i = 3; i >= 1; i--) {
+          ctx.globalAlpha = 0.22 * i;
+          ctx.lineWidth = (heavy ? 5 : 2.4) * (i / 3);
+          ctx.strokeStyle = i === 1 ? "#fff6c8" : "#e6c35c";
+          ctx.beginPath();
+          ctx.arc(ox - dir * i * 3, oy + lift + i, r - i * 3, start, start + span, dir < 0);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1.1;
         ctx.beginPath();
-        ctx.arc(ox, oy + 2, r * 0.72, start, start + span * 0.85, dir < 0);
+        ctx.arc(ox, oy + lift, r * 0.7, start, start + span * 0.88, dir < 0);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(ox, oy + lift, r, start, start + span, dir < 0);
         ctx.stroke();
       }
     }
@@ -4026,11 +4094,21 @@
       blit(hs, hx, hy + 2, horse.facing || player.facing, (era === 6 || horse.kind === 6) ? 48 : (era === 5 || horse.kind === 5) ? 42 : (era === 4 || horse.kind === 4) ? 64 : 58, false, bobH);
     }
 
-    if (player.invuln === 0 || time % 4 < 2 || player.deadT > 0) {
-      const bob = player.anim === "idle" ? Math.sin(time * 0.08) * 1.1 : player.anim === "run" ? Math.sin(player.runT * 0.45) * 1.6 : 0;
-      const lunge = player.attacking && player.phase === "active" ? player.facing * (player.kind === "heavy" ? 9 : player.combo >= 3 ? 7 : 3) : 0;
+    if (player.rolling || player.invuln === 0 || time % 4 < 2 || player.deadT > 0) {
+      const bob = player.rolling ? 0 : player.anim === "idle" ? Math.sin(time * 0.08) * 1.1 : player.anim === "run" ? Math.sin(player.runT * 0.45) * 1.6 : 0;
+      const lunge = player.attacking
+        ? (player.phase === "wu" ? player.facing * -6 : player.phase === "active" ? player.facing * (player.kind === "heavy" ? 11 : player.combo >= 3 ? 9 : 5) : player.facing * 2)
+        : 0;
       const mounted = !!(horse && horse.mounted && horse.alive);
-      const dh = player.anim === "death" ? 38 : 62;
+      const dh = player.rolling ? 48 : player.anim === "death" ? 38 : 62;
+      if (player.rolling && !perfLow) {
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        blitKael(kaelSprite(), player.x - player.rollDir * 14, player.y, player.facing, dh, 0);
+        ctx.globalAlpha = 0.12;
+        blitKael(kaelSprite(), player.x - player.rollDir * 26, player.y, player.facing, dh, 0);
+        ctx.restore();
+      }
       blitKael(kaelSprite(), player.x + lunge, player.y - (mounted ? (era === 6 ? 10 : era === 5 ? 6 : 16) : 0), player.facing, dh, bob);
       drawSwing();
       if (era === 6 && player.attacking && player.kind === "heavy" && player.phase === "wu") {
