@@ -1,11 +1,12 @@
 :root {
-  --gold: #e6c35c;
-  --gold-dim: #a07c28;
-  --ink: #070604;
-  --card: rgba(8, 6, 4, 0.92);
-  --blood: #d12626;
-  --blood-dark: #6a1010;
-  --cream: #fff6e4;
+  --gold: #d4af37;
+  --gold-dim: #8a6a24;
+  --ink: #0a0c18;
+  --card: rgba(12, 14, 28, 0.94);
+  --wine: #5c1a32;
+  --wine-dark: #2e101c;
+  --navy: #12162a;
+  --ivory: #e8d5a3;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -13,7 +14,7 @@
 html, body {
   width: 100%;
   height: 100%;
-  background: #000;
+  background: #0a0c16;
   color: var(--gold);
   font-family: "Cinzel", serif;
   overflow: hidden;
@@ -30,7 +31,7 @@ html, body {
   width: min(100vw, calc(100vh * 16 / 9));
   height: min(100vh, calc(100vw * 9 / 16));
   margin: 0 auto;
-  background: #000;
+  background: #0a0c16;
   overflow: hidden;
   flex: 0 0 auto;
 }
@@ -71,7 +72,7 @@ html, body {
 .screen.active { display: flex; }
 
 #title-screen {
-  background: #000;
+  background: #0a0c16;
   overflow: hidden;
 }
 
@@ -79,8 +80,8 @@ html, body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 50% 40%, rgba(40, 28, 8, 0.45), transparent 55%),
-    #000;
+    radial-gradient(ellipse at 50% 38%, rgba(92, 26, 50, 0.28), transparent 52%),
+    radial-gradient(ellipse at 50% 80%, rgba(18, 22, 48, 0.9), #0a0c16 70%);
 }
 
 #title-screen .rift {
@@ -88,14 +89,12 @@ html, body {
   left: 50%;
   top: -4%;
   height: 108%;
-  width: 16%;
+  width: 18%;
   z-index: 1;
   transform: translateX(-50%);
-  filter: drop-shadow(0 0 10px #e6c35c) drop-shadow(0 0 28px #a07c28);
-  opacity: 0.72;
+  filter: drop-shadow(0 0 12px #d4af37) drop-shadow(0 0 32px #8a6a24);
+  opacity: 0.92;
   animation: riftPulse 2.8s ease-in-out infinite;
-  mask-image: linear-gradient(90deg, #000 0%, #000 38%, rgba(0,0,0,0.22) 50%, #000 62%, #000 100%);
-  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 38%, rgba(0,0,0,0.22) 50%, #000 62%, #000 100%);
 }
 
 @keyframes riftPulse {
@@ -127,14 +126,13 @@ html, body {
   z-index: 2;
   text-align: center;
   padding: 7% 8%;
-  background: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.78) 16%, rgba(0, 0, 0, 0.84) 84%, transparent 100%);
 }
 
 .series {
   letter-spacing: 0.46em;
   font-size: clamp(9px, 1.7vw, 14px);
-  color: #fff6e4;
-  text-shadow: 0 1px 0 #000, 0 0 10px #000;
+  color: #c9b06a;
+  text-shadow: 0 1px 2px #0a0c16, 0 0 12px rgba(10, 12, 22, 0.9);
   margin-bottom: 1.1em;
 }
 
@@ -143,22 +141,21 @@ html, body {
   font-weight: 900;
   font-size: clamp(30px, 7.4vw, 72px);
   line-height: 0.92;
-  color: #fffaf0;
-  -webkit-text-stroke: 2px #120800;
+  color: #e8d5a3;
+  -webkit-text-stroke: 2px #1a1430;
   paint-order: stroke fill;
   text-shadow:
-    0 0 6px #000,
-    0 0 18px #000,
-    0 3px 0 #000,
-    0 6px 18px rgba(0, 0, 0, 0.95);
+    0 2px 0 #2e101c,
+    0 0 14px rgba(18, 22, 42, 0.85),
+    0 4px 18px rgba(10, 12, 22, 0.7);
   margin-bottom: 0.4em;
 }
 
 .era-tag {
   font-size: clamp(10px, 1.6vw, 14px);
   letter-spacing: 0.28em;
-  color: #ffe27a;
-  text-shadow: 0 1px 0 #000, 0 0 8px #000;
+  color: #d4af37;
+  text-shadow: 0 1px 2px #0a0c16;
   margin-bottom: 1.6em;
 }
 
@@ -173,46 +170,47 @@ html, body {
   appearance: none;
   min-width: 220px;
   padding: 12px 28px;
-  border: 2px solid #ffe27a;
-  background: linear-gradient(#e23a32, #8a1414);
-  color: #fff6e4;
+  border: 2px solid #d4af37;
+  background: linear-gradient(#6e2440, #3a1428);
+  color: #e8d5a3;
   font-family: "Cinzel", serif;
   font-weight: 900;
   letter-spacing: 0.22em;
   font-size: 14px;
   cursor: pointer;
-  text-shadow: 0 1px 0 #4a0808;
-  box-shadow: 0 0 16px rgba(210, 38, 38, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  text-shadow: 0 1px 0 #1a0c14;
+  box-shadow: 0 0 14px rgba(92, 26, 50, 0.4), inset 0 1px 0 rgba(232, 213, 163, 0.15);
 }
 
 .gold-btn:hover,
 .gold-btn:focus {
-  background: linear-gradient(#ff4a40, #a01818);
-  color: #fff;
-  box-shadow: 0 0 22px rgba(255, 70, 60, 0.55);
+  background: linear-gradient(#8a3050, #4a1a32);
+  color: #f3e6c0;
+  box-shadow: 0 0 18px rgba(212, 175, 55, 0.35);
   outline: none;
 }
 
 .gold-btn:active { transform: translateY(1px); }
 
 .gold-btn.ghost {
-  background: rgba(10, 6, 4, 0.92);
+  background: rgba(18, 22, 42, 0.88);
   box-shadow: none;
-  border: 2px solid #d12626;
-  color: #fff6e4;
-  text-shadow: 0 1px 0 #000;
+  border: 2px solid #8a6a24;
+  color: #d4af37;
+  text-shadow: 0 1px 0 #0a0c16;
 }
 
 .gold-btn.ghost:hover,
 .gold-btn.ghost:focus {
-  background: #d12626;
-  color: #fff;
+  background: #5c1a32;
+  border-color: #d4af37;
+  color: #e8d5a3;
 }
 
 .gold-btn.muted {
-  color: #f0c8c8;
-  border-color: #6a3030;
-  background: #2a1010;
+  color: #8a7340;
+  border-color: #4a3a20;
+  background: #1a1830;
 }
 
 .card {
@@ -283,9 +281,9 @@ html, body {
 .gold-btn[disabled] {
   opacity: 0.45;
   cursor: not-allowed;
-  color: #c8a0a0;
-  background: #3a1818;
-  border-color: #6a3030;
+  color: #8a7340;
+  background: #1a1830;
+  border-color: #4a3a20;
   box-shadow: none;
 }
 
