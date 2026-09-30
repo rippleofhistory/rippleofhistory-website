@@ -679,7 +679,7 @@
 
   function renderBoard() {
     paintBoard(loadBoard(), "Fetching live scores…");
-    fetch(boardApi(), { cache: "no-store" }).then((res) => {
+    fetch(boardApi(), { cache: "no-store", headers: { "Cache-Control": "no-store" } }).then((res) => {
       if (!res.ok) throw new Error("board");
       return res.json();
     }).then((data) => {

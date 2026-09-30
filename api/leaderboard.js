@@ -32,7 +32,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const rows = await listScores(sql);
-      res.setHeader("Cache-Control", "public, s-maxage=5, stale-while-revalidate=30");
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
       res.status(200).json({ rows });
       return;
     }
