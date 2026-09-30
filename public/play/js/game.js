@@ -1270,6 +1270,7 @@
   }
 
   function loseLife() {
+    if (horse && horse.mounted) dismountHorse();
     player.lives -= 1;
     persistSave();
     player.deadT = 70;
@@ -1297,30 +1298,57 @@
     announce("REBOUND", 70);
   }
 
-  function tryRespawnVehicle(atX) {
-    if (!horse || horse.alive) return;
-    if (lock) return;
-    horse.alive = true;
-    horse.hp = horse.maxHp;
-    horse.mounted = false;
-    horse.x = atX;
-    horse.y = GROUND;
-    floatText(atX, GROUND - 88, "THE STEED RETURNS", "#f3e2a0");
+  function tryRespawnVehicle() {
+    /* Mounts are called in from the steed bar, not returned at flags. */
+  }
+
+  function ensureHorse(kind, maxHp) {
+    if (!horse) {
+      horse = { x: player.x, y: GROUND, hp: 0, maxHp, facing: 1, mounted: false, alive: false, shrineX: 0, kind };
+      return;
+    }
+    horse.kind = kind;
+    horse.maxHp = maxHp;
+    if (horse.hp > maxHp) horse.hp = maxHp;
+  }
+
+  function addMountCharge(amount) {
+    if (!horse || horse.mounted) return;
+    const before = horse.hp || 0;
+    horse.hp = Math.min(horse.maxHp, before + amount);
+    if (before < horse.maxHp && horse.hp >= horse.maxHp) {
+      floatText(player.x, player.y - 52, "MOUNT READY", "#ffe27a");
+      sfx("checkpoint");
+    }
+  }
+
+  function chargeFromKill(e) {
+    if (!horse || horse.mounted) return;
+    const max = horse.maxHp || 80;
+    let n = Math.ceil(max * 0.22);
+    if (ROH.isBoss(e.type)) n = max;
+    else if (ROH.isSpecial(e.type) || e.type === "knight" || e.type === "gate" || e.type === "mgnest") n = Math.ceil(max * 0.4);
+    addMountCharge(n);
   }
 
   function mountHorse() {
-    if (!horse || !horse.alive || horse.mounted) return;
+    if (!horse || horse.mounted) return false;
+    if ((horse.hp || 0) < horse.maxHp) return false;
+    horse.alive = true;
     horse.mounted = true;
+    horse.x = player.x;
+    horse.y = player.y;
+    horse.facing = player.facing;
     player.blocking = false;
     sfx("checkpoint");
     announce(era === 6 ? "HULL DOWN" : era === 5 ? "JEEP" : era === 4 ? "LIMBER UP" : era === 3 ? "THE IRON ROAD" : era === 2 ? "THE WHITE ROAD" : "THE STEED", 70);
+    return true;
   }
 
   function dismountHorse() {
     if (!horse || !horse.mounted) return;
     horse.mounted = false;
-    horse.x = player.x - player.facing * 22;
-    horse.y = GROUND;
+    horse.alive = false;
     horse.facing = player.facing;
   }
 
@@ -1551,8 +1579,8 @@
     if (st) st.classList.toggle("play-touch", mode === "play" || mode === "intro" || mode === "pause");
     const mountBtn = document.querySelector(".atk-pad [data-act='mount']");
     if (mountBtn) {
-      const near = !!(horse && horse.alive && Math.abs(player.x - horse.x) < 96);
-      mountBtn.classList.toggle("ready", near || !!(horse && horse.mounted && horse.alive));
+      const lit = !!(horse && (horse.mounted || (horse.hp || 0) >= horse.maxHp));
+      mountBtn.classList.toggle("ready", lit);
     }
   }
 
@@ -1743,8 +1771,7 @@
 
     if (canAct && consumeTap("mount")) {
       if (mounted) dismountHorse();
-      else if (horse && horse.alive && Math.abs(player.x - horse.x) < 96 && player.y >= GROUND - 56) mountHorse();
-      else floatText(player.x, player.y - 48, horse && horse.alive === false ? "THE STEED IS DOWN" : "NO MOUNT NEAR", "#e6c35c");
+      else if (!mountHorse()) floatText(player.x, player.y - 48, "KILL TO CALL MOUNT", "#e6c35c");
     }
 
     if (player.rollCd > 0) player.rollCd--;
@@ -2033,6 +2060,7 @@
     if (player.combo === 3) pts += 50;
     addScore(pts, null, e.x, e.y - e.h - 20);
     floatText(e.x, e.y - e.h - 20, "+" + pts, "#ffe27a");
+    chargeFromKill(e);
     if (e.type === "elephant") {
       elephantCleared = true;
       lock = null;
@@ -2071,11 +2099,9 @@
       nestCleared = true;
       lock = null;
       announce("THE NEST IS SILENT", 110);
-      horse = {
-        x: JEEP_X, y: GROUND, hp: 48, maxHp: 48, facing: 1,
-        mounted: false, alive: true, shrineX: JEEP_X, kind: 5,
-      };
-      floatText(JEEP_X, GROUND - 70, "JEEP", "#f3e2a0");
+      ensureHorse(5, 48);
+      horse.hp = horse.maxHp;
+      floatText(player.x, player.y - 52, "MOUNT READY", "#f3e2a0");
     }
     if (e.type === "armorcar" || e.type === "ifv") {
       lock = null;
@@ -2086,11 +2112,9 @@
       lock = null;
       announce("THE GATEHOUSE FALLS", 120);
       bumpShake(16);
-      horse = {
-        x: e.x + 220, y: GROUND, hp: 110, maxHp: 110, facing: 1,
-        mounted: false, alive: true, shrineX: e.x + 220, kind: 3,
-      };
-      floatText(e.x + 220, GROUND - 70, "THE STABLE OPENS", "#f3e2a0");
+      ensureHorse(3, 110);
+      horse.hp = horse.maxHp;
+      floatText(player.x, player.y - 52, "MOUNT READY", "#f3e2a0");
       sfx("checkpoint");
     }
   }
@@ -3819,7 +3843,7 @@
       drawCypress(((wx - camX * 0.45) % (VW + 160)) - 40, 176, 38 + (i % 3) * 8);
     }
 
-    if (horse) {
+    if (horse && horse.alive && !horse.mounted && horse.shrineX) {
       const sx = horse.shrineX - camX;
       const pulse = 0.4 + Math.sin(time * 0.16) * 0.25;
       ctx.save();
@@ -4113,17 +4137,22 @@
     ctx.fillStyle = player.heavyCd > 0 ? "#5a4a28" : "#e6c35c";
     const ready = era === 6 ? "DRONE READY" : era === 5 ? "RIFLE READY" : era === 4 ? "PISTOL READY" : era === 3 ? "CLEAVE READY" : era === 2 ? "BASH READY" : "SPEAR READY";
     const wait = era === 6 ? "DRONE" : era === 5 ? "RIFLE" : era === 4 ? "PISTOL" : era === 3 ? "CLEAVE" : era === 2 ? "BASH" : "SPEAR";
-    const showSteed = !!horse && (horse.alive || horse.hp > 0);
+    const showSteed = !!horse;
     if (showSteed) {
-      ctx.fillStyle = "#8a7340";
+      const filled = (horse.hp || 0) / Math.max(1, horse.maxHp);
+      const mountedNow = !!(horse.mounted && horse.alive);
+      const callReady = !mountedNow && filled >= 1;
+      ctx.fillStyle = callReady ? "#ffe27a" : "#8a7340";
       ctx.font = "6px Cinzel, serif";
-      ctx.fillText(era === 6 ? "TANK" : era === 5 ? "JEEP" : era === 4 ? "CART" : "STEED", 8, 41);
+      ctx.fillText(mountedNow
+        ? (era === 6 ? "TANK" : era === 5 ? "JEEP" : era === 4 ? "CART" : "STEED")
+        : (callReady ? "MOUNT READY" : "MOUNT"), 8, 41);
       ctx.fillStyle = "#1a120c";
       ctx.fillRect(8, 43, 104, 7);
       ctx.fillStyle = "#3a3428";
       ctx.fillRect(9, 44, 102, 5);
-      ctx.fillStyle = horse.alive ? "#d8c48a" : "#5a4a28";
-      ctx.fillRect(9, 44, 102 * Math.max(0, horse.hp / horse.maxHp), 5);
+      ctx.fillStyle = mountedNow ? "#d8c48a" : (callReady ? "#ffe27a" : "#c9a227");
+      ctx.fillRect(9, 44, 102 * Math.max(0, Math.min(1, filled)), 5);
       ctx.strokeStyle = "#e6c35c";
       ctx.lineWidth = 1;
       ctx.strokeRect(8.5, 43.5, 103, 6);
@@ -4158,14 +4187,12 @@
       ctx.fillText("STRIKE THE GOLDEN LEGS   " + ele.hits + " / 3", VW / 2, VH - 12);
     }
 
-    if (horse && horse.alive && !horse.mounted && Math.abs(player.x - horse.x) < 96) {
+    if (horse && !horse.mounted && (horse.hp || 0) >= horse.maxHp) {
       ctx.fillStyle = "#f3e2a0";
       ctx.font = "7px Cinzel, serif";
       ctx.textAlign = "center";
       const touchOn = !!(document.getElementById("stage") && document.getElementById("stage").classList.contains("play-touch"));
-      ctx.fillText(touchOn
-        ? (era === 6 ? "MOUNT  ·  TANK" : era === 5 ? "MOUNT  ·  JEEP" : era === 4 ? "MOUNT  ·  CART" : "MOUNT")
-        : (era === 6 ? "SPACE  ·  TANK" : era === 5 ? "SPACE  ·  JEEP" : era === 4 ? "SPACE  ·  LIMBER" : "SPACE  ·  MOUNT"), VW / 2, VH - 12);
+      ctx.fillText(touchOn ? "MOUNT READY" : "SPACE  ·  CALL MOUNT", VW / 2, VH - 12);
     }
     const gateHint = enemies.find((e) => e.type === "gate" && e.hp > 0);
     if (gateHint && Math.abs(player.x - gateHint.x) < 90) {
@@ -4321,7 +4348,7 @@
       ctx.globalAlpha = 1;
     }
 
-    if (horse && (horse.alive || horse.mounted)) {
+    if (horse && horse.mounted && horse.alive) {
       const hx = horse.mounted ? player.x : horse.x;
       const hy = horse.mounted ? player.y : horse.y;
       const bobH = Math.sin(time * 0.12) * 1.2;
@@ -4628,6 +4655,7 @@
     begin,
     title: () => toTitle(),
     dumpHorse: () => dumpHorse(),
+    chargeMount: () => { if (horse) horse.hp = horse.maxHp; },
     setLives: (n) => {
       player.lives = clamp(n, 1, MAX_LIVES);
       lifeDamaged = false;
@@ -4671,7 +4699,7 @@
       const e = enemies.find((n) => n.type === "gate");
       if (e) killEnemy(e);
     },
-    mount: () => mountHorse(),
+    mount: () => { if (horse) { horse.hp = horse.maxHp; mountHorse(); } },
   };
 
   loadAll()

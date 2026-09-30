@@ -101,7 +101,7 @@
       W.pickups.push({ type: "plus", x: R.AQUA.x + 220, y: R.AQUA.y - 18, taken: false });
       W.pickups.push({ type: "hourglass", x: 3320, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3880, y: G - 18, taken: false });
-      W.horse = { x: 240, y: G, hp: 80, maxHp: 80, facing: 1, mounted: false, alive: true, shrineX: 240, kind: 2 };
+      W.horse = { x: 0, y: G, hp: 0, maxHp: 80, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 2 };
       hops(W, 2208, 1, 64, 0);
       crossing(W, 2680, 160, [
         { x: 2692, w: 48, y: 192, kind: "brick" },
@@ -134,6 +134,7 @@
       W.pickups.push({ type: "plus", x: 2140, y: G - 18, taken: false });
       W.pickups.push({ type: "hourglass", x: 3380, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3920, y: G - 18, taken: false });
+      W.horse = { x: 0, y: G, hp: 0, maxHp: 110, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 3 };
       hops(W, 2040, 1, 56, 0);
       crossing(W, 1360, 260, [
         { x: 1372, w: 50, y: 192, kind: "wood" },
@@ -173,7 +174,7 @@
       W.pickups.push({ type: "hourglass", x: 3340, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3880, y: G - 18, taken: false });
       W.cannons.push({ x: 980, facing: -1, t: 20 }, { x: 1480, facing: 1, t: 70 }, { x: 2480, facing: -1, t: 40 }, { x: 3480, facing: 1, t: 10 });
-      W.horse = { x: R.CART_X, y: G, hp: 120, maxHp: 120, facing: 1, mounted: false, alive: true, shrineX: R.CART_X, kind: 4 };
+      W.horse = { x: 0, y: G, hp: 0, maxHp: 120, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 4 };
       hops(W, 1336, 1, 60, 0);
       crossing(W, 2050, 140, [
         { x: 2062, w: 44, y: 190, kind: "ice" },
@@ -206,6 +207,7 @@
       W.pickups.push({ type: "plus", x: R.NEST_X + 280, y: G - 18, taken: false });
       W.pickups.push({ type: "hourglass", x: 3380, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3920, y: G - 18, taken: false });
+      W.horse = { x: 0, y: G, hp: 0, maxHp: 48, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 5 };
       W.searchlights.push({ x: 720, a: 0.2, da: 0.008, w: 46 }, { x: 1180, a: 1.1, da: -0.007, w: 50 }, { x: 2460, a: 0.6, da: 0.009, w: 44 }, { x: 3640, a: 1.4, da: -0.008, w: 48 });
       hops(W, 1288, 1, 58, 0);
       crossing(W, 2070, 160, [
@@ -243,7 +245,7 @@
       W.pickups.push({ type: "hourglass", x: 3340, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3920, y: G - 18, taken: false });
       [640, 980, 1320, 2360, 2680, 3480, 3820].forEach((x) => W.wrecks.push({ x, alive: true }));
-      W.horse = { x: R.TANK_X, y: G, hp: 200, maxHp: 200, facing: 1, mounted: false, alive: true, shrineX: R.TANK_X, kind: 6 };
+      W.horse = { x: 0, y: G, hp: 0, maxHp: 200, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 6 };
       W.droneT = 720;
       hops(W, 2088, 1, 64, 0);
       crossing(W, 1560, 200, [
@@ -269,7 +271,7 @@
       return;
     }
     W.banner = { text: "ALEXANDER THE GREAT", t: 160 };
-    W.horse = { x: 240, y: G, hp: 80, maxHp: 80, facing: 1, mounted: false, alive: true, shrineX: 240, kind: 1 };
+    W.horse = { x: 0, y: G, hp: 0, maxHp: 80, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 1 };
     W.flags.push({ x: 360, y: G, on: false }, { x: 2920, y: G, on: false });
     W.pickups.push({ type: "plus", x: 880, y: G - 18, taken: false });
     W.pickups.push({ type: "plus", x: 1680, y: G - 18, taken: false });

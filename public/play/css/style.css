@@ -464,14 +464,25 @@ html.force-land #stage {
   pointer-events: none;
 }
 
-.atk-pad .dpad-right {
-  border-width: 2px;
-  background: rgba(230, 195, 92, 0.22);
+.atk-pad .dpad-right,
+.act-jump {
+  background: rgba(212, 175, 55, 0.62);
+  border: 2px solid #e6c35c;
+  color: #fff8d6;
+  box-shadow: 0 0 16px rgba(230, 195, 92, 0.45);
+}
+
+.atk-pad .dpad-down {
+  background: rgba(8, 6, 4, 0.42);
+  border-color: rgba(138, 115, 64, 0.38);
+  color: #6a5a38;
 }
 
 .atk-pad .dpad-down.ready {
-  background: rgba(230, 195, 92, 0.34);
-  box-shadow: 0 0 14px rgba(230, 195, 92, 0.45);
+  background: rgba(212, 175, 55, 0.62);
+  border: 2px solid #e6c35c;
+  color: #fff8d6;
+  box-shadow: 0 0 16px rgba(230, 195, 92, 0.5);
 }
 
 .act-jump {
@@ -486,7 +497,6 @@ html.force-land #stage {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(230, 195, 92, 0.2);
   pointer-events: auto;
   z-index: 8;
 }
