@@ -8,9 +8,28 @@
   "rewrites": [
     { "source": "/api/latest-videos.json", "destination": "/api/latest-videos" },
     { "source": "/api/on-this-day-shorts.json", "destination": "/api/on-this-day-shorts" },
-    { "source": "/api/shop-products.json", "destination": "/api/shop-products" }
+    { "source": "/api/shop-products.json", "destination": "/api/shop-products" },
+    { "source": "/api/leaderboard.json", "destination": "/api/leaderboard" }
   ],
   "headers": [
+    {
+      "source": "/api/leaderboard",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+      ]
+    },
+    {
+      "source": "/api/leaderboard.json",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+      ]
+    },
     {
       "source": "/api/shop-products",
       "headers": [

@@ -5,3 +5,6 @@ dist
 scripts/shots
 .env
 .env.local
+
+.vercel
+.env*

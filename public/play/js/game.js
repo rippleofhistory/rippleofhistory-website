@@ -630,6 +630,14 @@
     if (label) floatText(x != null ? x : player.x, y != null ? y : player.y - 48, "+" + n, "#ffe27a");
   }
 
+  function boardApi() {
+    const host = location.hostname;
+    if ((host === "localhost" || host === "127.0.0.1") && location.port === "4173") {
+      return "https://www.rippleofhistory.com/api/leaderboard";
+    }
+    return "/api/leaderboard";
+  }
+
   function loadBoard() {
     try {
       const rows = JSON.parse(localStorage.getItem(BOARD_KEY) || "[]");
@@ -639,35 +647,75 @@
     }
   }
 
-  function renderBoard() {
+  function cacheBoard(rows) {
+    try { localStorage.setItem(BOARD_KEY, JSON.stringify(rows.slice(0, 10))); } catch (err) { /* ignore */ }
+  }
+
+  function paintBoard(rows, hint) {
     const ol = document.getElementById("board-list");
+    const hintEl = document.getElementById("board-hint");
+    if (hintEl && hint) hintEl.textContent = hint;
     if (!ol) return;
-    const rows = loadBoard().slice(0, 10);
     ol.innerHTML = "";
     if (!rows.length) {
       const li = document.createElement("li");
       li.className = "empty";
-      li.textContent = "No scores yet.";
+      li.textContent = hint && hint.indexOf("Fetching") === 0 ? "Fetching live scores…" : "No scores yet. Be the first.";
       ol.appendChild(li);
       return;
     }
-    rows.forEach((row, i) => {
+    rows.slice(0, 10).forEach((row, i) => {
       const li = document.createElement("li");
-      li.innerHTML = "<span>" + (i + 1) + "</span><span>" + (row.name || "KAEL") + "</span><span>" + (row.score || 0) + "</span>";
+      const rank = document.createElement("span");
+      rank.textContent = String(i + 1);
+      const who = document.createElement("span");
+      who.textContent = row.name || "KAEL";
+      const pts = document.createElement("span");
+      pts.textContent = String(row.score || 0);
+      li.append(rank, who, pts);
       ol.appendChild(li);
     });
   }
 
+  function renderBoard() {
+    paintBoard(loadBoard(), "Fetching live scores…");
+    fetch(boardApi(), { cache: "no-store" }).then((res) => {
+      if (!res.ok) throw new Error("board");
+      return res.json();
+    }).then((data) => {
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      cacheBoard(rows);
+      paintBoard(rows, "Best ten runs worldwide.");
+    }).catch(() => {
+      const local = loadBoard();
+      paintBoard(local, local.length ? "Live board unreachable — showing this device." : "Live board unreachable.");
+    });
+  }
+
   function submitScore(rawName) {
-    if (scoreSaved || score <= 0) return false;
+    if (scoreSaved || score <= 0) return Promise.resolve(false);
     const name = String(rawName || "KAEL").replace(/[^\w \-']/g, "").trim().slice(0, 16).toUpperCase() || "KAEL";
-    const rows = loadBoard();
-    rows.push({ name, score, era, at: Date.now() });
-    rows.sort((a, b) => b.score - a.score);
-    try { localStorage.setItem(BOARD_KEY, JSON.stringify(rows.slice(0, 10))); } catch (err) { /* ignore */ }
-    scoreSaved = true;
-    renderBoard();
-    return true;
+    return fetch(boardApi(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, score, era }),
+    }).then((res) => {
+      if (!res.ok) throw new Error("board");
+      return res.json();
+    }).then((data) => {
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      cacheBoard(rows);
+      scoreSaved = true;
+      paintBoard(rows, "Best ten runs worldwide.");
+      return true;
+    }).catch(() => {
+      const rows = loadBoard();
+      rows.push({ name, score, era, at: Date.now() });
+      rows.sort((a, b) => b.score - a.score);
+      cacheBoard(rows);
+      paintBoard(rows, "Live save failed — kept on this device.");
+      return false;
+    });
   }
 
   function fillScoreScreens() {
@@ -1559,9 +1607,22 @@
     if (!form) return;
     form.addEventListener("submit", (e) => {
       e.preventDefault();
+      const btn = form.querySelector("button");
       const input = document.getElementById(inputId);
-      submitScore(input && input.value);
-      form.querySelector("button").textContent = "SAVED";
+      if (scoreSaved) {
+        if (btn) btn.textContent = "SAVED";
+        return;
+      }
+      if (btn) {
+        btn.textContent = "SAVING…";
+        btn.disabled = true;
+      }
+      submitScore(input && input.value).then((ok) => {
+        if (btn) {
+          btn.textContent = ok ? "SAVED" : "TRY AGAIN";
+          btn.disabled = false;
+        }
+      });
     });
   }
   bindScoreForm("dead-form", "dead-name");
