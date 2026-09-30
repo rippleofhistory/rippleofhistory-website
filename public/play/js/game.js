@@ -837,6 +837,7 @@
     player.rollMax = 22;
     player.rollDir = 1;
     player.rollCd = 0;
+    player.blockT = 0;
     player.rolling = false;
     lifeDamaged = false;
   }
@@ -1211,10 +1212,42 @@
       return;
     }
     if (player.blocking) {
-      dmg = Math.ceil(dmg * 0.32);
-      kb *= 0.25;
-      sfx("block");
-      sparkBurst(player.x + dir * 10, player.y - 22, 5, true);
+      const fromFront = (srcX - player.x) * player.facing >= 0;
+      if (fromFront && player.blockT > 0 && player.blockT <= 10) {
+        sfx("block");
+        sparkBurst(player.x + player.facing * 12, player.y - 22, 10, true);
+        floatText(player.x, player.y - 52, "PARRY", "#ffe27a");
+        player.invuln = 18;
+        bumpShake(5);
+        let best = null;
+        let bestD = 80;
+        for (const e of enemies) {
+          if (e.hp <= 0 || e.deadT > 0) continue;
+          const d = Math.abs(e.x - player.x);
+          if (d < bestD) { bestD = d; best = e; }
+        }
+        if (best) {
+          best.stunT = Math.max(best.stunT || 0, 54);
+          best.hurtT = 10;
+          best.vx = (best.x >= player.x ? 1 : -1) * 3.4;
+        }
+        return;
+      }
+      if (fromFront) {
+        dmg = Math.max(1, Math.ceil(dmg * 0.12));
+        kb *= 0.18;
+        sfx("block");
+        sparkBurst(player.x + dir * 10, player.y - 22, 6, true);
+        floatText(player.x, player.y - 48, "BLOCK", "#e6c35c");
+      } else {
+        sfx("hurt");
+        player.hurtT = 14;
+        player.anim = "hurt";
+        player.attacking = false;
+        player.phase = null;
+        sparkBurst(player.x, player.y - 24, 10, true);
+        bloodBurst(player.x, player.y - 22, dir, 8, false);
+      }
     } else {
       sfx("hurt");
       player.hurtT = 14;
@@ -1280,7 +1313,7 @@
     horse.mounted = true;
     player.blocking = false;
     sfx("checkpoint");
-    announce(era === 6 ? "HULL DOWN" : era === 5 ? "JEEP" : era === 4 ? "LIMBER UP" : era === 3 ? "THE IRON ROAD" : "THE WHITE ROAD", 70);
+    announce(era === 6 ? "HULL DOWN" : era === 5 ? "JEEP" : era === 4 ? "LIMBER UP" : era === 3 ? "THE IRON ROAD" : era === 2 ? "THE WHITE ROAD" : "THE STEED", 70);
   }
 
   function dismountHorse() {
@@ -1402,7 +1435,7 @@
       if (e.trampleCd > 0) { e.trampleCd--; continue; }
       const box = bodyBox(e);
       if (!aabb(hb.x, hb.y, hb.w, hb.h, box.x, box.y, box.w, box.h)) continue;
-      if (Math.abs(player.vx) < (era === 3 ? 1.05 : 1.4)) continue;
+      if (Math.abs(player.vx) < (era === 3 ? 0.7 : 0.85)) continue;
       e.trampleCd = 20;
       e.hp -= era === 3 && e.type === "knight" ? 18 : 12;
       e.hurtT = 10;
@@ -1471,57 +1504,56 @@
         pad.mount = on;
       }
     }
-    function fromTouch(ev, on) {
-      ev.preventDefault();
-      for (const t of ev.changedTouches) {
-        const el = on ? document.elementFromPoint(t.clientX, t.clientY) : held.get(t.identifier);
-        const btn = el && el.closest ? el.closest("[data-act]") : null;
-        if (on) {
-          if (btn) {
-            held.set(t.identifier, btn);
-            btn.classList.add("held");
-            setAct(btn.dataset.act, true);
-          }
-        } else {
-          if (el) {
-            el.classList.remove("held");
-            setAct(el.dataset.act, false);
-            held.delete(t.identifier);
-          }
-        }
+    function press(btn, id) {
+      if (!btn) return;
+      const old = held.get(id);
+      if (old === btn) return;
+      if (old) {
+        old.classList.remove("held");
+        setAct(old.dataset.act, false);
       }
+      held.set(id, btn);
+      btn.classList.add("held");
+      setAct(btn.dataset.act, true);
     }
-    root.addEventListener("touchstart", (e) => fromTouch(e, true), { passive: false });
-    root.addEventListener("touchend", (e) => fromTouch(e, false), { passive: false });
-    root.addEventListener("touchcancel", (e) => fromTouch(e, false), { passive: false });
-    root.addEventListener("touchmove", (e) => {
-      e.preventDefault();
-      for (const t of e.changedTouches) {
-        const prev = held.get(t.identifier);
-        const el = document.elementFromPoint(t.clientX, t.clientY);
-        const btn = el && el.closest ? el.closest("#touch [data-act]") : null;
-        if (prev === btn) continue;
-        if (prev) {
-          prev.classList.remove("held");
-          setAct(prev.dataset.act, false);
-        }
-        if (btn) {
-          held.set(t.identifier, btn);
-          btn.classList.add("held");
-          setAct(btn.dataset.act, true);
-        } else held.delete(t.identifier);
-      }
-    }, { passive: false });
+    function release(id) {
+      const btn = held.get(id);
+      if (!btn) return;
+      btn.classList.remove("held");
+      setAct(btn.dataset.act, false);
+      held.delete(id);
+    }
     root.querySelectorAll("[data-act]").forEach((btn) => {
-      btn.addEventListener("mousedown", (e) => { e.preventDefault(); setAct(btn.dataset.act, true); btn.classList.add("held"); });
-      btn.addEventListener("mouseup", () => { setAct(btn.dataset.act, false); btn.classList.remove("held"); });
-      btn.addEventListener("mouseleave", () => { setAct(btn.dataset.act, false); btn.classList.remove("held"); });
+      btn.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        press(btn, e.pointerId);
+      });
+      btn.addEventListener("pointerup", (e) => {
+        e.preventDefault();
+        release(e.pointerId);
+      });
+      btn.addEventListener("pointercancel", (e) => release(e.pointerId));
+      btn.addEventListener("pointermove", (e) => {
+        if (!held.has(e.pointerId)) return;
+        const padEl = btn.closest(".dpad");
+        if (!padEl) return;
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        const next = el && el.closest ? el.closest(".dpad [data-act]") : null;
+        if (next && padEl.contains(next) && next !== held.get(e.pointerId)) press(next, e.pointerId);
+      });
     });
   }
 
   function refreshPlayTouch() {
     const st = document.getElementById("stage");
     if (st) st.classList.toggle("play-touch", mode === "play" || mode === "intro" || mode === "pause");
+    const mountBtn = document.querySelector(".atk-pad [data-act='mount']");
+    if (mountBtn) {
+      const near = !!(horse && horse.alive && Math.abs(player.x - horse.x) < 96);
+      mountBtn.classList.toggle("ready", near || !!(horse && horse.mounted && horse.alive));
+    }
   }
 
   function togglePause() {
@@ -1700,12 +1732,19 @@
     const canAct = player.hurtT === 0;
     const attackingLocked = player.attacking && player.phase !== "rec";
     const mounted = !!(horse && horse.mounted && horse.alive);
-    player.blocking = canAct && !player.attacking && wantBlock() && player.onGround && !mounted;
-    if (player.blocking) player.vx = 0;
+    const tappedAtk = tap.light || tap.heavy;
+    const nowBlock = canAct && !player.attacking && wantBlock() && player.onGround && !mounted && !tappedAtk;
+    if (nowBlock && !player.blocking) player.blockT = 0;
+    player.blocking = nowBlock;
+    if (player.blocking) {
+      player.blockT = (player.blockT || 0) + 1;
+      player.vx = 0;
+    } else player.blockT = 0;
 
-    if (canAct && era >= 2 && era <= 6 && consumeTap("mount")) {
+    if (canAct && consumeTap("mount")) {
       if (mounted) dismountHorse();
-      else if (horse && horse.alive && Math.abs(player.x - horse.x) < 48 && player.onGround) mountHorse();
+      else if (horse && horse.alive && Math.abs(player.x - horse.x) < 96 && player.y >= GROUND - 56) mountHorse();
+      else floatText(player.x, player.y - 48, horse && horse.alive === false ? "THE STEED IS DOWN" : "NO MOUNT NEAR", "#e6c35c");
     }
 
     if (player.rollCd > 0) player.rollCd--;
@@ -1733,8 +1772,10 @@
       sparkBurst(player.x, player.y - 6, 8, true);
     }
 
-    if (canAct && !player.blocking && !player.rolling) {
+    if (canAct && !player.rolling) {
       if (consumeTap("light")) {
+        player.blocking = false;
+        player.blockT = 0;
         if (player.attacking && player.kind === "light" && player.combo < 3 && player.phase === "rec") {
           player.buffer = true;
         } else if (!player.attacking) {
@@ -1742,11 +1783,10 @@
         }
       }
       if (consumeTap("heavy") && !player.attacking && player.heavyCd === 0) {
+        player.blocking = false;
+        player.blockT = 0;
         startAttack("heavy", 0);
       }
-    } else {
-      tap.light = false;
-      tap.heavy = false;
     }
 
     if (player.attacking) {
@@ -4065,14 +4105,15 @@
     ctx.font = "7px Cinzel, serif";
     ctx.textAlign = "center";
     ctx.fillText(String(score), VW / 2, 16);
+    const touchHud = !!(document.getElementById("stage") && document.getElementById("stage").classList.contains("play-touch"));
     ctx.textAlign = "right";
-    ctx.fillText(era === 6 ? "ERA VI  TODAY" : era === 5 ? "ERA V  WW2" : era === 4 ? "ERA IV  NAPOLEON" : era === 3 ? "ERA III  KNIGHTS" : era === 2 ? "ERA II  ROME" : "ERA I  ALEXANDER", VW - 10, 16);
+    ctx.fillText(era === 6 ? "ERA VI  TODAY" : era === 5 ? "ERA V  WW2" : era === 4 ? "ERA IV  NAPOLEON" : era === 3 ? "ERA III  KNIGHTS" : era === 2 ? "ERA II  ROME" : "ERA I  ALEXANDER", VW - 10, touchHud ? 44 : 16);
 
     ctx.textAlign = "left";
     ctx.fillStyle = player.heavyCd > 0 ? "#5a4a28" : "#e6c35c";
     const ready = era === 6 ? "DRONE READY" : era === 5 ? "RIFLE READY" : era === 4 ? "PISTOL READY" : era === 3 ? "CLEAVE READY" : era === 2 ? "BASH READY" : "SPEAR READY";
     const wait = era === 6 ? "DRONE" : era === 5 ? "RIFLE" : era === 4 ? "PISTOL" : era === 3 ? "CLEAVE" : era === 2 ? "BASH" : "SPEAR";
-    const showSteed = (era >= 2 && era <= 6) && horse && (horse.alive || horse.hp > 0);
+    const showSteed = !!horse && (horse.alive || horse.hp > 0);
     if (showSteed) {
       ctx.fillStyle = "#8a7340";
       ctx.font = "6px Cinzel, serif";
@@ -4117,11 +4158,14 @@
       ctx.fillText("STRIKE THE GOLDEN LEGS   " + ele.hits + " / 3", VW / 2, VH - 12);
     }
 
-    if ((era >= 2 && era <= 6) && horse && horse.alive && !horse.mounted && Math.abs(player.x - horse.x) < 48) {
+    if (horse && horse.alive && !horse.mounted && Math.abs(player.x - horse.x) < 96) {
       ctx.fillStyle = "#f3e2a0";
       ctx.font = "7px Cinzel, serif";
       ctx.textAlign = "center";
-      ctx.fillText(era === 6 ? "SPACE  ·  TANK" : era === 5 ? "SPACE  ·  JEEP" : era === 4 ? "SPACE  ·  LIMBER" : "SPACE  ·  MOUNT", VW / 2, VH - 12);
+      const touchOn = !!(document.getElementById("stage") && document.getElementById("stage").classList.contains("play-touch"));
+      ctx.fillText(touchOn
+        ? (era === 6 ? "MOUNT  ·  TANK" : era === 5 ? "MOUNT  ·  JEEP" : era === 4 ? "MOUNT  ·  CART" : "MOUNT")
+        : (era === 6 ? "SPACE  ·  TANK" : era === 5 ? "SPACE  ·  JEEP" : era === 4 ? "SPACE  ·  LIMBER" : "SPACE  ·  MOUNT"), VW / 2, VH - 12);
     }
     const gateHint = enemies.find((e) => e.type === "gate" && e.hp > 0);
     if (gateHint && Math.abs(player.x - gateHint.x) < 90) {
@@ -4304,6 +4348,19 @@
         ctx.restore();
       }
       blitKael(kaelSprite(), player.x + lunge, player.y - (mounted ? (era === 6 ? 10 : era === 5 ? 6 : 16) : 0), player.facing, dh, bob);
+      if (player.blocking) {
+        const px = player.x - camX + player.facing * 14;
+        const py = player.y - 22;
+        ctx.save();
+        ctx.globalAlpha = player.blockT <= 10 ? 0.9 : 0.5;
+        ctx.strokeStyle = player.blockT <= 10 ? "#fff6c8" : "#e6c35c";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (player.facing > 0) ctx.arc(px, py, 16, -1.15, 1.15);
+        else ctx.arc(px, py, 16, Math.PI - 1.15, Math.PI + 1.15);
+        ctx.stroke();
+        ctx.restore();
+      }
       drawSwing();
       if (era === 6 && player.attacking && player.kind === "heavy" && player.phase === "wu") {
         const tankAim = !!(horse && horse.mounted && horse.kind === 6);

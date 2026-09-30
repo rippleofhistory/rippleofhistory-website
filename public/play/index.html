@@ -69,10 +69,10 @@
           <div><dt>ROLL</dt><dd>S, Down, or D-pad ▼ — dash, duck fire</dd></div>
           <div><dt>LIGHT</dt><dd>J or Z — close blade / bayonet / burst. 3-hit combo</dd></div>
           <div><dt>HEAVY</dt><dd>K or X — long spear, bash, cleave, or a gun / drone</dd></div>
-          <div><dt>BLOCK</dt><dd>L or C — hold, no movement</dd></div>
-          <div><dt>MOUNT</dt><dd>Space — horse, cart, jeep, or tank</dd></div>
+          <div><dt>GUARD</dt><dd>L, C, or GUARD — hold to block; tap early to parry</dd></div>
+          <div><dt>MOUNT</dt><dd>Space or MOUNT — near a steed, cart, jeep, or tank</dd></div>
           <div><dt>MUTE</dt><dd>M, menu SOUND, or on-screen ♪</dd></div>
-          <div><dt>PAUSE</dt><dd>Esc</dd></div>
+          <div><dt>PAUSE</dt><dd>Esc or II</dd></div>
           <div><dt>PAD</dt><dd>Stick / D-pad · A jump · X light · Y special · B block</dd></div>
           <div><dt>SCORE</dt><dd>Kills, combos, and flawless bosses. Best ten on the board.</dd></div>
         </dl>
@@ -146,12 +146,12 @@
       </div>
       <button type="button" data-act="mute" id="btn-play-mute" class="touch-mute" aria-label="Mute">♪</button>
       <button type="button" data-act="pause" class="touch-pause" aria-label="Pause">II</button>
-      <div class="touch-actions">
-        <button type="button" data-act="jump" class="act-jump" aria-label="Jump"><span>JUMP</span></button>
-        <button type="button" data-act="block" class="act-block" aria-label="Block"><span>GUARD</span></button>
-        <button type="button" data-act="heavy" class="act-heavy" aria-label="Heavy"><span>HEAVY</span></button>
-        <button type="button" data-act="light" class="act-light" aria-label="Light"><span>LIGHT</span></button>
-        <button type="button" data-act="mount" class="act-mount" aria-label="Mount"><span>MOUNT</span></button>
+      <button type="button" data-act="jump" class="act-jump" aria-label="Jump"><span>JUMP</span></button>
+      <div class="dpad atk-pad">
+        <button type="button" data-act="heavy" class="dpad-up" aria-label="Heavy"><span>HEAVY</span></button>
+        <button type="button" data-act="block" class="dpad-left" aria-label="Guard"><span>GUARD</span></button>
+        <button type="button" data-act="light" class="dpad-right act-light" aria-label="Light"><span>LIGHT</span></button>
+        <button type="button" data-act="mount" class="dpad-down act-mount" aria-label="Mount"><span>MOUNT</span></button>
       </div>
     </div>
   </div>

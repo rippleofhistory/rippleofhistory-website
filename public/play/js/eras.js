@@ -269,6 +269,7 @@
       return;
     }
     W.banner = { text: "ALEXANDER THE GREAT", t: 160 };
+    W.horse = { x: 240, y: G, hp: 80, maxHp: 80, facing: 1, mounted: false, alive: true, shrineX: 240, kind: 1 };
     W.flags.push({ x: 360, y: G, on: false }, { x: 2920, y: G, on: false });
     W.pickups.push({ type: "plus", x: 880, y: G - 18, taken: false });
     W.pickups.push({ type: "plus", x: 1680, y: G - 18, taken: false });
