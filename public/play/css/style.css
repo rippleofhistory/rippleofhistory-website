@@ -442,7 +442,7 @@ html.force-land #stage {
   position: absolute;
   right: max(10px, env(safe-area-inset-right));
   bottom: max(12px, env(safe-area-inset-bottom));
-  width: 168px;
+  width: 230px;
   height: 176px;
   pointer-events: none;
 }
@@ -490,6 +490,13 @@ html.force-land #stage {
   height: 54px;
   opacity: 0.92;
 }
+.act-jump {
+  left: 0;
+  bottom: 8px;
+  width: 58px;
+  height: 58px;
+  background: rgba(230, 195, 92, 0.18);
+}
 
 .touch-pause {
   position: absolute;
@@ -536,8 +543,9 @@ html.force-land #stage {
   .dpad button { width: 48px; height: 48px; }
   .dpad-up, .dpad-down { left: 50px; }
   .dpad-left, .dpad-right { top: 50px; }
-  .touch-actions { width: 148px; height: 160px; }
+  .touch-actions { width: 210px; height: 160px; }
   .act-light { width: 70px; height: 70px; }
+  .act-jump { width: 52px; height: 52px; }
 }
 
 @media (max-height: 500px) {
@@ -552,11 +560,12 @@ html.force-land #stage {
   .dpad button { width: 42px; height: 42px; font-size: 16px; }
   .dpad-up, .dpad-down { left: 43px; }
   .dpad-left, .dpad-right { top: 43px; }
-  .touch-actions { width: 128px; height: 136px; }
+  .touch-actions { width: 186px; height: 136px; }
   .act-light { width: 58px; height: 58px; bottom: 32px; }
   .act-heavy { right: 66px; bottom: 66px; width: 50px; height: 50px; }
   .act-block { right: 66px; bottom: 6px; width: 46px; height: 46px; }
   .act-mount { width: 42px; height: 42px; }
+  .act-jump { width: 46px; height: 46px; bottom: 6px; }
   .touch-pause,
   .touch-mute { width: 40px; height: 32px; }
 }
