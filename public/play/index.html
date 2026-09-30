@@ -29,15 +29,16 @@
       <div class="embers" aria-hidden="true"></div>
       <div class="title-col">
         <p class="series">
-          <img src="assets/wordmark.png" alt="Ripple of History" class="presents-mark" />
+          <span class="presents-line">RIPPLE OF HISTORY</span>
           <span>presents</span>
         </p>
-        <h1>THE RIP<br />IN HISTORY</h1>
+        <h1>THE RIP IN HISTORY</h1>
         <p class="era-tag">ERA I  ·  ALEXANDER</p>
         <div class="btn-col">
           <button type="button" id="btn-begin" class="gold-btn">BEGIN</button>
           <button type="button" id="btn-eras" class="gold-btn ghost">ERA SELECT</button>
           <button type="button" id="btn-how" class="gold-btn ghost">HOW TO PLAY</button>
+          <button type="button" id="btn-board" class="gold-btn ghost">LEADERBOARD</button>
           <button type="button" id="btn-mute" class="gold-btn ghost">SOUND ON</button>
         </div>
       </div>
@@ -73,6 +74,7 @@
           <div><dt>MUTE</dt><dd>M — silence the tether</dd></div>
           <div><dt>PAUSE</dt><dd>Esc</dd></div>
           <div><dt>PAD</dt><dd>Stick / D-pad · A jump · X light · Y special · B block</dd></div>
+          <div><dt>SCORE</dt><dd>Kills, combos, and flawless bosses. Best ten on the board.</dd></div>
         </dl>
         <p class="hint">Each era locks its own weapon — light is close steel, heavy is the era’s special. Pits kill; jump the layered stones, and don’t linger on cracking planks. Vehicles return only at checkpoints. Beat a boss without taking a hit on that life for a bonus tether. Lives and cleared eras persist.</p>
         <button type="button" id="btn-how-close" class="gold-btn">CLOSE</button>
@@ -95,6 +97,11 @@
       <div class="card dead">
         <h2>THE TETHER SNAPS</h2>
         <p class="hint">Kael is unmoored from this era.</p>
+        <p class="score-line">SCORE  <strong id="dead-score">0</strong></p>
+        <form id="dead-form" class="score-form" autocomplete="off">
+          <input id="dead-name" type="text" maxlength="16" placeholder="YOUR NAME" aria-label="Name for the leaderboard" />
+          <button type="submit" class="gold-btn">SAVE SCORE</button>
+        </form>
         <div class="btn-col">
           <button type="button" id="btn-restart" class="gold-btn">RESTART ERA</button>
           <button type="button" id="btn-dead-title" class="gold-btn ghost">TITLE</button>
@@ -106,9 +113,23 @@
       <div class="card">
         <h2>THE RIFT OPENS</h2>
         <p class="hint">Era I — Alexander the Great — is bound.<br />Walk the gold door to the next era.</p>
+        <p class="score-line">SCORE  <strong id="win-score">0</strong></p>
+        <form id="win-form" class="score-form" autocomplete="off">
+          <input id="win-name" type="text" maxlength="16" placeholder="YOUR NAME" aria-label="Name for the leaderboard" />
+          <button type="submit" class="gold-btn">SAVE SCORE</button>
+        </form>
         <div class="btn-col">
           <button type="button" id="btn-win-title" class="gold-btn">TITLE</button>
         </div>
+      </div>
+    </div>
+
+    <div id="board-screen" class="screen">
+      <div class="card">
+        <h2>LEADERBOARD</h2>
+        <p class="hint">Best ten runs on this device.</p>
+        <ol id="board-list" class="board-list"></ol>
+        <button type="button" id="btn-board-close" class="gold-btn">CLOSE</button>
       </div>
     </div>
 

@@ -10,6 +10,7 @@
   const MAX_LIVES = 5;
   const LIVES_FLOOR = 3;
   const SAVE_KEY = "roh.save";
+  const BOARD_KEY = "roh.board";
 
   const ERA_LABEL = ROH.ERA_LABEL;
   const AQUA = ROH.AQUA;
@@ -33,6 +34,7 @@
     pause: document.getElementById("pause-screen"),
     dead: document.getElementById("dead-screen"),
     win: document.getElementById("win-screen"),
+    board: document.getElementById("board-screen"),
     load: document.getElementById("load-screen"),
   };
 
@@ -200,6 +202,7 @@
     hide(screens.win);
     hide(screens.how);
     if (screens.eras) hide(screens.eras);
+    if (screens.board) hide(screens.board);
   }
 
   function loadImage(src) {
@@ -618,6 +621,72 @@
       localStorage.setItem("roh.unlocked", String(unlocked));
     } catch (err) { /* ignore quota */ }
   }
+  let score = 0;
+  let scoreSaved = false;
+
+  function addScore(n, label, x, y) {
+    if (!n) return;
+    score += n;
+    if (label) floatText(x != null ? x : player.x, y != null ? y : player.y - 48, "+" + n, "#ffe27a");
+  }
+
+  function loadBoard() {
+    try {
+      const rows = JSON.parse(localStorage.getItem(BOARD_KEY) || "[]");
+      return Array.isArray(rows) ? rows : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function renderBoard() {
+    const ol = document.getElementById("board-list");
+    if (!ol) return;
+    const rows = loadBoard().slice(0, 10);
+    ol.innerHTML = "";
+    if (!rows.length) {
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = "No scores yet.";
+      ol.appendChild(li);
+      return;
+    }
+    rows.forEach((row, i) => {
+      const li = document.createElement("li");
+      li.innerHTML = "<span>" + (i + 1) + "</span><span>" + (row.name || "KAEL") + "</span><span>" + (row.score || 0) + "</span>";
+      ol.appendChild(li);
+    });
+  }
+
+  function submitScore(rawName) {
+    if (scoreSaved || score <= 0) return false;
+    const name = String(rawName || "KAEL").replace(/[^\w \-']/g, "").trim().slice(0, 16).toUpperCase() || "KAEL";
+    const rows = loadBoard();
+    rows.push({ name, score, era, at: Date.now() });
+    rows.sort((a, b) => b.score - a.score);
+    try { localStorage.setItem(BOARD_KEY, JSON.stringify(rows.slice(0, 10))); } catch (err) { /* ignore */ }
+    scoreSaved = true;
+    renderBoard();
+    return true;
+  }
+
+  function fillScoreScreens() {
+    const d = document.getElementById("dead-score");
+    const w = document.getElementById("win-score");
+    if (d) d.textContent = String(score);
+    if (w) w.textContent = String(score);
+  }
+
+  function layoutStage() {
+    const portrait = window.innerHeight > window.innerWidth + 40;
+    document.documentElement.classList.toggle("force-land", portrait);
+    try {
+      if (portrait && screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock("landscape").catch(() => {});
+      }
+    } catch (err) { /* not allowed until fullscreen */ }
+  }
+
   function saveUnlock(n) {
     if (n > unlocked) {
       unlocked = n;
@@ -1102,6 +1171,7 @@
       setTimeout(() => {
         if (mode === "play") {
           mode = "dead";
+          fillScoreScreens();
           show(screens.dead);
         }
       }, 900);
@@ -1405,6 +1475,10 @@
   }
 
   function begin(playIntro, startEra) {
+    layoutStage();
+    try {
+      if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+    } catch (err) { /* ignore */ }
     audioInit();
     if (actx && actx.state === "suspended") actx.resume();
     applyMute();
@@ -1412,6 +1486,8 @@
     hide(screens.title);
     hide(screens.how);
     hideAllPlay();
+    score = 0;
+    scoreSaved = false;
     if (!player.lives || player.lives <= 0) player.lives = maxLives;
     const n = startEra || (playIntro ? 1 : (era || 1));
     resetLevel({ era: n });
@@ -1453,6 +1529,7 @@
   }
 
   function startWarp(toEra) {
+    addScore(1500);
     mode = "warp";
     warpT = 0;
     warpTo = toEra || 2;
@@ -1475,6 +1552,20 @@
   document.getElementById("btn-begin").addEventListener("click", () => begin(true, 1));
   document.getElementById("btn-how").addEventListener("click", () => show(screens.how));
   document.getElementById("btn-how-close").addEventListener("click", () => hide(screens.how));
+  document.getElementById("btn-board").addEventListener("click", () => { renderBoard(); show(screens.board); });
+  document.getElementById("btn-board-close").addEventListener("click", () => hide(screens.board));
+  function bindScoreForm(formId, inputId) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = document.getElementById(inputId);
+      submitScore(input && input.value);
+      form.querySelector("button").textContent = "SAVED";
+    });
+  }
+  bindScoreForm("dead-form", "dead-name");
+  bindScoreForm("win-form", "win-name");
   document.getElementById("btn-eras").addEventListener("click", () => { refreshEraSelect(); show(screens.eras); });
   document.getElementById("btn-era-close").addEventListener("click", () => hide(screens.eras));
   for (let i = 1; i <= 6; i++) {
@@ -1806,6 +1897,10 @@
     sparkBurst(e.x, e.y - 20, 22, true);
     bloodBurst(e.x, e.y - 16, player.facing || 1, 16, true);
     bumpShake(Math.max(shake, 10));
+    let pts = ROH.isBoss(e.type) ? 1000 : (ROH.isSpecial(e.type) || e.type === "knight" || e.type === "gate") ? 250 : 100;
+    if (player.combo === 3) pts += 50;
+    addScore(pts, null, e.x, e.y - e.h - 20);
+    floatText(e.x, e.y - e.h - 20, "+" + pts, "#ffe27a");
     if (e.type === "elephant") {
       elephantCleared = true;
       lock = null;
@@ -1831,6 +1926,7 @@
           floatText(e.x, e.y - e.h - 18, "FLAWLESS TETHER", "#ffe27a");
           announce("FLAWLESS TETHER", 90);
         }
+        addScore(500, "FLAWLESS +500", e.x, e.y - e.h - 34);
       }
       if (e.type === "boss") saveUnlock(2);
       if (e.type === "centurion") saveUnlock(3);
@@ -2617,12 +2713,14 @@
         p.taken = true;
         if (p.type === "plus") {
           player.hp = Math.min(100, player.hp + 25);
+          addScore(25);
           floatText(p.x, p.y - 16, "+25", "#ff6b6b");
           sfx("pickup");
         } else {
           if (player.lives >= maxLives && maxLives < MAX_LIVES) maxLives += 1;
           if (player.lives < maxLives) player.lives += 1;
           persistSave();
+          addScore(100);
           floatText(p.x, p.y - 16, "+TETHER", "#e6c35c");
           sfx("life");
         }
@@ -2657,9 +2755,11 @@
         startWarp(6);
       } else {
         saveUnlock(6);
+        addScore(2500);
         ending = true;
         setWinCopy(6);
         mode = "win";
+        fillScoreScreens();
         show(screens.win);
         sfx("win");
       }
@@ -3871,6 +3971,8 @@
 
     ctx.fillStyle = "#e6c35c";
     ctx.font = "7px Cinzel, serif";
+    ctx.textAlign = "center";
+    ctx.fillText(String(score), VW / 2, 16);
     ctx.textAlign = "right";
     ctx.fillText(era === 6 ? "ERA VI  TODAY" : era === 5 ? "ERA V  WW2" : era === 4 ? "ERA IV  NAPOLEON" : era === 3 ? "ERA III  KNIGHTS" : era === 2 ? "ERA II  ROME" : "ERA I  ALEXANDER", VW - 10, 16);
 
@@ -4361,6 +4463,7 @@
       gateCleared,
       cannons: cannons.length,
       rolling: !!player.rolling,
+      score,
       nestCleared,
       pits: pits.length,
     }),
@@ -4430,6 +4533,9 @@
       refreshMuteButtons();
       hide(screens.load);
       bindTouch();
+      layoutStage();
+      window.addEventListener("resize", layoutStage);
+      window.addEventListener("orientationchange", layoutStage);
       if ("ontouchstart" in window || navigator.maxTouchPoints > 0) {
         document.getElementById("stage").classList.add("show-touch");
       }
