@@ -725,9 +725,33 @@
     if (w) w.textContent = String(score);
   }
 
+  function viewportSize() {
+    const vv = window.visualViewport;
+    if (vv && vv.width && vv.height) return { w: vv.width, h: vv.height };
+    return { w: window.innerWidth, h: window.innerHeight };
+  }
+
   function layoutStage() {
-    const portrait = window.innerHeight > window.innerWidth + 40;
+    const stage = document.getElementById("stage");
+    const { w, h } = viewportSize();
+    const pad = Math.max(8, Math.round(Math.min(w, h) * 0.03));
+    const availW = Math.max(160, w - pad * 2);
+    const availH = Math.max(90, h - pad * 2);
+    const portrait = h > w + 40;
     document.documentElement.classList.toggle("force-land", portrait);
+    let cssW;
+    let cssH;
+    if (portrait) {
+      cssH = Math.min(availW, availH * 9 / 16);
+      cssW = cssH * 16 / 9;
+    } else {
+      cssW = Math.min(availW, availH * 16 / 9);
+      cssH = cssW * 9 / 16;
+    }
+    if (stage) {
+      stage.style.width = cssW.toFixed(2) + "px";
+      stage.style.height = cssH.toFixed(2) + "px";
+    }
     try {
       if (portrait && screen.orientation && screen.orientation.lock) {
         screen.orientation.lock("landscape").catch(() => {});
@@ -756,6 +780,12 @@
       if (muted) btn.classList.add("muted");
       else btn.classList.remove("muted");
     });
+    const playMute = document.getElementById("btn-play-mute");
+    if (playMute) {
+      playMute.textContent = muted ? "✕" : "♪";
+      playMute.setAttribute("aria-label", muted ? "Unmute" : "Mute");
+      playMute.classList.toggle("muted", muted);
+    }
   }
   function applyMute() {
     if (master) master.gain.value = muted ? 0 : 0.22;
@@ -1416,6 +1446,7 @@
     function setAct(act, on) {
       if (mode === "intro") { if (on) skipIntro(); return; }
       if (act === "pause") { if (on) togglePause(); return; }
+      if (act === "mute") { if (on) toggleMute(); return; }
       if (act === "left") pad.left = on;
       if (act === "right") pad.right = on;
       if (act === "jump") {
@@ -4597,6 +4628,10 @@
       layoutStage();
       window.addEventListener("resize", layoutStage);
       window.addEventListener("orientationchange", layoutStage);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", layoutStage);
+        window.visualViewport.addEventListener("scroll", layoutStage);
+      }
       if ("ontouchstart" in window || navigator.maxTouchPoints > 0) {
         document.getElementById("stage").classList.add("show-touch");
       }
