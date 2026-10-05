@@ -2610,31 +2610,68 @@ body.is-entering {
   min-height: calc(100svh - var(--nav-h));
 }
 
+.games-hero .hero-media img {
+  object-position: center 80%;
+  image-rendering: pixelated;
+}
+
 .games-hero .hero-shade {
   background:
-    linear-gradient(180deg, rgba(5, 8, 15, 0.55) 0%, rgba(5, 8, 15, 0.62) 45%, rgba(5, 8, 15, 0.92) 100%);
+    linear-gradient(180deg, rgba(10, 12, 22, 0.96) 0%, rgba(10, 12, 22, 0.62) 22%, rgba(10, 12, 22, 0.5) 42%, rgba(10, 12, 22, 0.78) 72%, rgba(10, 12, 22, 0.96) 100%);
 }
 
-.coming-soon h1,
-.coming-soon .lede {
-  text-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+.games-rift {
+  position: absolute;
+  left: 50%;
+  top: -4%;
+  height: 108%;
+  width: min(18%, 220px);
+  z-index: 0;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 0 12px #d4af37) drop-shadow(0 0 32px #8a6a24);
+  opacity: 0.88;
+  pointer-events: none;
 }
 
-.coming-soon {
-  max-width: 40rem;
+.games-lockup {
+  position: relative;
+  z-index: 2;
+  max-width: 44rem;
   margin-inline: auto;
+  text-align: center;
 }
 
-.coming-soon-mark {
+.games-wordmark {
+  display: block;
+  width: min(240px, 70vw);
+  height: auto;
+  margin: 0 auto 0.35rem;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.65));
+}
+
+.games-presents {
   color: var(--gold);
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
+  letter-spacing: 0.42em;
+  text-transform: lowercase;
   font-size: 0.78rem;
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.55rem;
 }
 
-.coming-soon h1 {
-  font-size: clamp(3.2rem, 8vw, 6rem);
+.games-hero .games-lockup h1 {
+  font-family: "Cinzel Decorative", Cinzel, var(--font-serif);
+  font-weight: 900;
+  font-size: clamp(1.45rem, 4.8vw, 3.4rem);
+  line-height: 1.05;
+  color: #e8d5a3;
+  text-transform: uppercase;
+  text-wrap: balance;
+  padding-inline: 0.6rem;
+  text-shadow: 0 2px 0 #2e101c, 0 0 18px rgba(10, 12, 22, 0.9);
+}
+
+.games-lockup .lede {
+  margin-top: 1rem;
+  text-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
 }
 
 .product-dialog {
@@ -2861,6 +2898,20 @@ body.is-entering {
 @media (max-width: 760px) {
   .product-grid {
     grid-template-columns: 1fr;
+  }
+
+  .games-hero .games-lockup h1 {
+    font-size: 1.35rem;
+  }
+
+  .games-hero .games-lockup h1 span {
+    display: block;
+  }
+
+  .games-lockup .lede {
+    font-size: 0.92rem;
+    margin-bottom: 1.2rem;
+    padding-inline: 0.5rem;
   }
 
   .shop-banner-bar {
