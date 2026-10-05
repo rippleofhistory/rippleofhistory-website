@@ -214,7 +214,14 @@ p {
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 1.15rem;
+  gap: 1.35rem;
+}
+
+.nav-cta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0.15rem;
 }
 
 .nav-links .btn {
@@ -1936,6 +1943,13 @@ body.is-entering {
     display: flex;
   }
 
+  .nav-cta {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+    margin: 0.45rem 0 0;
+  }
+
   .nav-links a,
   .nav-links .btn {
     width: 100%;
@@ -2611,67 +2625,73 @@ body.is-entering {
 }
 
 .games-hero .hero-media img {
-  object-position: center 80%;
+  object-position: center 78%;
+  object-fit: cover;
+  transform: scale(1.42);
+  transform-origin: center 72%;
   image-rendering: pixelated;
+  filter: saturate(0.78) brightness(0.68);
 }
 
 .games-hero .hero-shade {
   background:
-    linear-gradient(180deg, rgba(10, 12, 22, 0.96) 0%, rgba(10, 12, 22, 0.62) 22%, rgba(10, 12, 22, 0.5) 42%, rgba(10, 12, 22, 0.78) 72%, rgba(10, 12, 22, 0.96) 100%);
+    linear-gradient(180deg, rgba(5, 8, 15, 0.96) 0%, rgba(5, 8, 15, 0.62) 16%, rgba(5, 8, 15, 0.42) 48%, rgba(5, 8, 15, 0.9) 100%),
+    radial-gradient(ellipse at center, rgba(5, 8, 15, 0.12) 0%, rgba(5, 8, 15, 0.58) 100%);
 }
 
 .games-rift {
-  position: absolute;
-  left: 50%;
-  top: -4%;
-  height: 108%;
-  width: min(18%, 220px);
-  z-index: 0;
-  transform: translateX(-50%);
-  filter: drop-shadow(0 0 12px #d4af37) drop-shadow(0 0 32px #8a6a24);
-  opacity: 0.88;
-  pointer-events: none;
+  display: none;
 }
 
 .games-lockup {
   position: relative;
   z-index: 2;
-  max-width: 44rem;
+  max-width: 38rem;
   margin-inline: auto;
   text-align: center;
+  padding: 2rem 1.8rem 1.7rem;
+  border-radius: 18px;
+  border: 1px solid rgba(232, 220, 196, 0.14);
+  background: #0b1018;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55);
+}
+
+.games-hero .hero-inner {
+  padding: 1.4rem 0;
 }
 
 .games-wordmark {
   display: block;
-  width: min(240px, 70vw);
+  width: min(188px, 52vw);
   height: auto;
   margin: 0 auto 0.35rem;
-  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.65));
 }
 
 .games-presents {
-  color: var(--gold);
-  letter-spacing: 0.42em;
+  color: var(--parchment-dim);
+  letter-spacing: 0.38em;
   text-transform: lowercase;
-  font-size: 0.78rem;
-  margin-bottom: 0.55rem;
+  font-size: 0.7rem;
+  margin-bottom: 0.5rem;
 }
 
 .games-hero .games-lockup h1 {
   font-family: "Cinzel Decorative", Cinzel, var(--font-serif);
   font-weight: 900;
-  font-size: clamp(1.45rem, 4.8vw, 3.4rem);
-  line-height: 1.05;
-  color: #e8d5a3;
+  font-size: clamp(1.45rem, 4vw, 2.45rem);
+  line-height: 1.12;
+  color: var(--cream);
   text-transform: uppercase;
   text-wrap: balance;
-  padding-inline: 0.6rem;
-  text-shadow: 0 2px 0 #2e101c, 0 0 18px rgba(10, 12, 22, 0.9);
+  padding-inline: 0.2rem;
+  text-shadow: none;
 }
 
 .games-lockup .lede {
-  margin-top: 1rem;
-  text-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  margin: 0.9rem auto 1.25rem;
+  max-width: 30rem;
+  color: var(--parchment);
+  text-shadow: none;
 }
 
 .product-dialog {
@@ -2900,8 +2920,13 @@ body.is-entering {
     grid-template-columns: 1fr;
   }
 
+  .games-lockup {
+    padding: 1.4rem 1rem 1.25rem;
+    max-width: calc(100% - 0.4rem);
+  }
+
   .games-hero .games-lockup h1 {
-    font-size: 1.35rem;
+    font-size: 1.28rem;
   }
 
   .games-hero .games-lockup h1 span {
@@ -2909,9 +2934,14 @@ body.is-entering {
   }
 
   .games-lockup .lede {
-    font-size: 0.92rem;
-    margin-bottom: 1.2rem;
-    padding-inline: 0.5rem;
+    font-size: 0.9rem;
+    margin-bottom: 1.1rem;
+    padding-inline: 0.35rem;
+  }
+
+  .games-hero .hero-actions {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .shop-banner-bar {
