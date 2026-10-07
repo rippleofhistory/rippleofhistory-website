@@ -207,8 +207,99 @@ html.force-land #stage {
   -webkit-text-stroke: 0.6px #0a1c28;
   paint-order: stroke fill;
   text-shadow: 0 1px 0 #07131f, 0 0 10px rgba(7, 19, 31, 0.9);
-  margin-bottom: 1.6em;
+  margin-bottom: 0.7em;
 }
+
+.diff-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 1.1em;
+  width: min(420px, 92%);
+}
+
+.diff-row .gold-btn {
+  min-width: 0;
+  flex: 1 1 70px;
+  padding: 7px 8px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.diff-row .gold-btn.on {
+  background: linear-gradient(#6e2440, #3a1428);
+  border-color: #e6c35c;
+  color: #f3e6c0;
+  box-shadow: 0 0 12px rgba(230, 195, 92, 0.28);
+}
+
+.keys {
+  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 6;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 24px);
+  padding: 6px 10px;
+  background: rgba(8, 10, 22, 0.78);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  color: #e8d5a3;
+  font-family: "Cinzel", serif;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  pointer-events: auto;
+}
+
+.keys p {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.keys b { color: #e6c35c; margin: 0 2px 0 7px; }
+.keys b:first-child { margin-left: 0; }
+
+.keys button {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid #8a6a24;
+  background: rgba(18, 22, 42, 0.9);
+  color: #d4af37;
+  font-family: "Cinzel", serif;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.show-keys .keys { display: flex; }
+
+.keys-show {
+  display: none;
+  position: absolute;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 6;
+  appearance: none;
+  border: 1px solid #8a6a24;
+  background: rgba(8, 10, 22, 0.78);
+  color: #d4af37;
+  font-family: "Cinzel", serif;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+
+.keys-off .keys-show { display: block; }
+.show-touch .keys,
+.show-touch .keys-show { display: none !important; }
 
 .btn-col {
   display: flex;
@@ -562,7 +653,10 @@ html.force-land #stage {
   .series { margin-bottom: 0.15em; gap: 0.05em; }
   .presents-line { font-size: clamp(10px, 3.2vh, 14px); }
   .title-col h1 { font-size: clamp(16px, 7.2vh, 28px); margin-bottom: 0.12em; }
-  .era-tag { margin-bottom: 0.5em; font-size: clamp(10px, 3vh, 12px); }
+  .era-tag { margin-bottom: 0.28em; font-size: clamp(10px, 3vh, 12px); }
+  .diff-row { margin-bottom: 0.4em; gap: 4px; }
+  .diff-row .gold-btn { padding: 4px 6px; font-size: 8px; min-height: 24px; }
+  .keys { font-size: 8px; padding: 4px 8px; }
   .btn-col { gap: 4px; }
   .gold-btn { min-width: 160px; min-height: 30px; padding: 5px 16px; }
   .dpad { width: 128px; height: 128px; }

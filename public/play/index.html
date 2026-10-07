@@ -34,6 +34,12 @@
         </p>
         <h1>THE RIP IN HISTORY</h1>
         <p class="era-tag">ERA I  ·  ALEXANDER</p>
+        <div class="diff-row" role="group" aria-label="Difficulty">
+          <button type="button" class="gold-btn ghost" data-diff="easy" id="diff-easy">EASY</button>
+          <button type="button" class="gold-btn ghost on" data-diff="medium" id="diff-medium">MEDIUM</button>
+          <button type="button" class="gold-btn ghost" data-diff="hard" id="diff-hard">HARD</button>
+          <button type="button" class="gold-btn ghost" data-diff="insane" id="diff-insane" disabled>??????</button>
+        </div>
         <div class="btn-col">
           <button type="button" id="btn-begin" class="gold-btn">BEGIN</button>
           <button type="button" id="btn-eras" class="gold-btn ghost">ERA SELECT</button>
@@ -73,6 +79,8 @@
           <div><dt>MOUNT</dt><dd>Space or MOUNT — fill the steed bar with kills, then call it in</dd></div>
           <div><dt>MUTE</dt><dd>M, menu SOUND, or on-screen ♪</dd></div>
           <div><dt>PAUSE</dt><dd>Esc or II</dd></div>
+          <div><dt>KEYS</dt><dd>On PC, the list sits on screen. H or HIDE KEYS turns it off</dd></div>
+          <div><dt>DIFF</dt><dd>Easy, Medium, Hard. Beat Hard to unlock ??????</dd></div>
           <div><dt>PAD</dt><dd>Stick / D-pad · A jump · X light · Y special · B block</dd></div>
           <div><dt>SCORE</dt><dd>Kills, combos, and flawless bosses. Best ten on the board.</dd></div>
         </dl>
@@ -88,6 +96,7 @@
         <div class="btn-col">
           <button type="button" id="btn-resume" class="gold-btn">RESUME</button>
           <button type="button" id="btn-pause-mute" class="gold-btn ghost">SOUND ON</button>
+          <button type="button" id="btn-pause-keys" class="gold-btn ghost">KEYS ON</button>
           <button type="button" id="btn-pause-title" class="gold-btn ghost">TITLE</button>
         </div>
       </div>
@@ -137,6 +146,11 @@
       <p class="load-txt">BINDING THE TETHER…</p>
     </div>
 
+    <div id="keys" class="keys" aria-label="Keyboard controls">
+      <p><b>A D</b> MOVE <b>W</b> JUMP <b>S</b> ROLL <b>J</b> LIGHT <b>K</b> HEAVY <b>L</b> GUARD <b>SPACE</b> MOUNT <b>ESC</b> PAUSE</p>
+      <button type="button" id="btn-keys-hide">HIDE KEYS</button>
+    </div>
+    <button type="button" id="btn-keys-show" class="keys-show">KEYS</button>
     <div id="touch" class="touch" aria-hidden="true">
       <div class="dpad">
         <button type="button" data-act="jump" class="dpad-up" aria-label="Jump">▲</button>

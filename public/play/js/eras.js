@@ -50,9 +50,9 @@
   R.AQUA = { x: 1480, w: 700, y: 148 };
   R.AQUA_STEPS = [{ x: 1410, w: 72, y: 188 }];
   R.GATE_X = 1680;
-  R.HALL = { left: 4280, right: 5080 };
+  R.HALL = { left: 4480, right: 5280 };
   R.CART_X = 1960;
-  R.COURT = { left: 4280, right: 5080 };
+  R.COURT = { left: 4480, right: 5280 };
   R.NEST_X = 1680;
   R.JEEP_X = 1980;
   R.TANK_X = 1980;
@@ -136,11 +136,10 @@
       W.pickups.push({ type: "plus", x: 3920, y: G - 18, taken: false });
       W.horse = { x: 0, y: G, hp: 0, maxHp: 110, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 3 };
       hops(W, 2040, 1, 56, 0);
-      crossing(W, 1360, 260, [
-        { x: 1372, w: 50, y: 192, kind: "wood" },
-        { x: 1440, w: 40, y: 164, kind: "wood", fragile: true },
-        { x: 1508, w: 48, y: 178, kind: "wood" },
-        { x: 1578, w: 50, y: 192, kind: "wood" },
+      crossing(W, 1120, 180, [
+        { x: 1132, w: 46, y: 192, kind: "wood" },
+        { x: 1188, w: 40, y: 164, kind: "wood", fragile: true },
+        { x: 1240, w: 48, y: 188, kind: "wood" },
       ]);
       crossing(W, 2976, 128, [
         { x: 2988, w: 44, y: 188, kind: "wood" },
@@ -155,7 +154,7 @@
       ledge(W, { x: 2360, w: 70, y: 180, kind: "wood" });
       spawn(W, [
         [520, "manatarms"], [640, "manatarms"], [780, "crossbow"],
-        [980, "manatarms"], [1120, "crossbow"], [1280, "manatarms"],
+        [980, "manatarms"], [1040, "crossbow"], [1480, "manatarms"],
         [R.GATE_X, "gate"],
         [2140, "manatarms"], [2280, "manatarms"], [2440, "crossbow"],
         [2680, "manatarms"], [2860, "crossbow"],

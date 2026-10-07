@@ -11,6 +11,19 @@
   const LIVES_FLOOR = 3;
   const SAVE_KEY = "roh.save";
   const BOARD_KEY = "roh.board";
+  const DIFF = {
+    easy: { id: "easy", hp: 0.62, dmgIn: 0.5, dmgOut: 1.28, lives: 5, cap: 5, spd: 0.82, charge: 1.7, iFrames: 1.5, parry: 16, chip: 0.06, cd: 0.75, foes: 5 },
+    medium: { id: "medium", hp: 1, dmgIn: 1, dmgOut: 1, lives: 3, cap: 5, spd: 1, charge: 1, iFrames: 1, parry: 10, chip: 0.12, cd: 1, foes: 6 },
+    hard: { id: "hard", hp: 1.4, dmgIn: 1.45, dmgOut: 0.88, lives: 3, cap: 3, spd: 1.2, charge: 0.62, iFrames: 0.62, parry: 6, chip: 0.24, cd: 1.25, foes: 7 },
+    insane: { id: "insane", hp: 2.25, dmgIn: 2.7, dmgOut: 0.68, lives: 1, cap: 1, spd: 1.6, charge: 0.28, iFrames: 0.18, parry: 3, chip: 0.58, cd: 1.6, foes: 9 },
+  };
+  let difficulty = "medium";
+  let insaneUnlocked = false;
+  let keysOn = true;
+
+  function diffCfg() {
+    return DIFF[difficulty] || DIFF.medium;
+  }
 
   const ERA_LABEL = ROH.ERA_LABEL;
   const AQUA = ROH.AQUA;
@@ -605,9 +618,14 @@
     try { s = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}") || {}; } catch (err) { s = {}; }
     const legacy = loadUnlock();
     unlocked = clamp(s.unlocked != null ? s.unlocked : legacy, 1, 6);
-    maxLives = clamp(s.maxLives != null ? s.maxLives : LIVES_FLOOR, LIVES_FLOOR, MAX_LIVES);
     muted = !!s.muted;
-    const lv = s.lives != null ? s.lives : maxLives;
+    insaneUnlocked = !!s.insaneUnlocked;
+    keysOn = s.keysOn !== false;
+    difficulty = DIFF[s.difficulty] ? s.difficulty : "medium";
+    if (difficulty === "insane" && !insaneUnlocked) difficulty = "hard";
+    const d = diffCfg();
+    maxLives = d.cap;
+    const lv = s.lives != null ? s.lives : d.lives;
     return clamp(lv, 1, maxLives);
   }
   function persistSave() {
@@ -617,6 +635,9 @@
         maxLives,
         lives: player.lives > 0 ? clamp(player.lives, 1, maxLives) : maxLives,
         muted,
+        difficulty,
+        insaneUnlocked,
+        keysOn,
       }));
       localStorage.setItem("roh.unlocked", String(unlocked));
     } catch (err) { /* ignore quota */ }
@@ -1000,7 +1021,11 @@
     e.openT = 0;
     e.ledge = false;
     e.trampleCd = 0;
-    return ROH.fillEnemy(e, type, GROUND, AQUA.y);
+    ROH.fillEnemy(e, type, GROUND, AQUA.y);
+    if (e.type !== "elephant") {
+      e.hp = e.maxHp = Math.max(1, Math.round((e.maxHp || 1) * diffCfg().hp));
+    }
+    return e;
   }
 
   function trySpawns() {
@@ -1009,7 +1034,7 @@
       if (player.x + 340 < s.x) continue;
       if (s.x < camX - 80) { s.done = true; continue; }
       const special = ROH.isSpecial(s.type);
-      if (!special && aliveEnemies() >= MAX_ENEMIES) continue;
+      if (!special && aliveEnemies() >= diffCfg().foes) continue;
       if (s.type === "elephant" && elephantCleared) { s.done = true; continue; }
       if ((s.type === "boss" || s.type === "centurion") && bossCleared) { s.done = true; continue; }
       const e = makeEnemy(s.type, s.x);
@@ -1037,7 +1062,7 @@
       }
       if (s.type === "gate") {
         announce("THE GATEHOUSE HOLDS", 110);
-        lock = { left: Math.floor(e.x - 220), right: Math.floor(e.x + 160) };
+        lock = { left: Math.floor(e.x - 120), right: Math.floor(e.x + 180) };
       }
       if (s.type === "knight") {
         announce("A PLATED KNIGHT", 110);
@@ -1197,13 +1222,15 @@
 
   function hurtPlayer(dmg, kb, srcX) {
     if (player.invuln > 0 || player.deadT > 0 || player.rolling) return;
+    const d = diffCfg();
+    dmg = Math.max(1, Math.round(dmg * d.dmgIn));
     const dir = player.x >= srcX ? 1 : -1;
     markDamaged();
     if (horse && horse.mounted && horse.alive && !player.blocking) {
       horse.hp -= dmg;
       player.hp -= Math.ceil(dmg * 0.25);
       player.vx = dir * kb * 0.45;
-      player.invuln = 28;
+      player.invuln = Math.max(4, Math.round(28 * d.iFrames));
       sfx("hurt");
       sparkBurst(player.x, player.y - 28, 10, true);
       bumpShake(8);
@@ -1213,7 +1240,7 @@
     }
     if (player.blocking) {
       const fromFront = (srcX - player.x) * player.facing >= 0;
-      if (fromFront && player.blockT > 0 && player.blockT <= 10) {
+      if (fromFront && player.blockT > 0 && player.blockT <= d.parry) {
         sfx("block");
         sparkBurst(player.x + player.facing * 12, player.y - 22, 10, true);
         floatText(player.x, player.y - 52, "PARRY", "#ffe27a");
@@ -1234,7 +1261,7 @@
         return;
       }
       if (fromFront) {
-        dmg = Math.max(1, Math.ceil(dmg * 0.12));
+        dmg = Math.max(1, Math.ceil(dmg * d.chip));
         kb *= 0.18;
         sfx("block");
         sparkBurst(player.x + dir * 10, player.y - 22, 6, true);
@@ -1261,7 +1288,7 @@
     player.hp -= dmg;
     player.vx = dir * kb;
     player.vy = player.blocking ? player.vy : -1.4;
-    player.invuln = player.blocking ? 12 : 46;
+    player.invuln = Math.max(3, Math.round((player.blocking ? 12 : 46) * d.iFrames));
     bumpShake(player.blocking ? 3 : 7);
     if (player.hp <= 0) {
       player.hp = 0;
@@ -1328,7 +1355,17 @@
     let n = Math.ceil(max * 0.22);
     if (ROH.isBoss(e.type)) n = max;
     else if (ROH.isSpecial(e.type) || e.type === "knight" || e.type === "gate" || e.type === "mgnest") n = Math.ceil(max * 0.4);
-    addMountCharge(n);
+    addMountCharge(Math.max(1, Math.round(n * diffCfg().charge)));
+  }
+
+  function placeExitDoor(fromX) {
+    let x = Math.min(LEVEL_W - 50, Math.max(fromX, player.x + 160));
+    for (let i = 0; i < 10; i++) {
+      const p = overPit(x);
+      if (!p) break;
+      x = Math.min(LEVEL_W - 50, p.x + p.w + 40);
+    }
+    door.x = x;
   }
 
   function mountHorse() {
@@ -1436,7 +1473,7 @@
     player.swingId += 1;
     player.vx *= 0.3;
     sfx("swing");
-    if (kind === "heavy") player.heavyCd = heavyMove().cd;
+    if (kind === "heavy") player.heavyCd = Math.round(heavyMove().cd * diffCfg().cd);
     else player.vx += player.facing * (combo >= 3 ? 1.6 : 0.7);
   }
 
@@ -1480,6 +1517,7 @@
   }
 
   window.addEventListener("keydown", (e) => {
+    if (e.target && e.target.closest && e.target.closest("input, textarea")) return;
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
     if (e.repeat) return;
     if (mode === "intro") {
@@ -1496,6 +1534,7 @@
       if (e.code === "Enter" && mode === "title") begin(true);
       if (e.code === "Escape") togglePause();
       if (e.code === "KeyM") toggleMute();
+      if (e.code === "KeyH") toggleKeys();
     }
     keys.add(e.code);
   });
@@ -1582,6 +1621,52 @@
       const lit = !!(horse && (horse.mounted || (horse.hp || 0) >= horse.maxHp));
       mountBtn.classList.toggle("ready", lit);
     }
+    refreshKeys();
+  }
+
+  function isTouchHud() {
+    const st = document.getElementById("stage");
+    return !!(st && st.classList.contains("show-touch"));
+  }
+
+  function refreshKeys() {
+    const st = document.getElementById("stage");
+    const play = mode === "play" || mode === "intro" || mode === "pause";
+    const touch = isTouchHud();
+    if (st) {
+      st.classList.toggle("show-keys", play && keysOn && !touch);
+      st.classList.toggle("keys-off", play && !keysOn && !touch);
+    }
+    const pauseBtn = document.getElementById("btn-pause-keys");
+    if (pauseBtn) pauseBtn.textContent = keysOn ? "KEYS ON" : "KEYS OFF";
+  }
+
+  function toggleKeys() {
+    keysOn = !keysOn;
+    persistSave();
+    refreshKeys();
+  }
+
+  function refreshDiff() {
+    document.querySelectorAll("[data-diff]").forEach((btn) => {
+      const id = btn.getAttribute("data-diff");
+      btn.classList.toggle("on", id === difficulty);
+      if (id === "insane") {
+        btn.disabled = !insaneUnlocked;
+        btn.textContent = insaneUnlocked ? "INSANE" : "??????";
+        btn.setAttribute("aria-label", insaneUnlocked ? "Insane difficulty" : "Locked. Beat Hard to unlock.");
+      }
+    });
+  }
+
+  function setDifficulty(id) {
+    if (!DIFF[id]) return;
+    if (id === "insane" && !insaneUnlocked) return;
+    difficulty = id;
+    const d = diffCfg();
+    maxLives = d.cap;
+    persistSave();
+    refreshDiff();
   }
 
   function togglePause() {
@@ -1627,7 +1712,9 @@
     hideAllPlay();
     score = 0;
     scoreSaved = false;
-    if (!player.lives || player.lives <= 0) player.lives = maxLives;
+    const d = diffCfg();
+    maxLives = d.cap;
+    player.lives = d.lives;
     const n = startEra || (playIntro ? 1 : (era || 1));
     resetLevel({ era: n });
     if (playIntro && n === 1) {
@@ -1729,10 +1816,19 @@
       begin(i === 1, i);
     });
   }
-  document.getElementById("btn-resume").addEventListener("click", () => { mode = "play"; hide(screens.pause); });
+  document.getElementById("btn-resume").addEventListener("click", () => { mode = "play"; hide(screens.pause); refreshKeys(); });
   document.getElementById("btn-pause-title").addEventListener("click", toTitle);
   document.getElementById("btn-mute").addEventListener("click", toggleMute);
   document.getElementById("btn-pause-mute").addEventListener("click", toggleMute);
+  const pauseKeys = document.getElementById("btn-pause-keys");
+  if (pauseKeys) pauseKeys.addEventListener("click", toggleKeys);
+  document.querySelectorAll("[data-diff]").forEach((btn) => {
+    btn.addEventListener("click", () => setDifficulty(btn.getAttribute("data-diff")));
+  });
+  const keysHide = document.getElementById("btn-keys-hide");
+  const keysShow = document.getElementById("btn-keys-show");
+  if (keysHide) keysHide.addEventListener("click", (e) => { e.stopPropagation(); toggleKeys(); });
+  if (keysShow) keysShow.addEventListener("click", (e) => { e.stopPropagation(); toggleKeys(); });
   document.getElementById("btn-restart").addEventListener("click", () => {
     hide(screens.dead);
     player.lives = maxLives;
@@ -2029,7 +2125,7 @@
         bumpShake(player.kind === "heavy" ? 16 : 10);
         if (e.hits >= 3) killEnemy(e);
       } else {
-        e.hp -= spec.dmg;
+        e.hp -= Math.max(1, Math.round(spec.dmg * diffCfg().dmgOut));
         e.hurtT = player.kind === "heavy" ? 16 : 12;
         e.flashT = 0;
         e.state = "hurt";
@@ -2075,16 +2171,19 @@
       bossCleared = true;
       lock = null;
       doorOpen = true;
-      door.x = Math.min(LEVEL_W - 50, Math.max(e.x + 130, player.x + 170));
+      placeExitDoor(Math.max(e.x + 140, player.x + 170));
       announce(e.type === "fracture" ? "THE RIFT STILLS" : e.type === "colonel" ? "SEAL V" : e.type === "powder" ? "SEAL IV" : e.type === "baron" ? "SEAL III" : e.type === "centurion" ? "SEAL II" : "STONE REMEMBERS", 130);
       sfx("win");
       if (!lifeDamaged) {
-        if (player.lives >= maxLives && maxLives < MAX_LIVES) maxLives += 1;
-        if (player.lives < maxLives) {
-          player.lives += 1;
-          persistSave();
-          floatText(e.x, e.y - e.h - 18, "FLAWLESS TETHER", "#ffe27a");
-          announce("FLAWLESS TETHER", 90);
+        const d = diffCfg();
+        if (d.id !== "insane") {
+          if (player.lives >= maxLives && maxLives < d.cap) maxLives += 1;
+          if (player.lives < maxLives) {
+            player.lives += 1;
+            persistSave();
+            floatText(e.x, e.y - e.h - 18, "FLAWLESS TETHER", "#ffe27a");
+            announce("FLAWLESS TETHER", 90);
+          }
         }
         addScore(500, "FLAWLESS +500", e.x, e.y - e.h - 34);
       }
@@ -2745,7 +2844,7 @@
       const floor = standY(e.x, e.y, e.vy);
       if (e.y >= floor) { e.y = floor; e.vy = 0; }
     }
-    e.x += e.vx;
+    e.x += e.vx * diffCfg().spd;
     const left = lock ? lock.left + 20 : 40;
     const right = lock ? lock.right - 20 : LEVEL_W - 40;
     e.x = clamp(e.x, left, right);
@@ -2911,6 +3010,11 @@
         startWarp(6);
       } else {
         saveUnlock(6);
+        if ((difficulty === "hard" || difficulty === "insane") && !insaneUnlocked) {
+          insaneUnlocked = true;
+          persistSave();
+          refreshDiff();
+        }
         addScore(2500);
         ending = true;
         setWinCopy(6);
@@ -4640,6 +4744,7 @@
       cannons: cannons.length,
       rolling: !!player.rolling,
       score,
+      difficulty,
       nestCleared,
       pits: pits.length,
     }),
@@ -4708,6 +4813,8 @@
       refreshEraSelect();
       refreshTitleEra();
       refreshMuteButtons();
+      refreshDiff();
+      refreshKeys();
       hide(screens.load);
       bindTouch();
       layoutStage();
