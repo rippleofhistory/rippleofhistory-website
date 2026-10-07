@@ -154,6 +154,19 @@ html.force-land #stage {
   padding: 7% 8%;
 }
 
+.ver {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 3;
+  margin: 0;
+  font-family: "Cinzel", serif;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: #8a7340;
+  pointer-events: none;
+}
+
 .series {
   display: flex;
   flex-direction: column;
@@ -657,6 +670,7 @@ html.force-land #stage {
   .diff-row { margin-bottom: 0.4em; gap: 4px; }
   .diff-row .gold-btn { padding: 4px 6px; font-size: 8px; min-height: 24px; }
   .keys { font-size: 8px; padding: 4px 8px; }
+  .ver { font-size: 8px; }
   .btn-col { gap: 4px; }
   .gold-btn { min-width: 160px; min-height: 30px; padding: 5px 16px; }
   .dpad { width: 128px; height: 128px; }
