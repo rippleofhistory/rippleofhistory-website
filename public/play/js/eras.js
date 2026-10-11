@@ -9,32 +9,32 @@
       1: [
         { wu: 4, act: 8, rec: 10, dmg: 8, kb: 2.6, range: 30, lift: 0 },
         { wu: 3, act: 8, rec: 12, dmg: 11, kb: 3.2, range: 34, lift: 0 },
-        { wu: 6, act: 10, rec: 18, dmg: 16, kb: 5.0, range: 38, lift: -2.4 },
+        { wu: 7, act: 12, rec: 18, dmg: 22, kb: 6.2, range: 42, lift: -3.2, tall: 40, overhead: true },
       ],
       2: [
         { wu: 3, act: 6, rec: 8, dmg: 7, kb: 2.0, range: 24, lift: 0 },
         { wu: 2, act: 6, rec: 9, dmg: 9, kb: 2.4, range: 26, lift: 0 },
-        { wu: 4, act: 8, rec: 14, dmg: 14, kb: 4.2, range: 28, lift: -2.0 },
+        { wu: 6, act: 10, rec: 16, dmg: 18, kb: 5.4, range: 32, lift: -2.8, tall: 36, overhead: true },
       ],
       3: [
         { wu: 4, act: 8, rec: 10, dmg: 9, kb: 2.8, range: 36, lift: 0 },
         { wu: 4, act: 8, rec: 12, dmg: 12, kb: 3.4, range: 40, lift: 0 },
-        { wu: 6, act: 10, rec: 16, dmg: 17, kb: 5.2, range: 44, lift: -2.2 },
+        { wu: 7, act: 12, rec: 18, dmg: 24, kb: 6.4, range: 48, lift: -3.0, tall: 42, overhead: true },
       ],
       4: [
         { wu: 3, act: 7, rec: 9, dmg: 8, kb: 2.4, range: 28, lift: 0 },
         { wu: 3, act: 7, rec: 10, dmg: 11, kb: 2.8, range: 30, lift: 0 },
-        { wu: 5, act: 9, rec: 14, dmg: 15, kb: 4.4, range: 34, lift: -1.8 },
+        { wu: 6, act: 10, rec: 16, dmg: 20, kb: 5.2, range: 36, lift: -2.4, tall: 34, overhead: true },
       ],
       5: [
         { wu: 4, act: 8, rec: 10, dmg: 10, kb: 2.8, range: 34, lift: 0 },
         { wu: 4, act: 8, rec: 11, dmg: 13, kb: 3.2, range: 36, lift: 0 },
-        { wu: 6, act: 10, rec: 16, dmg: 17, kb: 4.8, range: 40, lift: -1.6 },
+        { wu: 7, act: 10, rec: 16, dmg: 22, kb: 5.6, range: 42, lift: -2.2, tall: 36, overhead: true },
       ],
       6: [
         { wu: 3, act: 6, rec: 8, dmg: 8, kb: 2.0, range: 40, lift: 0, burst: true },
         { wu: 3, act: 6, rec: 8, dmg: 10, kb: 2.2, range: 40, lift: 0, burst: true },
-        { wu: 5, act: 8, rec: 14, dmg: 16, kb: 4.2, range: 26, lift: -1.4 },
+        { wu: 6, act: 10, rec: 16, dmg: 22, kb: 5.4, range: 34, lift: -2.2, tall: 34, overhead: true },
       ],
     },
     heavy: {
@@ -44,6 +44,14 @@
       4: { wu: 5, act: 6, rec: 14, dmg: 20, kb: 3.0, range: 86, lift: 0, cd: 72, shot: true },
       5: { wu: 12, act: 8, rec: 16, dmg: 26, kb: 4.0, range: 200, lift: 0, cd: 80, shot: true, telegraph: true },
       6: { wu: 8, act: 6, rec: 14, dmg: 32, kb: 3.0, range: 140, lift: 0, cd: 96, shot: true, mark: true },
+    },
+    mega: {
+      1: { wu: 10, act: 14, rec: 22, dmg: 42, kb: 8.2, range: 62, lift: -3.6, tall: 52, overhead: true, mega: true, cd: 96 },
+      2: { wu: 8, act: 12, rec: 20, dmg: 34, kb: 7.4, range: 48, lift: -2.4, tall: 40, mega: true, stun: 110, cd: 88 },
+      3: { wu: 10, act: 16, rec: 22, dmg: 46, kb: 8.6, range: 72, lift: -3.2, tall: 48, overhead: true, mega: true, cd: 100 },
+      4: { wu: 8, act: 10, rec: 20, dmg: 38, kb: 5.0, range: 120, lift: 0, shot: true, burst: true, mega: true, cd: 96 },
+      5: { wu: 10, act: 10, rec: 20, dmg: 44, kb: 5.6, range: 220, lift: 0, shot: true, mega: true, cd: 104 },
+      6: { wu: 8, act: 8, rec: 18, dmg: 52, kb: 5.2, range: 160, lift: 0, shot: true, mark: true, mega: true, cd: 110 },
     },
   };
 
@@ -66,6 +74,9 @@
   };
   R.heavyMove = function (era) {
     return R.WEAPONS.heavy[era] || R.WEAPONS.heavy[1];
+  };
+  R.megaMove = function (era) {
+    return R.WEAPONS.mega[era] || R.WEAPONS.mega[1];
   };
 
   function spawn(W, list) {

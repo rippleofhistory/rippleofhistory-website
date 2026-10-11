@@ -144,6 +144,12 @@
     wreck: "assets/wreck.jpg",
     fracture: "assets/fracture.jpg",
     concrete: "assets/concrete.jpg",
+    bg1: "assets/bg1.jpg",
+    bg2: "assets/bg2.jpg",
+    bg3: "assets/bg3.jpg",
+    bg4: "assets/bg4.jpg",
+    bg5: "assets/bg5.jpg",
+    bg6: "assets/bg6.jpg",
   };
 
   const keys = new Set();
@@ -347,36 +353,25 @@
     return spr;
   }
 
-  function applyMarbleCrack(spr, seed) {
+  function saturateSprite(spr, amount) {
+    amount = amount || 1.5;
     const w = spr.w, h = spr.h;
-    const c = document.createElement("canvas");
-    c.width = w;
-    c.height = h;
-    const x = c.getContext("2d");
-    x.drawImage(spr.canvas, 0, 0);
+    const x = spr.canvas.getContext("2d");
     const img = x.getImageData(0, 0, w, h);
     const p = img.data;
-    for (let i = 0, n = 0; i < p.length; i += 4, n++) {
+    for (let i = 0; i < p.length; i += 4) {
       if (p[i + 3] < 18) continue;
-      const xx = n % w, yy = (n / w) | 0;
       const r = p[i], g = p[i + 1], b = p[i + 2];
-      const l = r * 0.32 + g * 0.5 + b * 0.18;
-      p[i] = Math.min(255, r * 0.38 + l * 0.62 + 38);
-      p[i + 1] = Math.min(255, g * 0.34 + l * 0.58 + 36);
-      p[i + 2] = Math.min(255, b * 0.36 + l * 0.64 + 48);
-      const veinA = Math.abs((xx * 3 + yy * 7 + seed * 13) % 53) < 2;
-      const veinB = Math.abs((xx * 5 - yy * 4 + seed * 9) % 71) < 1;
-      const jag = Math.abs(Math.sin(xx * 0.19 + seed) + Math.cos(yy * 0.27 + xx * 0.04));
-      if (veinA || veinB || jag < 0.08) {
-        p[i] = 232; p[i + 1] = 196; p[i + 2] = 92;
-      } else if (jag < 0.16) {
-        p[i] = Math.min(255, p[i] + 18);
-        p[i + 1] = Math.min(255, p[i + 1] + 8);
-        p[i + 2] = Math.max(0, p[i + 2] - 6);
-      }
+      const l = r * 0.299 + g * 0.587 + b * 0.114;
+      p[i] = clamp(l + (r - l) * amount, 0, 255);
+      p[i + 1] = clamp(l + (g - l) * amount, 0, 255);
+      p[i + 2] = clamp(l + (b - l) * amount, 0, 255);
+      p[i] = clamp(p[i] * 1.06, 0, 255);
+      p[i + 1] = clamp(p[i + 1] * 1.04, 0, 255);
+      p[i + 2] = clamp(p[i + 2] * 1.05, 0, 255);
     }
     x.putImageData(img, 0, 0);
-    return { canvas: c, w, h, anchor: spr.anchor };
+    return spr;
   }
 
   function makeCrackStamp() {
@@ -404,19 +399,26 @@
     const entries = Object.entries(FILES);
     await Promise.all(entries.map(async ([name, src]) => {
       const img = await loadImage(src);
-      const isTile = name === "ground" || name === "road" || name === "brick" || name === "mud" || name === "palisade" || name === "keep" || name === "snow" || name === "cobble" || name === "concrete";
+      const isBg = name.indexOf("bg") === 0;
+      const isTile = isBg || name === "ground" || name === "road" || name === "brick" || name === "mud" || name === "palisade" || name === "keep" || name === "snow" || name === "cobble" || name === "concrete";
       let spr = keyGreen(img, isTile);
-      if (name.indexOf("kael") === 0) {
+      if (isBg) {
+        const c = document.createElement("canvas");
+        c.width = 640;
+        c.height = 360;
+        const gx = c.getContext("2d");
+        gx.imageSmoothingEnabled = true;
+        gx.drawImage(spr.canvas, 0, 0, 640, 360);
+        spr = { canvas: c, w: 640, h: 360 };
+      } else if (name.indexOf("kael") === 0) {
         spr = outlineSprite(boostKaelScarf(spr), [10, 2, 8]);
         spr = downscale(spr, 128);
       } else if (name === "infantry" || name === "slinger" || name === "legionary" || name === "archer") {
-        const seed = name === "slinger" ? 17 : name === "archer" ? 29 : name === "legionary" ? 11 : 4;
-        spr = applyMarbleCrack(spr, seed);
+        spr = saturateSprite(spr, 1.55);
         spr = outlineSprite(spr, [28, 24, 36]);
         spr = downscale(spr, 120);
       } else if (name === "manatarms" || name === "crossbow") {
-        const seed = name === "crossbow" ? 41 : 37;
-        spr = applyMarbleCrack(spr, seed);
+        spr = saturateSprite(spr, 1.6);
         spr = outlineSprite(spr, [18, 16, 22]);
         spr = downscale(spr, 120);
       } else if (name === "knight") {
@@ -427,11 +429,13 @@
       } else if (name === "boss" || name === "centurion" || name === "baron" || name === "powder" || name === "colonel" || name === "fracture") {
         spr = downscale(spr, 168);
       } else if (name === "modinf") {
+        spr = saturateSprite(spr, 1.65);
         spr = outlineSprite(spr, [14, 12, 18]);
         spr = downscale(spr, 120);
       } else if (name === "ifv" || name === "tank" || name === "wreck") {
         spr = downscale(spr, name === "tank" ? 160 : 140);
       } else if (name === "rifleinf") {
+        spr = saturateSprite(spr, 1.65);
         spr = outlineSprite(spr, [16, 14, 20]);
         spr = downscale(spr, 120);
       } else if (name === "mgnest") {
@@ -442,6 +446,7 @@
         spr = outlineSprite(spr, [14, 12, 16]);
         spr = downscale(spr, 130);
       } else if (name === "lineinf") {
+        spr = saturateSprite(spr, 1.45);
         spr = outlineSprite(spr, [16, 14, 20]);
         spr = downscale(spr, 120);
       } else if (name === "lancer") {
@@ -516,13 +521,13 @@
   function sfx(kind) {
     if (!actx) return;
     if (kind === "swing") {
-      const gun = era >= 4 && player.kind === "heavy";
+      const gun = era >= 4 && (player.kind === "heavy" || player.kind === "mega");
       if (gun) {
         noiseBurst(0.09, 0.34, 2400);
         tone(880, 0.05, "square", 0.05, 220);
       } else {
         noiseBurst(0.1, 0.26, 1100);
-        tone(player.kind === "heavy" ? 260 : 480, 0.08, "sawtooth", 0.05, 140);
+        tone(player.kind === "heavy" || player.kind === "mega" ? 220 : player.combo >= 3 ? 300 : 480, 0.08, "sawtooth", 0.05, 140);
       }
     } else if (kind === "hit") {
       noiseBurst(0.12, 0.38, 700);
@@ -608,6 +613,7 @@
 
   function lightMoves() { return ROH.lightMoves(era); }
   function heavyMove() { return ROH.heavyMove(era); }
+  function megaMove() { return ROH.megaMove(era); }
 
   function loadUnlock() {
     const n = parseInt(localStorage.getItem("roh.unlocked") || "1", 10);
@@ -1473,12 +1479,31 @@
     player.swingId += 1;
     player.vx *= 0.3;
     sfx("swing");
-    if (kind === "heavy") player.heavyCd = Math.round(heavyMove().cd * diffCfg().cd);
-    else player.vx += player.facing * (combo >= 3 ? 1.6 : 0.7);
+    if (kind === "heavy") {
+      player.heavyCd = Math.round(heavyMove().cd * diffCfg().cd);
+    } else if (kind === "mega") {
+      const spec = megaMove();
+      player.heavyCd = Math.round((spec.cd || 96) * diffCfg().cd);
+      player.combo = 3;
+      brassSting();
+      announce("MEGA", 70);
+      floatText(player.x, player.y - player.h - 12, "MEGA", "#ffe27a");
+      player.vx += player.facing * 2.6;
+      addScore(80);
+    } else {
+      player.vx += player.facing * (combo >= 3 ? 2.0 : 0.7);
+      if (combo >= 3) {
+        announce("OVERHEAD", 54);
+        floatText(player.x, player.y - player.h - 12, "OVERHEAD", "#fff6c8");
+        addScore(40);
+      }
+    }
   }
 
   function currentSpec() {
-    return player.kind === "heavy" ? heavyMove() : lightMoves()[Math.max(0, player.combo - 1)];
+    if (player.kind === "mega") return megaMove();
+    if (player.kind === "heavy") return heavyMove();
+    return lightMoves()[Math.max(0, player.combo - 1)] || lightMoves()[0];
   }
 
   function wantLeft() { return keys.has("ArrowLeft") || keys.has("KeyA") || pad.left || gp.left; }
@@ -1899,16 +1924,20 @@
       if (consumeTap("light")) {
         player.blocking = false;
         player.blockT = 0;
-        if (player.attacking && player.kind === "light" && player.combo < 3 && player.phase === "rec") {
-          player.buffer = true;
+        if (player.attacking && player.kind === "light" && player.combo < 3 && (player.phase === "rec" || player.phase === "active")) {
+          if (player.buffer !== "mega") player.buffer = "light";
         } else if (!player.attacking) {
           startAttack("light", 1);
         }
       }
-      if (consumeTap("heavy") && !player.attacking && player.heavyCd === 0) {
+      if (consumeTap("heavy")) {
         player.blocking = false;
         player.blockT = 0;
-        startAttack("heavy", 0);
+        if (player.attacking && player.kind === "light" && player.combo === 2 && player.heavyCd === 0 && (player.phase === "rec" || player.phase === "active" || player.phase === "wu")) {
+          player.buffer = "mega";
+        } else if (!player.attacking && player.heavyCd === 0) {
+          startAttack("heavy", 0);
+        }
       }
     }
 
@@ -1917,7 +1946,7 @@
       const len = player.phase === "wu" ? spec.wu : player.phase === "active" ? spec.act : spec.rec;
       player.phaseT++;
       if (player.phase === "wu" && player.phaseT === 1) {
-        player.vx += player.facing * (player.kind === "heavy" ? 1.8 : 0.9);
+        player.vx += player.facing * (player.kind === "heavy" || player.kind === "mega" ? 1.8 : player.combo >= 3 ? 1.4 : 0.9);
       }
       if (player.phaseT >= len) {
         player.phaseT = 0;
@@ -1926,7 +1955,9 @@
           if (spec.shot || spec.burst || spec.mark) firePistol();
         } else if (player.phase === "active") player.phase = "rec";
         else {
-          if (player.buffer && player.kind === "light" && player.combo < 3) {
+          if (player.buffer === "mega") {
+            startAttack("mega", 3);
+          } else if (player.buffer === "light" && player.kind === "light" && player.combo < 3) {
             startAttack("light", player.combo + 1);
           } else {
             player.attacking = false;
@@ -2012,7 +2043,7 @@
     if (player.rolling) player.anim = "jump";
     else if (player.hurtT > 0) player.anim = "hurt";
     else if (player.blocking) player.anim = "block";
-    else if (player.attacking) player.anim = player.kind === "heavy" ? "heavy" : "attack";
+    else if (player.attacking) player.anim = (player.kind === "heavy" || player.kind === "mega" || (player.kind === "light" && player.combo >= 3)) ? "heavy" : "attack";
     else if (!player.onGround) player.anim = "jump";
     else if (moving) { player.anim = "run"; player.runT++; }
     else { player.anim = "idle"; player.runT = 0; }
@@ -2042,9 +2073,11 @@
       e.hitBy = player.swingId;
       const spec = hb.spec;
       const dir = player.facing;
-      const bash = era === 2 && player.kind === "heavy";
-      const cleave = era === 3 && player.kind === "heavy";
-      if (e.type === "legionary" && e.stunT <= 0 && !bash) {
+      const mega = player.kind === "mega";
+      const power = player.kind === "heavy" || mega;
+      const bash = (era === 2 && power) || (mega && spec.stun);
+      const cleave = (era === 3 && power) || (mega && spec.overhead);
+      if (e.type === "legionary" && e.stunT <= 0 && !bash && !mega) {
         sparkBurst(e.x, e.y - 24, 8, true);
         floatText(e.x, e.y - e.h - 8, "THE SCUTUM HOLDS", "#e8d48a");
         sfx("block");
@@ -2075,20 +2108,20 @@
         sfx("block");
         continue;
       }
-      if (e.type === "knight" && e.guarded && !cleave) {
+      if (e.type === "knight" && e.guarded && !cleave && !mega) {
         sparkBurst(e.x, e.y - 28, 8, true);
         floatText(e.x, e.y - e.h - 8, "THE PLATE HOLDS", "#e8d48a");
         sfx("block");
         e.vx = dir * 0.6;
         continue;
       }
-      if (e.type === "centurion" && e.guarded && !bash) {
+      if (e.type === "centurion" && e.guarded && !bash && !mega) {
         sparkBurst(e.x, e.y - 30, 8, true);
         floatText(e.x, e.y - e.h - 8, "THE WALL HOLDS", "#e8d48a");
         sfx("block");
         continue;
       }
-      if (e.type === "baron" && e.guarded && !cleave) {
+      if (e.type === "baron" && e.guarded && !cleave && !mega) {
         sparkBurst(e.x, e.y - 32, 8, true);
         floatText(e.x, e.y - e.h - 8, "THE VISOR HOLDS", "#e8d48a");
         sfx("block");
@@ -2122,22 +2155,23 @@
         bloodBurst(box.x + box.w / 2, box.y + box.h * 0.4, dir, 12, e.hits >= 3);
         sfx("hit");
         hitstop = 7;
-        bumpShake(player.kind === "heavy" ? 16 : 10);
+        bumpShake(power ? 16 : 10);
         if (e.hits >= 3) killEnemy(e);
       } else {
         e.hp -= Math.max(1, Math.round(spec.dmg * diffCfg().dmgOut));
-        e.hurtT = player.kind === "heavy" ? 16 : 12;
+        e.hurtT = power ? 16 : 12;
         e.flashT = 0;
         e.state = "hurt";
         e.vx = dir * spec.kb;
-        e.vy = spec.lift || (player.kind === "heavy" ? -1.4 : player.combo === 3 ? -2.2 : -0.8);
+        e.vy = spec.lift || (power ? -1.8 : player.combo === 3 ? -2.4 : -0.8);
         e.facing = -dir;
-        sparkBurst(e.x, e.y - e.h * 0.5, player.kind === "heavy" ? 16 : 10, true);
-        bloodBurst(e.x, e.y - e.h * 0.45, dir, player.kind === "heavy" || player.combo === 3 ? 14 : 8, e.hp <= 0);
+        sparkBurst(e.x, e.y - e.h * 0.5, power || player.combo === 3 ? 18 : 10, true);
+        bloodBurst(e.x, e.y - e.h * 0.45, dir, power || player.combo === 3 ? 16 : 8, e.hp <= 0);
         floatText(e.x + dir * 6, e.y - e.h - 6, "-" + spec.dmg, "#d23a3a");
         sfx("hit");
-        hitstop = player.kind === "heavy" ? 8 : player.combo === 3 ? 7 : 4;
-        if (player.kind === "heavy") bumpShake(16);
+        hitstop = mega ? 10 : player.kind === "heavy" ? 8 : player.combo === 3 ? 7 : 4;
+        if (mega) bumpShake(20);
+        else if (player.kind === "heavy") bumpShake(16);
         else if (player.combo === 3) bumpShake(12);
         else bumpShake(6);
         if (e.hp <= 0) killEnemy(e);
@@ -2153,7 +2187,8 @@
     bloodBurst(e.x, e.y - 16, player.facing || 1, 16, true);
     bumpShake(Math.max(shake, 10));
     let pts = ROH.isBoss(e.type) ? 1000 : (ROH.isSpecial(e.type) || e.type === "knight" || e.type === "gate") ? 250 : 100;
-    if (player.combo === 3) pts += 50;
+    if (player.kind === "mega") pts += 150;
+    else if (player.combo === 3) pts += 50;
     addScore(pts, null, e.x, e.y - e.h - 20);
     floatText(e.x, e.y - e.h - 20, "+" + pts, "#ffe27a");
     chargeFromKill(e);
@@ -3335,46 +3370,61 @@
     const oy = player.y - 22;
     const gun = !!(spec.shot || spec.burst || spec.mark);
     const t = player.phase === "wu" ? player.phaseT / Math.max(1, spec.wu) : player.phase === "active" ? 1 : 0.35;
+    const mega = player.kind === "mega";
     ctx.save();
     if (gun) {
       if (player.phase === "wu" || player.phase === "active") {
         const reach = spec.range || 80;
         ctx.strokeStyle = player.phase === "wu" ? "rgba(243,226,160,0.55)" : "rgba(255,246,200,0.9)";
-        ctx.lineWidth = player.phase === "active" ? 2.4 : 1;
+        ctx.lineWidth = player.phase === "active" ? (mega ? 3.4 : 2.4) : 1;
         ctx.beginPath();
         ctx.moveTo(ox + dir * 10, oy);
         ctx.lineTo(ox + dir * (player.phase === "wu" ? reach * 0.7 : 22), oy);
         ctx.stroke();
         if (player.phase === "active") {
-          const g = ctx.createRadialGradient(ox + dir * 14, oy, 1, ox + dir * 14, oy, 16);
+          const flashR = mega ? 26 : 16;
+          const g = ctx.createRadialGradient(ox + dir * 14, oy, 1, ox + dir * 14, oy, flashR);
           g.addColorStop(0, "rgba(255,246,200,0.95)");
-          g.addColorStop(0.4, "rgba(255,160,60,0.55)");
+          g.addColorStop(0.4, mega ? "rgba(255,210,90,0.7)" : "rgba(255,160,60,0.55)");
           g.addColorStop(1, "rgba(210,58,58,0)");
           ctx.fillStyle = g;
           ctx.beginPath();
-          ctx.arc(ox + dir * 14, oy, 16, 0, Math.PI * 2);
+          ctx.arc(ox + dir * 14, oy, flashR, 0, Math.PI * 2);
           ctx.fill();
         }
       }
       ctx.restore();
       return;
     }
-    const heavy = player.kind === "heavy";
-    const reach = spec.range * (heavy ? 1.05 : player.combo >= 3 ? 0.95 : player.combo === 2 ? 0.72 : 0.52);
+    const heavy = player.kind === "heavy" || mega;
+    const overhead = !!(spec.overhead || mega);
+    const reach = spec.range * (heavy ? 1.08 : overhead ? 1.05 : player.combo === 2 ? 0.72 : 0.52);
     const thrust = era === 5 && !heavy;
     const spear = era === 1 && heavy;
     const bash = era === 2 && heavy;
     const cleave = era === 3 && heavy;
     const a = player.phase === "active" ? 0.95 : player.phase === "wu" ? 0.28 + t * 0.25 : 0.18;
     ctx.globalAlpha = a;
-    ctx.strokeStyle = heavy ? "#fff6c8" : "#f3e2a0";
-    ctx.lineWidth = heavy ? (cleave ? 5 : 3.4) : player.combo >= 3 ? 3 : 1.8;
+    ctx.strokeStyle = mega ? "#ffe27a" : heavy ? "#fff6c8" : "#f3e2a0";
+    ctx.lineWidth = mega ? 6 : heavy ? (cleave ? 5 : 3.4) : overhead ? 4 : 1.8;
     ctx.lineCap = "round";
+    if ((overhead || mega) && player.phase === "active") {
+      const burst = ctx.createRadialGradient(ox + dir * 16, oy - 18, 2, ox + dir * 16, oy - 18, mega ? 34 : 24);
+      burst.addColorStop(0, "rgba(255,246,200,0.9)");
+      burst.addColorStop(0.4, "rgba(230,195,92,0.45)");
+      burst.addColorStop(1, "rgba(210,58,58,0)");
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = burst;
+      ctx.beginPath();
+      ctx.arc(ox + dir * 16, oy - 18, mega ? 34 : 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = a;
+    }
     if (thrust || spear) {
       const len = (player.phase === "active" ? reach : reach * (0.3 + t * 0.5));
       ctx.beginPath();
-      ctx.moveTo(ox + dir * 6, oy + (spear ? -8 : 2));
-      ctx.lineTo(ox + dir * (6 + len), oy + (spear ? -14 : 2));
+      ctx.moveTo(ox + dir * 6, oy + (spear || overhead ? -18 : 2));
+      ctx.lineTo(ox + dir * (6 + len), oy + (spear || overhead ? -28 : 2));
       ctx.stroke();
       if (player.phase === "active") {
         ctx.strokeStyle = "rgba(255,255,255,0.7)";
@@ -3386,19 +3436,19 @@
       }
     } else if (bash && player.phase === "active") {
       ctx.strokeStyle = "rgba(230,195,92,0.8)";
-      ctx.lineWidth = 3;
+      ctx.lineWidth = mega ? 5 : 3;
       ctx.beginPath();
       ctx.arc(ox + dir * 10, oy + 4, 16 + t * 10, 0, Math.PI * 2);
       ctx.stroke();
     } else {
-      const start = dir > 0 ? (player.combo >= 3 ? -1.6 : -1.15) : Math.PI - (player.combo >= 3 ? 0.1 : 0.4);
-      const span = (cleave ? 2.5 : heavy ? 2.05 : player.combo >= 3 ? 1.95 : player.combo === 2 ? 1.45 : 1.05) * dir;
+      const start = dir > 0 ? (overhead ? -2.35 : -1.15) : Math.PI - (overhead ? -0.4 : 0.4);
+      const span = (cleave || mega ? 2.65 : heavy ? 2.05 : overhead ? 2.2 : player.combo === 2 ? 1.45 : 1.05) * dir;
       const r = 10 + reach * (player.phase === "wu" ? 0.4 + t * 0.25 : 0.95);
-      const lift = player.combo >= 3 ? -14 : cleave ? -8 : 2;
+      const lift = overhead ? -22 : cleave ? -8 : 2;
       if (player.phase === "active") {
         for (let i = 3; i >= 1; i--) {
           ctx.globalAlpha = 0.22 * i;
-          ctx.lineWidth = (heavy ? 5 : 2.4) * (i / 3);
+          ctx.lineWidth = (mega ? 7 : heavy ? 5 : 2.4) * (i / 3);
           ctx.strokeStyle = i === 1 ? "#fff6c8" : "#e6c35c";
           ctx.beginPath();
           ctx.arc(ox - dir * i * 3, oy + lift + i, r - i * 3, start, start + span, dir < 0);
@@ -3564,6 +3614,7 @@
     }
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, VW, VH);
+    drawEraBack();
 
     ctx.save();
     ctx.globalAlpha = ending ? 0.35 : 0.85;
@@ -3598,47 +3649,62 @@
     }
     ctx.restore();
 
-    if (era === 6 && (ending || mode === "win")) {
-      const sun = ctx.createRadialGradient(400, 58, 4, 400, 58, 46);
-      sun.addColorStop(0, "#ffd27a");
-      sun.addColorStop(1, "rgba(255,140,60,0)");
-      ctx.fillStyle = sun;
-      ctx.fillRect(350, 20, 100, 80);
-    } else if (era === 5) {
-      ctx.fillStyle = "rgba(255, 210, 120, 0.12)";
-      ctx.fillRect(300, 20, 80, 40);
-    } else if (era === 4) {
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.beginPath();
-      ctx.arc(86, 38, 16, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (era !== 3 && era !== 6) {
-      const sun = ctx.createRadialGradient(400, 58, 4, 400, 58, 46);
-      sun.addColorStop(0, "#ffd27a");
-      sun.addColorStop(1, "rgba(255,140,60,0)");
-      ctx.fillStyle = sun;
-      ctx.fillRect(350, 20, 100, 80);
-    } else if (era === 3) {
-      const moon = ctx.createRadialGradient(390, 42, 3, 390, 42, 28);
-      moon.addColorStop(0, "#c8d0d8");
-      moon.addColorStop(1, "rgba(80,90,110,0)");
-      ctx.fillStyle = moon;
-      ctx.fillRect(360, 18, 60, 50);
+    if (!SPR["bg" + era]) {
+      if (era === 6 && (ending || mode === "win")) {
+        const sun = ctx.createRadialGradient(400, 58, 4, 400, 58, 46);
+        sun.addColorStop(0, "#ffd27a");
+        sun.addColorStop(1, "rgba(255,140,60,0)");
+        ctx.fillStyle = sun;
+        ctx.fillRect(350, 20, 100, 80);
+      } else if (era === 5) {
+        ctx.fillStyle = "rgba(255, 210, 120, 0.12)";
+        ctx.fillRect(300, 20, 80, 40);
+      } else if (era === 4) {
+        ctx.fillStyle = "rgba(255,255,255,0.35)";
+        ctx.beginPath();
+        ctx.arc(86, 38, 16, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (era !== 3 && era !== 6) {
+        const sun = ctx.createRadialGradient(400, 58, 4, 400, 58, 46);
+        sun.addColorStop(0, "#ffd27a");
+        sun.addColorStop(1, "rgba(255,140,60,0)");
+        ctx.fillStyle = sun;
+        ctx.fillRect(350, 20, 100, 80);
+      } else if (era === 3) {
+        const moon = ctx.createRadialGradient(390, 42, 3, 390, 42, 28);
+        moon.addColorStop(0, "#c8d0d8");
+        moon.addColorStop(1, "rgba(80,90,110,0)");
+        ctx.fillStyle = moon;
+        ctx.fillRect(360, 18, 60, 50);
+      }
     }
+  }
+
+  function drawEraBack() {
+    const spr = SPR["bg" + era];
+    if (!spr || !spr.canvas) return;
+    const extra = 80;
+    const ox = -((camX * 0.08) % extra);
+    ctx.save();
+    ctx.globalAlpha = ending ? 0.55 : 0.94;
+    ctx.drawImage(spr.canvas, ox, 0, VW + extra, GROUND);
+    ctx.restore();
   }
 
   function drawKeep() {
     const p = camX * 0.18;
-    ctx.fillStyle = "#141820";
-    ctx.beginPath();
-    ctx.moveTo(0, 150);
-    ctx.lineTo(VW, 158);
-    ctx.lineTo(VW, GROUND);
-    ctx.lineTo(0, GROUND);
-    ctx.fill();
+    if (!SPR["bg" + era]) {
+      ctx.fillStyle = "#141820";
+      ctx.beginPath();
+      ctx.moveTo(0, 150);
+      ctx.lineTo(VW, 158);
+      ctx.lineTo(VW, GROUND);
+      ctx.lineTo(0, GROUND);
+      ctx.fill();
+    }
 
     const pal = SPR.palisade;
-    if (pal) {
+    if (pal && !SPR["bg" + era]) {
       ctx.save();
       ctx.globalAlpha = 0.55;
       const tw = 72;
@@ -3647,7 +3713,7 @@
         ctx.drawImage(pal.canvas, x, 132, tw, GROUND - 132);
       }
       ctx.restore();
-    } else {
+    } else if (!SPR["bg" + era]) {
       ctx.fillStyle = "#1a1612";
       for (let i = 0; i < 18; i++) {
         const x = ((i * 36 - camX * 0.45) % (VW + 40));
@@ -3712,13 +3778,15 @@
   }
 
   function drawEmpire() {
-    ctx.fillStyle = "#c5cdd4";
-    ctx.beginPath();
-    ctx.moveTo(0, 168);
-    ctx.lineTo(VW, 176);
-    ctx.lineTo(VW, GROUND);
-    ctx.lineTo(0, GROUND);
-    ctx.fill();
+    if (!SPR["bg" + era]) {
+      ctx.fillStyle = "#c5cdd4";
+      ctx.beginPath();
+      ctx.moveTo(0, 168);
+      ctx.lineTo(VW, 176);
+      ctx.lineTo(VW, GROUND);
+      ctx.lineTo(0, GROUND);
+      ctx.fill();
+    }
 
     for (let i = 0; i < 10; i++) {
       const x = ((i * 92 - camX * 0.4) % (VW + 80)) - 20;
@@ -3774,15 +3842,19 @@
   }
 
   function drawNightStreet() {
-    ctx.fillStyle = "#141820";
-    ctx.fillRect(0, 130, VW, GROUND - 130);
-    for (let i = 0; i < 8; i++) {
-      const x = ((i * 140 - camX * 0.28) % (VW + 80)) - 20;
-      ctx.fillStyle = i % 2 ? "#1c1814" : "#181410";
-      ctx.fillRect(x, 70, 48, GROUND - 70);
-      ctx.fillStyle = "rgba(255, 140, 60, 0.18)";
-      ctx.fillRect(x + 12, 100, 8, 10);
-      ctx.fillRect(x + 28, 118, 8, 10);
+    if (!SPR["bg" + era]) {
+      ctx.fillStyle = "#141820";
+      ctx.fillRect(0, 130, VW, GROUND - 130);
+    }
+    if (!SPR["bg" + era]) {
+      for (let i = 0; i < 8; i++) {
+        const x = ((i * 140 - camX * 0.28) % (VW + 80)) - 20;
+        ctx.fillStyle = i % 2 ? "#1c1814" : "#181410";
+        ctx.fillRect(x, 70, 48, GROUND - 70);
+        ctx.fillStyle = "rgba(255, 140, 60, 0.18)";
+        ctx.fillRect(x + 12, 100, 8, 10);
+        ctx.fillRect(x + 28, 118, 8, 10);
+      }
     }
     for (const L of NEST_RUBBLE) {
       const x = L.x - camX;
@@ -3820,16 +3892,20 @@
   }
 
   function drawPresent() {
-    ctx.fillStyle = "#5a5e64";
-    ctx.fillRect(0, 110, VW, GROUND - 110);
-    for (let i = 0; i < 7; i++) {
-      const x = ((i * 130 - camX * 0.3) % (VW + 90)) - 30;
-      ctx.fillStyle = i % 2 ? "#6a6e74" : "#585c62";
-      ctx.fillRect(x, 48, 70, GROUND - 48);
-      ctx.fillStyle = "#3a3e44";
-      ctx.fillRect(x + 10, 70, 12, 16);
-      ctx.fillRect(x + 40, 90, 12, 16);
-      ctx.fillRect(x + 22, GROUND - 36, 18, 36);
+    if (!SPR["bg" + era]) {
+      ctx.fillStyle = "#5a5e64";
+      ctx.fillRect(0, 110, VW, GROUND - 110);
+    }
+    if (!SPR["bg" + era]) {
+      for (let i = 0; i < 7; i++) {
+        const x = ((i * 130 - camX * 0.3) % (VW + 90)) - 30;
+        ctx.fillStyle = i % 2 ? "#6a6e74" : "#585c62";
+        ctx.fillRect(x, 48, 70, GROUND - 48);
+        ctx.fillStyle = "#3a3e44";
+        ctx.fillRect(x + 10, 70, 12, 16);
+        ctx.fillRect(x + 40, 90, 12, 16);
+        ctx.fillRect(x + 22, GROUND - 36, 18, 36);
+      }
     }
     for (let i = 0; i < 8; i++) {
       const x = ((i * 88 - camX * 0.42) % (VW + 60)) - 16;
@@ -3864,30 +3940,32 @@
 
   function drawDunes() {
     const p = camX * 0.25;
-    ctx.fillStyle = "#b86a32";
-    ctx.beginPath();
-    ctx.moveTo(0, 168);
-    for (let x = 0; x <= VW; x += 16) {
-      const wx = x + p;
-      const y = 150 + Math.sin(wx * 0.01) * 10 + Math.sin(wx * 0.023) * 6;
-      ctx.lineTo(x, y);
-    }
-    ctx.lineTo(VW, GROUND);
-    ctx.lineTo(0, GROUND);
-    ctx.fill();
+    if (!SPR["bg" + era]) {
+      ctx.fillStyle = "#b86a32";
+      ctx.beginPath();
+      ctx.moveTo(0, 168);
+      for (let x = 0; x <= VW; x += 16) {
+        const wx = x + p;
+        const y = 150 + Math.sin(wx * 0.01) * 10 + Math.sin(wx * 0.023) * 6;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(VW, GROUND);
+      ctx.lineTo(0, GROUND);
+      ctx.fill();
 
-    const p2 = camX * 0.4;
-    ctx.fillStyle = "#c97a3a";
-    ctx.beginPath();
-    ctx.moveTo(0, 190);
-    for (let x = 0; x <= VW; x += 12) {
-      const wx = x + p2;
-      const y = 176 + Math.sin(wx * 0.014) * 8;
-      ctx.lineTo(x, y);
+      const p2 = camX * 0.4;
+      ctx.fillStyle = "#c97a3a";
+      ctx.beginPath();
+      ctx.moveTo(0, 190);
+      for (let x = 0; x <= VW; x += 12) {
+        const wx = x + p2;
+        const y = 176 + Math.sin(wx * 0.014) * 8;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(VW, GROUND);
+      ctx.lineTo(0, GROUND);
+      ctx.fill();
     }
-    ctx.lineTo(VW, GROUND);
-    ctx.lineTo(0, GROUND);
-    ctx.fill();
 
     const p3 = camX * 0.38;
     ctx.fillStyle = "#2a1810";
@@ -3931,16 +4009,18 @@
 
   function drawRome() {
     const p = camX * 0.22;
-    ctx.fillStyle = "#6a5a4a";
-    ctx.beginPath();
-    ctx.moveTo(0, 170);
-    for (let x = 0; x <= VW; x += 18) {
-      const wx = x + p;
-      ctx.lineTo(x, 148 + Math.sin(wx * 0.012) * 10);
+    if (!SPR["bg" + era]) {
+      ctx.fillStyle = "#6a5a4a";
+      ctx.beginPath();
+      ctx.moveTo(0, 170);
+      for (let x = 0; x <= VW; x += 18) {
+        const wx = x + p;
+        ctx.lineTo(x, 148 + Math.sin(wx * 0.012) * 10);
+      }
+      ctx.lineTo(VW, GROUND);
+      ctx.lineTo(0, GROUND);
+      ctx.fill();
     }
-    ctx.lineTo(VW, GROUND);
-    ctx.lineTo(0, GROUND);
-    ctx.fill();
 
     for (let i = 0; i < 9; i++) {
       const wx = i * 220 + 40;
@@ -4466,7 +4546,7 @@
     if (player.rolling || player.invuln === 0 || time % 4 < 2 || player.deadT > 0) {
       const bob = player.rolling ? 0 : player.anim === "idle" ? Math.sin(time * 0.08) * 1.1 : player.anim === "run" ? Math.sin(player.runT * 0.45) * 1.6 : 0;
       const lunge = player.attacking
-        ? (player.phase === "wu" ? player.facing * -6 : player.phase === "active" ? player.facing * (player.kind === "heavy" ? 11 : player.combo >= 3 ? 9 : 5) : player.facing * 2)
+        ? (player.phase === "wu" ? player.facing * -6 : player.phase === "active" ? player.facing * (player.kind === "heavy" || player.kind === "mega" ? 11 : player.combo >= 3 ? 9 : 5) : player.facing * 2)
         : 0;
       const mounted = !!(horse && horse.mounted && horse.alive);
       const dh = player.rolling ? 48 : player.anim === "death" ? 38 : 62;
@@ -4493,7 +4573,7 @@
         ctx.restore();
       }
       drawSwing();
-      if (era === 6 && player.attacking && player.kind === "heavy" && player.phase === "wu") {
+      if (era === 6 && player.attacking && (player.kind === "heavy" || player.kind === "mega") && player.phase === "wu") {
         const tankAim = !!(horse && horse.mounted && horse.kind === 6);
         ctx.save();
         ctx.strokeStyle = tankAim ? "rgba(230,195,92,0.8)" : "rgba(243,226,160,0.55)";
@@ -4504,7 +4584,7 @@
         ctx.stroke();
         ctx.restore();
       }
-      if (era === 5 && player.attacking && player.kind === "heavy" && player.phase === "wu" && !(horse && horse.mounted && horse.kind === 5)) {
+      if (era === 5 && player.attacking && (player.kind === "heavy" || player.kind === "mega") && player.phase === "wu" && !(horse && horse.mounted && horse.kind === 5)) {
         ctx.save();
         ctx.strokeStyle = "rgba(243, 226, 160, 0.7)";
         ctx.lineWidth = 1;
@@ -4743,6 +4823,10 @@
       gateCleared,
       cannons: cannons.length,
       rolling: !!player.rolling,
+      combo: player.combo || 0,
+      kind: player.kind || null,
+      phase: player.phase || null,
+      attacking: !!player.attacking,
       score,
       difficulty,
       nestCleared,
