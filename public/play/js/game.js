@@ -1414,6 +1414,98 @@
     return null;
   }
 
+  function holeAt(px) {
+    const p = overPit(px);
+    if (!p) return null;
+    for (const L of ledges) {
+      if (L.gone) continue;
+      const top = L.y + (L.fall || 0);
+      if (px >= L.x && px <= L.x + L.w && top >= GROUND - 10) return null;
+    }
+    return p;
+  }
+
+  function pitLip(p, fromX) {
+    return fromX <= p.x + p.w * 0.5 ? p.x + 8 : p.x + p.w - 8;
+  }
+
+  function onFloor(e) {
+    return Math.abs(e.y - GROUND) < 8;
+  }
+
+  function snapOffHole(e) {
+    if (!onFloor(e) || e.ledge) return;
+    const p = holeAt(e.x);
+    if (!p) return;
+    e.x = pitLip(p, e.x);
+    e.vx = 0;
+    e.vy = 0;
+    e.y = GROUND;
+  }
+
+  function crowdApart(e) {
+    if (!onFloor(e) || e.ledge) return;
+    const minGap = Math.max(24, e.w * 0.7 + 10);
+    for (const n of enemies) {
+      if (n === e || n.hp <= 0 || n.deadT > 0 || n.ledge) continue;
+      if (!onFloor(n)) continue;
+      if (n.type === "gate" || n.type === "mgnest") continue;
+      const d = e.x - n.x;
+      const gap = Math.abs(d);
+      if (gap > minGap) continue;
+      const push = gap < 1 ? 0.7 : (minGap - gap) * 0.2;
+      const bias = d > 0 || (gap < 1 && enemies.indexOf(e) > enemies.indexOf(n));
+      const nx = e.x + (bias ? push : -push);
+      if (!holeAt(nx) && !holeAt(nx + (bias ? 8 : -8))) e.x = nx;
+    }
+  }
+
+  function steerAwayFromHoles(e) {
+    if (e.ledge || e.type === "gate" || e.type === "mgnest" || e.type === "archer" || e.type === "colonel") return;
+    if (!onFloor(e)) return;
+    snapOffHole(e);
+    const lookDir = e.vx > 0.04 ? 1 : e.vx < -0.04 ? -1 : 0;
+    if (lookDir !== 0) {
+      const spd = diffCfg().spd;
+      const ahead = e.x + lookDir * (Math.max(12, e.w * 0.5) + 10);
+      const p = holeAt(ahead) || holeAt(e.x + e.vx * spd);
+      if (p) {
+        const lip = pitLip(p, e.x);
+        const leftSide = e.x <= p.x + p.w * 0.5;
+        const mates = [];
+        for (const n of enemies) {
+          if (n.hp <= 0 || n.deadT > 0 || n.ledge) continue;
+          if (n.type === "gate" || n.type === "mgnest" || n.type === "archer") continue;
+          if (!onFloor(n)) continue;
+          if ((n.x <= p.x + p.w * 0.5) !== leftSide) continue;
+          if (Math.abs(n.x - lip) > 200) continue;
+          mates.push(n);
+        }
+        mates.sort((a, b) => Math.abs(a.x - lip) - Math.abs(b.x - lip));
+        let rank = 0;
+        for (let i = 0; i < mates.length; i++) if (mates[i] === e) rank = i;
+        const crowd = mates.length;
+        const slot = (crowd <= 1 ? 16 : 42) + rank * 40;
+        const dist = Math.abs(e.x - lip);
+        const toward = (lip - e.x) * lookDir > 0;
+        if (toward) {
+          if (dist <= slot) {
+            e.vx = 0;
+            if (e.state === "charge") {
+              e.state = "idle";
+              e.charge = 0;
+              e.cd = Math.max(e.cd || 0, 24);
+            }
+          }
+          if (dist < slot - 12) e.vx = e.x < lip ? -0.65 : 0.65;
+        }
+        if (crowd > 1) e.vx += Math.sin(time * 0.06 + e.x * 0.03) * (rank === 0 ? 0.08 : 0.35);
+      }
+    }
+    crowdApart(e);
+    snapOffHole(e);
+  }
+
   function standY(px, py, pvy) {
     let y = GROUND;
     let onLedge = false;
@@ -2304,6 +2396,7 @@
     if (e.hurtT > 0) {
       e.hurtT--;
       e.x += e.vx;
+      snapOffHole(e);
       if (e.ledge) {
         e.vy = 0;
         e.y = AQUA.y;
@@ -2879,10 +2972,12 @@
       const floor = standY(e.x, e.y, e.vy);
       if (e.y >= floor) { e.y = floor; e.vy = 0; }
     }
+    steerAwayFromHoles(e);
     e.x += e.vx * diffCfg().spd;
     const left = lock ? lock.left + 20 : 40;
     const right = lock ? lock.right - 20 : LEVEL_W - 40;
     e.x = clamp(e.x, left, right);
+    snapOffHole(e);
   }
 
   function updateShots() {
@@ -4810,7 +4905,7 @@
       x: player.x | 0,
       y: player.y | 0,
       anim: player.anim,
-      enemies: enemies.map((e) => ({ type: e.type, x: e.x | 0, hp: e.hp, facing: e.facing, state: e.state, hits: e.hits, guarded: e.guarded })),
+      enemies: enemies.map((e) => ({ type: e.type, x: e.x | 0, y: e.y | 0, hp: e.hp, facing: e.facing, state: e.state, hits: e.hits, guarded: e.guarded })),
       lock,
       doorOpen,
       doorX: door.x | 0,
