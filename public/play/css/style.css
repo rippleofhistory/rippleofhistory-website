@@ -1,3 +1,39 @@
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/cinzel-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/cinzel-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("../fonts/cinzel-900.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cinzel Decorative";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/cinzel-decorative-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cinzel Decorative";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("../fonts/cinzel-decorative-900.woff2") format("woff2");
+}
+
 :root {
   --gold: #d4af37;
   --gold-dim: #8a6a24;
@@ -165,6 +201,24 @@ html.force-land #stage {
   letter-spacing: 0.22em;
   color: #8a7340;
   pointer-events: none;
+}
+
+.privacy-link {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 3;
+  margin: 0;
+  font-family: "Cinzel", serif;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: #8a7340;
+  text-decoration: none;
+  pointer-events: auto;
+}
+.privacy-link:hover,
+.privacy-link:focus {
+  color: #d4af37;
 }
 
 .series {
@@ -671,6 +725,7 @@ html.force-land #stage {
   .diff-row .gold-btn { padding: 4px 6px; font-size: 8px; min-height: 24px; }
   .keys { font-size: 8px; padding: 4px 8px; }
   .ver { font-size: 8px; }
+  .privacy-link { font-size: 8px; }
   .btn-col { gap: 4px; }
   .gold-btn { min-width: 160px; min-height: 30px; padding: 5px 16px; }
   .dpad { width: 128px; height: 128px; }

@@ -657,9 +657,25 @@
     if (label) floatText(x != null ? x : player.x, y != null ? y : player.y - 48, "+" + n, "#ffe27a");
   }
 
+  function isNativeApp() {
+    if (window.ROHNative && typeof window.ROHNative.isNative === "function") {
+      return window.ROHNative.isNative();
+    }
+    try {
+      if (window.Capacitor && typeof window.Capacitor.isNativePlatform === "function") {
+        return window.Capacitor.isNativePlatform();
+      }
+    } catch (err) { /* ignore */ }
+    const proto = location.protocol;
+    return proto === "capacitor:" || proto === "ionic:";
+  }
+
   function boardApi() {
+    if (isNativeApp()) return "https://www.rippleofhistory.com/api/leaderboard";
     const host = location.hostname;
-    if ((host === "localhost" || host === "127.0.0.1") && location.port === "4173") {
+    const port = location.port;
+    if (location.protocol === "file:") return "https://www.rippleofhistory.com/api/leaderboard";
+    if ((host === "localhost" || host === "127.0.0.1") && (port === "4173" || !port)) {
       return "https://www.rippleofhistory.com/api/leaderboard";
     }
     return "/api/leaderboard";
@@ -780,7 +796,7 @@
       stage.style.height = cssH.toFixed(2) + "px";
     }
     try {
-      if (portrait && screen.orientation && screen.orientation.lock) {
+      if (screen.orientation && screen.orientation.lock && (isNativeApp() || portrait)) {
         screen.orientation.lock("landscape").catch(() => {});
       }
     } catch (err) { /* not allowed until fullscreen */ }
@@ -1817,9 +1833,11 @@
 
   function begin(playIntro, startEra) {
     layoutStage();
-    try {
-      if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
-    } catch (err) { /* ignore */ }
+    if (!isNativeApp()) {
+      try {
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+      } catch (err) { /* ignore */ }
+    }
     audioInit();
     if (actx && actx.state === "suspended") actx.resume();
     applyMute();
@@ -1892,6 +1910,31 @@
     refreshEraSelect();
   }
 
+  function handleBack() {
+    if (screens.how && screens.how.classList.contains("active")) { hide(screens.how); return true; }
+    if (screens.eras && screens.eras.classList.contains("active")) { hide(screens.eras); return true; }
+    if (screens.board && screens.board.classList.contains("active")) { hide(screens.board); return true; }
+    if (mode === "pause") { mode = "play"; hide(screens.pause); refreshKeys(); return true; }
+    if (mode === "dead" || mode === "win") { toTitle(); return true; }
+    if (mode === "intro") { skipIntro(); return true; }
+    if (mode === "play" || mode === "warp") { togglePause(); return true; }
+    return false;
+  }
+
+  const privacyBtn = document.getElementById("btn-privacy");
+  if (privacyBtn) {
+    privacyBtn.addEventListener("click", (e) => {
+      const url = privacyBtn.getAttribute("href") || "https://www.rippleofhistory.com/privacy.html";
+      if (window.ROHNative && typeof window.ROHNative.openUrl === "function") {
+        e.preventDefault();
+        window.ROHNative.openUrl(url);
+      }
+    });
+  }
+  if (window.ROHNative) {
+    window.ROHNative.handleBack = handleBack;
+    if (typeof window.ROHNative.boot === "function") window.ROHNative.boot();
+  }
   document.getElementById("btn-begin").addEventListener("click", () => begin(true, 1));
   document.getElementById("btn-how").addEventListener("click", () => show(screens.how));
   document.getElementById("btn-how-close").addEventListener("click", () => hide(screens.how));
@@ -4928,6 +4971,7 @@
       pits: pits.length,
     }),
     mute: () => toggleMute(),
+    back: () => handleBack(),
     persist: () => persistSave(),
     tp: (x) => { player.x = x; camX = x - VW * 0.38; },
     wipe: () => { player.hp = 0; player.lives = 0; loseLife(); },
