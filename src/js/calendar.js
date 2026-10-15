@@ -315,16 +315,20 @@ renderTodayRipple();
 render();
 
 async function loadLiveShorts() {
-  try {
-    const response = await fetch("/api/on-this-day-shorts.json", { cache: "no-store" });
-    if (!response.ok) return;
-    const map = await response.json();
-    if (!map || typeof map !== "object") return;
-    hydrateShorts(map);
-    renderTodayRipple();
-    render(false);
-  } catch {
-    /* keep the built-in shorts map */
+  const urls = ["/api/on-this-day-shorts", "/api/on-this-day-shorts.json"];
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      const map = await response.json();
+      if (!map || typeof map !== "object" || !Object.keys(map).length) continue;
+      hydrateShorts(map);
+      renderTodayRipple();
+      render(false);
+      return;
+    } catch {
+      /* try the next feed */
+    }
   }
 }
 

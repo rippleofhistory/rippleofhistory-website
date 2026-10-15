@@ -5,20 +5,20 @@
   "start_url": "/",
   "scope": "/",
   "display": "browser",
-  "background_color": "#05080f",
-  "theme_color": "#07131f",
+  "background_color": "#050403",
+  "theme_color": "#050403",
   "lang": "en-GB",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/favicon-32.png",
+      "sizes": "64x64",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/logo.jpg",
-      "sizes": "1024x1024",
-      "type": "image/jpeg",
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
       "purpose": "any"
     }
   ]

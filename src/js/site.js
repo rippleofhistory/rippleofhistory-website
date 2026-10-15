@@ -137,14 +137,14 @@ export const DEEP_DIVES = [
 
 /** Fallback if the live YouTube feed cannot be reached. */
 export const LATEST_VIDEOS = [
-  { id: "qbuXRiEbGFo", title: "Battle of Britain 1940 — Forgotten Voices", tag: "Deep dive", length: "29:46" },
-  { id: "KtxDaEX3-Sc", title: 'Churchill: "The Few"', tag: "Speech", length: "33:22" },
-  { id: "mK0XAP6jM2U", title: "Airbourne 2026 — Sunday", tag: "Site visit", length: "37:00" },
-  { id: "GT6g3jvULNo", title: "Airbourne 2026 — Saturday", tag: "Site visit", length: "30:20" },
-  { id: "6dqgh0vaGZk", title: "Airbourne 2026 — Friday", tag: "Site visit", length: "31:39" },
-  { id: "FH5VOLQutPQ", title: "Andy Burnham — King of the North?", tag: "Debate", length: "10:23" },
-  { id: "HovqTcqS22k", title: "What Would Nelson Think of the Navy?", tag: "Debate", length: "7:08" },
-  { id: "30oVQx89fHk", title: "We Shall Fight on the Beaches", tag: "Speech", length: "24:09" },
+  { id: "Gq2jeUi-GsU", title: "RoH Shop Unboxing #3 - Hobart's Tank School", tag: "Shop", length: "15 Oct", kind: "video" },
+  { id: "xWWqlxBsKtg", title: "On this day in history. October 14th. Battle of Hastings 1066. Black Thursday Mighty 8th USAAF.", tag: "Short", length: "14 Oct", kind: "short" },
+  { id: "u3Gaqn4O7GQ", title: "On this day in history. October 13th. Black Friday Canadian Black Watch.", tag: "Short", length: "13 Oct", kind: "short" },
+  { id: "-ZGqX-bDAZQ", title: "on this day in history. October 12th. Edith Cavell Executed. Desmond Doss Medal of Honor.", tag: "Short", length: "12 Oct", kind: "short" },
+  { id: "XhvQfTHqIa4", title: "On this day in history. October 11th. Einstein warns FDR of German Atom Project.", tag: "Short", length: "12 Oct", kind: "short" },
+  { id: "knAymtkrXW4", title: "On this day in history. October 10th. USAAF Black Week Munster Raid.", tag: "Short", length: "11 Oct", kind: "short" },
+  { id: "YVWG27TE8FM", title: "on this day in history. October 9th. destruction of Warsaw. RIP Che Guevara.", tag: "Short", length: "10 Oct", kind: "short" },
+  { id: "ANuCmVH3X5E", title: "On this day in history. October 8th. 2 medal of honors. 3 greats fires. 1 che Guevara captured.", tag: "Short", length: "8 Oct", kind: "short" },
 ];
 
 export const VIDEO_FILTERS = [

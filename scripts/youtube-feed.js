@@ -44,11 +44,12 @@ function decodeXml(value) {
 
 function tagFor(title, isShort) {
   const text = title.toLowerCase();
-  if (isShort || /on this day|#onthisday/.test(text)) return "Short";
+  if (/unboxing|\bshop\b/.test(text)) return "Shop";
+  if (isShort || /on this day|#onthisday|\botd\b/.test(text)) return "Short";
   if (/forgotten voices/.test(text)) return "Deep dive";
   if (/churchill|finest hour|the few|beaches|full speech/.test(text)) return "Speech";
-  if (/airbourne|airshow|westham|church|fortress|martello/.test(text)) return "Site visit";
-  if (/\bgrok\b| vs |tank|hurricane|spitfire|general/.test(text)) return "Debate";
+  if (/airbourne|airshow|westham|\bchurch\b|fortress|martello/.test(text)) return "Site visit";
+  if (/\bgrok\b|\bvs\b|hurricane|spitfire/.test(text)) return "Debate";
   return "Long-form";
 }
 
@@ -60,8 +61,8 @@ function formatPublished(iso) {
 
 export function displayTitle(title) {
   return String(title)
-    .replace(/#(?:onthisday|history|shorts)\b/gi, "")
-    .replace(/#(\w+)/g, "$1")
+    .replace(/#(?:onthisday|history|shorts|ww2|otd)\b/gi, "")
+    .replace(/#(?!\d)(\w+)/g, "$1")
     .replace(/\s+/g, " ")
     .replace(/\s+([.,])/g, "$1")
     .replace(/^(?:in\s+)+/i, "")
@@ -138,7 +139,10 @@ export async function fetchChannelVideos(channelId) {
 
 export async function fetchLatestVideos(channelId, limit = 8) {
   const videos = await fetchChannelVideos(channelId);
-  return videos.slice(0, limit).map(({ published, ...video }) => video);
+  return videos.slice(0, limit).map(({ published, ...video }) => ({
+    ...video,
+    title: displayTitle(video.title),
+  }));
 }
 
 export function onThisDayMapFromVideos(videos, archive = {}) {

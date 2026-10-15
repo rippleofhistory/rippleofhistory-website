@@ -213,13 +213,19 @@ renderVideos();
 async function loadLatest() {
   const root = document.querySelector("[data-latest]");
   if (!root) return;
-  try {
-    const response = await fetch("/api/latest-videos.json", { cache: "no-store" });
-    if (!response.ok) return;
-    const list = await response.json();
-    if (Array.isArray(list) && list.length) fillRail("[data-latest]", list);
-  } catch {
-    /* keep the fallback list already rendered */
+  const urls = ["/api/latest-videos", "/api/latest-videos.json"];
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      const list = await response.json();
+      if (Array.isArray(list) && list.length) {
+        fillRail("[data-latest]", list);
+        return;
+      }
+    } catch {
+      /* try the next feed */
+    }
   }
 }
 
