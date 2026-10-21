@@ -239,7 +239,7 @@
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve(img);
-      img.onerror = reject;
+      img.onerror = () => reject(new Error("sprite " + src));
       img.src = src;
     });
   }
@@ -408,8 +408,16 @@
 
   async function loadAll() {
     const entries = Object.entries(FILES);
+    const failed = [];
     await Promise.all(entries.map(async ([name, src]) => {
-      const img = await loadImage(src);
+      let img;
+      try {
+        img = await loadImage(src);
+      } catch (err) {
+        failed.push(src);
+        console.error(err);
+        return;
+      }
       const isBg = name.indexOf("bg") === 0;
       const isTile = isBg || name === "ground" || name === "road" || name === "brick" || name === "mud" || name === "palisade" || name === "keep" || name === "snow" || name === "cobble" || name === "concrete";
       let spr = keyGreen(img, isTile);
@@ -480,6 +488,10 @@
       SPR[name] = spr;
     }));
     SPR.crackStamp = makeCrackStamp();
+    if (!SPR["kael-idle"]) {
+      throw new Error(failed.length ? "missing " + failed.join(", ") : "kael-idle missing");
+    }
+    if (failed.length) console.warn("sprites skipped", failed);
   }
 
   function audioInit() {
