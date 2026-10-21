@@ -124,6 +124,10 @@
     "kael5-hurt": "assets/kael5-hurt.jpg",
     "kael5-death": "assets/kael5-death.jpg",
     rifleinf: "assets/rifleinf.jpg",
+    duneinf: "assets/duneinf.jpg",
+    raptor: "assets/raptor.jpg",
+    hunter: "assets/hunter.jpg",
+    rex: "assets/rex.jpg",
     mgnest: "assets/mgnest.jpg",
     armorcar: "assets/armorcar.jpg",
     jeep: "assets/jeep.jpg",
@@ -160,7 +164,10 @@
   let era = 1;
   let warpT = 0;
   let warpTo = 2;
+  let skipCliffs = false;
+  let cliffsCleared = true;
   let horse = null;
+  let jurassic = false;
   let ledges = [];
   let villaX = 0;
   let gateCleared = false;
@@ -171,9 +178,11 @@
   let searchlights = [];
   let nestCleared = false;
   let wrecks = [];
+  let covers = [];
   let droneT = 0;
   let ending = false;
   let pits = [];
+  let slopes = [];
   let stains = [];
   let hurtFlash = 0;
   let unlocked = 1;
@@ -521,10 +530,17 @@
   function sfx(kind) {
     if (!actx) return;
     if (kind === "swing") {
-      const gun = era >= 4 && (player.kind === "heavy" || player.kind === "mega");
-      if (gun) {
-        noiseBurst(0.09, 0.34, 2400);
-        tone(880, 0.05, "square", 0.05, 220);
+      const specNow = currentSpec();
+      const gun = isGunSpec(specNow) || (era >= 4 && (player.kind === "heavy" || player.kind === "mega"));
+      if (gun && specNow && specNow.bazooka) {
+        noiseBurst(0.22, 0.46, 280);
+        tone(90, 0.2, "sawtooth", 0.08, 40);
+      } else if (gun && specNow && specNow.shotgun) {
+        noiseBurst(0.16, 0.5, 900);
+        tone(140, 0.08, "square", 0.06, 60);
+      } else if (gun) {
+        noiseBurst(0.07, 0.32, 2600);
+        tone(980, 0.04, "square", 0.04, 180);
       } else {
         noiseBurst(0.1, 0.26, 1100);
         tone(player.kind === "heavy" || player.kind === "mega" ? 220 : player.combo >= 3 ? 300 : 480, 0.08, "sawtooth", 0.05, 140);
@@ -668,6 +684,13 @@
     } catch (err) { /* ignore */ }
     const proto = location.protocol;
     return proto === "capacitor:" || proto === "ionic:";
+  }
+
+  function isLocalPreview() {
+    if (isNativeApp()) return false;
+    const host = location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") return true;
+    return location.protocol === "file:";
   }
 
   function boardApi() {
@@ -833,6 +856,7 @@
   function applyMute() {
     if (master) master.gain.value = muted ? 0 : 0.22;
     if (ROH.musicMute) ROH.musicMute(muted);
+    if (window.ROHCliffs) window.ROHCliffs.syncMute(muted);
     refreshMuteButtons();
   }
   function toggleMute() {
@@ -841,11 +865,21 @@
     applyMute();
     persistSave();
   }
+  function eraCap() {
+    return isLocalPreview() ? 6 : unlocked;
+  }
   function refreshEraSelect() {
+    const cap = eraCap();
+    const hint = document.querySelector("#era-screen .hint");
+    if (hint) {
+      hint.textContent = isLocalPreview()
+        ? "Local preview — every era is open. The live game keeps them locked until you walk each rift door."
+        : "Beaten eras stay bound. Locked eras wait on the rift door.";
+    }
     for (let i = 1; i <= 6; i++) {
       const btn = document.getElementById("era-btn-" + i);
       if (!btn) continue;
-      const open = i <= unlocked;
+      const open = i <= cap;
       btn.disabled = !open;
       btn.textContent = open ? ERA_LABEL[i] : ERA_LABEL[i].replace(/·.*/, "·  LOCKED");
     }
@@ -882,6 +916,7 @@
     player.rollCd = 0;
     player.blockT = 0;
     player.rolling = false;
+    player.ducking = false;
     lifeDamaged = false;
   }
 
@@ -917,9 +952,12 @@
     searchlights.length = 0;
     nestCleared = false;
     wrecks.length = 0;
+    covers.length = 0;
     droneT = 0;
+    jurassic = false;
     ending = false;
     pits.length = 0;
+    slopes.length = 0;
     stains.length = 0;
     hurtFlash = 0;
   }
@@ -932,9 +970,11 @@
       spawns,
       ledges,
       pits,
+      slopes,
       cannons,
       searchlights,
       wrecks,
+      covers,
       get horse() { return horse; },
       set horse(v) { horse = v; },
       get banner() { return banner; },
@@ -952,7 +992,18 @@
     era = opts.era || 1;
     clearWorld();
     ROH.applyEra(era, eraBag());
+    for (const c of cannons) {
+      if (c.hp == null) c.hp = 36;
+      c.dead = false;
+    }
     resetPlayer(80);
+    if (horse && horse.mounted) {
+      horse.alive = true;
+      horse.hp = horse.maxHp;
+      horse.x = player.x;
+      horse.y = player.y;
+      horse.facing = player.facing;
+    }
     player.lives = savedLives;
     player.invuln = 0;
     camX = 0;
@@ -1032,7 +1083,7 @@
 
   function makeEnemy(type, x) {
     const e = {
-      type, x, y: GROUND, vx: 0, vy: 0, facing: -1,
+      type, x, y: floorY(x), vx: 0, vy: 0, facing: -1,
       hp: 1, maxHp: 1, w: 20, h: 38, dw: 48, dh: 52,
       state: "idle", flashT: 0, atkT: 0, hurtT: 0, deadT: 0,
       think: rand(10, 40), hitBy: -1, cd: 0, hits: 0, phase: 1,
@@ -1043,6 +1094,7 @@
     e.openT = 0;
     e.ledge = false;
     e.trampleCd = 0;
+    e.aim = null;
     ROH.fillEnemy(e, type, GROUND, AQUA.y);
     if (e.type !== "elephant") {
       e.hp = e.maxHp = Math.max(1, Math.round((e.maxHp || 1) * diffCfg().hp));
@@ -1112,6 +1164,11 @@
         announce("RADIO COLONEL", 140);
         lock = { left: COURT.left, right: COURT.right };
       }
+      if (s.type === "rex") {
+        brassSting();
+        announce("THE KING OF THE FERN", 140);
+        lock = { left: Math.floor(player.x - 40), right: Math.floor(e.x + 220) };
+      }
       if (s.type === "ifv") {
         announce("IFV", 110);
         lock = { left: Math.floor(player.x - 80), right: Math.floor(player.x + 500) };
@@ -1141,6 +1198,26 @@
     return !!(horse && horse.mounted && horse.alive);
   }
 
+  function firearmEra() {
+    return era >= 4;
+  }
+
+  function isDucking() {
+    return !!(player.ducking && firearmEra() && !isMounted());
+  }
+
+  function footDrawH() {
+    if (player.rolling) return 48;
+    if (isDucking()) return 44;
+    if (player.anim === "death") return 38;
+    return 62;
+  }
+
+  function wantDuckHold() {
+    if (!firearmEra() || isMounted() || !player.onGround) return false;
+    return keys.has("ArrowDown") || keys.has("KeyS") || pad.roll || gp.rollHeld;
+  }
+
   function riderSeat() {
     const kind = (horse && horse.kind) || era;
     const facing = player.facing;
@@ -1162,95 +1239,261 @@
     return { x, y, w: range, h, spec };
   }
 
+  function travelLife(speed) {
+    return Math.ceil((VW + 64) / Math.max(1, Math.abs(speed)));
+  }
+
+  function isGunSpec(spec) {
+    return !!(spec && (spec.shot || spec.burst || spec.mark || spec.shotgun || spec.bazooka));
+  }
+
+  function pushRound(round) {
+    const speed = round.vx || 0;
+    round.vy = round.vy || 0;
+    round.life = round.life || travelLife(speed);
+    round.friendly = true;
+    round.ox = round.x;
+    round.oy = round.y;
+    round.fresh = true;
+    shots.push(round);
+  }
+
+  function footLunge() {
+    if (isMounted() || !player.attacking) return 0;
+    if (player.phase === "wu") return player.facing * -6;
+    if (player.phase === "active") {
+      return player.facing * (player.kind === "heavy" || player.kind === "mega" ? 11 : player.combo >= 3 ? 9 : 5);
+    }
+    return player.facing * 2;
+  }
+
+  function gunDrawKick() {
+    if (isMounted() || !player.attacking || player.phase !== "active") return 0;
+    if (!isGunSpec(currentSpec())) return 0;
+    return -player.facing * (player.kind === "heavy" || player.kind === "mega" ? 4 : 2);
+  }
+
+  function mountPose(dh) {
+    const kind = (horse && horse.kind) || era;
+    const vehicle = kind >= 4;
+    const facing = (horse && horse.facing) || player.facing;
+    const gallop = Math.abs(player.vx) > 0.45;
+    const gait = time * (gallop ? 0.5 : 0.14);
+    const bob = Math.sin(gait) * (gallop ? (vehicle ? 1.6 : 3.6) : (vehicle ? 0.5 : 1.15));
+    const pitchAmt = vehicle ? (gallop ? 0.03 : 0.01) : (gallop ? 0.12 : 0.03);
+    const pitch = Math.sin(gait) * pitchAmt * (facing < 0 ? -1 : 1);
+    const squash = gallop ? 1 - Math.cos(gait * 2) * (vehicle ? 0.02 : 0.055) : 1;
+    return { facing, bob, pitch, squash, h: (dh || 58) * squash };
+  }
+
+  function spriteMuzzle(spr, maxV) {
+    const band = maxV || 0.62;
+    if (spr._muzzle && spr._muzzle.band === band) return spr._muzzle;
+    const w = spr.w;
+    const h = spr.h;
+    const d = spr.canvas.getContext("2d").getImageData(0, 0, w, h).data;
+    const yLimit = Math.max(1, Math.floor(h * band));
+    let maxX = 0;
+    for (let y = 0; y < yLimit; y++) {
+      for (let x = 0; x < w; x++) {
+        if (d[(y * w + x) * 4 + 3] > 80 && x > maxX) maxX = x;
+      }
+    }
+    const x0 = Math.max(0, maxX - Math.max(3, Math.round(w * 0.04)));
+    let sx = 0, sy = 0, n = 0, hx = 0, hy = 0, hn = 0;
+    for (let y = 0; y < yLimit; y++) {
+      for (let x = x0; x <= maxX; x++) {
+        const i = (y * w + x) * 4;
+        if (d[i + 3] < 80) continue;
+        sx += x; sy += y; n++;
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        if (r > 200 && g > 110 && b < 180 && r > b + 30) { hx += x; hy += y; hn++; }
+      }
+    }
+    const hot = hn >= 6;
+    const u = n ? (hot ? hx / hn : sx / n) / w : 0.9;
+    const v = n ? (hot ? hy / hn : sy / n) / h : 0.35;
+    spr._muzzle = { band, u, v };
+    return spr._muzzle;
+  }
+
+  function spritePoint(blitX, blitY, spr, dh, facing, u, v, kick) {
+    const h = dh;
+    const w = (spr.w / spr.h) * h;
+    const ax = spr.anchor != null ? spr.anchor : 0.5;
+    const localX = -w * ax + u * w + (kick || 0);
+    const localY = -h + v * h;
+    const sx = Math.round(blitX - camX);
+    const sy = Math.round(blitY);
+    return { x: sx + camX + facing * localX, y: sy + localY };
+  }
+
+  function mountPoint(spr, dh, u, v) {
+    const pose = mountPose(dh);
+    const w = (spr.w / spr.h) * dh;
+    const ax = spr.anchor != null ? spr.anchor : 0.5;
+    const lx = -w * ax + u * w;
+    const ly = -pose.h + v * pose.h;
+    const c = Math.cos(pose.pitch), s = Math.sin(pose.pitch);
+    const rx = lx * c - ly * s;
+    const ry = lx * s + ly * c;
+    const sx = Math.round(player.x - camX);
+    const sy = Math.round(player.y + 2 + pose.bob);
+    return { x: sx + camX + pose.facing * rx, y: sy + ry };
+  }
+
+  function footGunSprite() {
+    const heavy = player.kind === "heavy" || player.kind === "mega";
+    const p = era === 6 ? "kael6-" : era === 5 ? "kael5-" : era === 4 ? "kael4-" : "kael-";
+    return SPR[p + (heavy ? "heavy" : "attack")] || SPR["kael-attack"];
+  }
+
+  function jeepGunTips() {
+    const spr = SPR.jeep;
+    if (!spr) {
+      const dir = player.facing;
+      return [
+        { x: player.x + dir * 34, y: player.y - 24 },
+        { x: player.x + dir * 34, y: player.y - 18 },
+      ];
+    }
+    return [mountPoint(spr, 42, 0.99, 0.38), mountPoint(spr, 42, 0.99, 0.47)];
+  }
+
+  function riderPoint(spr, u, v) {
+    const seat = riderSeat();
+    const pose = mountPose(58);
+    const gallop = Math.abs(player.vx) > 0.45;
+    const gait = time * (gallop ? 0.5 : 0.14);
+    const bob = pose.bob * 0.85 + Math.sin(gait + 0.4) * (gallop ? 0.8 : 0.3);
+    const lean = player.attacking
+      ? (player.phase === "wu" ? 0.14 : player.phase === "active" ? (seat.vehicle ? 0.12 : 0.32) : 0.12)
+      : (gallop ? seat.baseLean + 0.08 : seat.baseLean);
+    const h = seat.sitH;
+    const w = (spr.w / spr.h) * h;
+    const vv = v / seat.srcFrac;
+    const lx = -w * 0.42 + u * w;
+    const ly = -h + vv * h;
+    const c = Math.cos(lean), s = Math.sin(lean);
+    const rx = lx * c - ly * s;
+    const ry = lx * s + ly * c;
+    const blitX = player.x + seat.saddle;
+    const blitY = player.y - seat.lift + bob;
+    const sx = Math.round(blitX - camX);
+    const sy = Math.round(blitY);
+    return { x: sx + camX + player.facing * rx, y: sy + ry * seat.squash };
+  }
+
+  function gunMuzzles() {
+    if (isMounted() && horse.kind === 5) return jeepGunTips();
+    if (isMounted() && horse.kind === 6 && SPR.tank) {
+      const m = spriteMuzzle(SPR.tank, 0.46);
+      return [mountPoint(SPR.tank, 48, m.u, m.v)];
+    }
+    const spec = currentSpec() || {};
+    if (isMounted() && horse.kind === 4 && SPR.cart && !spec.shotgun) {
+      const m = spriteMuzzle(SPR.cart, 0.52);
+      return [mountPoint(SPR.cart, 64, m.u, m.v)];
+    }
+    const spr = footGunSprite();
+    const dh = footDrawH();
+    if (!spr) return [{ x: player.x + player.facing * 28, y: player.y - (isDucking() ? 16 : 30) }];
+    const m = spriteMuzzle(spr, 0.62);
+    if (isMounted()) {
+      const seat = riderSeat();
+      if (m.v <= seat.srcFrac - 0.02) return [riderPoint(spr, m.u, m.v)];
+      if (horse.kind === 4 && SPR.cart) {
+        const c = spriteMuzzle(SPR.cart, 0.52);
+        return [mountPoint(SPR.cart, 64, c.u, c.v)];
+      }
+    }
+    const pt = spritePoint(player.x + footLunge(), player.y, spr, dh, player.facing, m.u, m.v, gunDrawKick());
+    if (isDucking()) pt.y += 16;
+    return [pt];
+  }
+
   function firePistol() {
-    const spec = currentSpec();
+    const spec = currentSpec() || {};
     const jeep = !!(horse && horse.mounted && horse.kind === 5);
     const cart = !!(horse && horse.mounted && horse.kind === 4);
     const tank = !!(horse && horse.mounted && horse.kind === 6);
-    if (tank) {
-      shots.push({
-        type: "shell",
-        x: player.x + player.facing * 36,
-        y: player.y - 28,
-        vx: player.facing * 5.4,
-        vy: 0,
-        dmg: 42,
-        life: 70,
-        warn: 16,
-        facing: player.facing,
+    const dir = player.facing;
+    const mouths = gunMuzzles();
+    const muzzle = mouths[0];
+    if (tank || spec.bazooka) {
+      const speed = tank ? 7.2 : 6.4;
+      pushRound({
+        type: "rocket",
+        x: muzzle.x,
+        y: muzzle.y,
+        vx: dir * speed,
+        dmg: spec.mega ? spec.dmg : (tank ? 46 : spec.dmg || 42),
+        boom: spec.mega ? 36 : 28,
+        facing: dir,
       });
-      sfx("swing");
-      return;
-    }
-    if (era === 6 && spec && spec.mark) {
-      let tx = player.x + player.facing * 96;
-      let bestD = 180;
-      for (const e of enemies) {
-        if (e.hp <= 0 || e.deadT > 0) continue;
-        if (Math.sign(e.x - player.x) !== player.facing) continue;
-        const d = Math.abs(e.x - player.x);
-        if (d < bestD) { bestD = d; tx = e.x; }
-      }
-      shots.push({ type: "dronestrike", x: tx, y: GROUND, fuse: 60, dmg: 32, r: 38, life: 60 });
-      floatText(tx, GROUND - 42, "MARKED", "#e6c35c");
-      sfx("checkpoint");
-      return;
-    }
-    if (era === 6 && spec && spec.burst) {
-      shots.push({
-        type: "burst",
-        x: player.x + player.facing * 12,
-        y: player.y - 24,
-        vx: player.facing * 5.2,
-        vy: 0,
-        dmg: spec.dmg,
-        life: 11,
-      });
-      sparkBurst(player.x + player.facing * 16, player.y - 24, 6, true);
+      sparkBurst(muzzle.x, muzzle.y, 12, true);
       sfx("swing");
       return;
     }
     if (jeep) {
       for (let i = 0; i < 4; i++) {
-        shots.push({
+        const m = mouths[i % mouths.length];
+        pushRound({
           type: "mg",
-          x: player.x + player.facing * (20 + i * 5),
-          y: player.y - 22,
-          vx: player.facing * (6.0 + i * 0.2),
-          vy: 0,
+          x: m.x,
+          y: m.y,
+          vx: dir * (9.2 + (i % 2) * 0.25),
+          vy: (i < 2 ? -0.18 : 0.18),
           dmg: 9,
-          life: 26,
+        });
+        if (i < mouths.length) sparkBurst(m.x, m.y, 8, true);
+      }
+      sfx("swing");
+      return;
+    }
+    if (spec.shotgun) {
+      const n = spec.pellets || 6;
+      for (let i = 0; i < n; i++) {
+        const spread = (i - (n - 1) / 2) * 0.42;
+        pushRound({
+          type: "pellet",
+          x: muzzle.x,
+          y: muzzle.y,
+          vx: dir * 8.4,
+          vy: spread,
+          dmg: spec.dmg,
         });
       }
-      sparkBurst(player.x + player.facing * 24, player.y - 22, 12, true);
-      sfx("hit");
+      sparkBurst(muzzle.x, muzzle.y, 16, true);
+      sfx("swing");
       return;
     }
-    if (era === 5) {
-      shots.push({
-        type: "rifle",
-        x: player.x + player.facing * 18,
-        y: player.y - 26,
-        vx: player.facing * 7.2,
-        vy: 0,
-        dmg: 26,
-        life: 36,
+    if (cart) {
+      pushRound({
+        type: "limber",
+        x: muzzle.x,
+        y: muzzle.y,
+        vx: dir * 8,
+        dmg: 28,
       });
-      sparkBurst(player.x + player.facing * 22, player.y - 26, 8, true);
-      sfx("hit");
+      sparkBurst(muzzle.x, muzzle.y, 14, true);
+      sfx("swing");
       return;
     }
-    shots.push({
-      type: cart ? "limber" : "pistol",
-      x: player.x + player.facing * (cart ? 28 : 14),
-      y: player.y - (cart ? 30 : 24),
-      vx: player.facing * (cart ? 4.4 : 5.6),
-      vy: 0,
-      dmg: cart ? 28 : 20,
-      life: cart ? 70 : 16,
-    });
-    sparkBurst(player.x + player.facing * 20, player.y - 24, cart ? 14 : 8, true);
-    sfx("hit");
+    const speed = era === 5 ? 11 : era === 6 ? 10 : 9;
+    const count = spec.burst ? 3 : 1;
+    for (let i = 0; i < count; i++) {
+      pushRound({
+        type: era === 5 ? "rifle" : era === 6 ? "burst" : "musket",
+        x: muzzle.x,
+        y: muzzle.y,
+        vx: dir * speed,
+        vy: (i - (count - 1) / 2) * 0.45,
+        dmg: spec.dmg || 14,
+      });
+    }
+    sparkBurst(muzzle.x, muzzle.y, 8, true);
+    sfx("swing");
   }
 
   function markDamaged() {
@@ -1340,6 +1583,7 @@
     player.deadT = 70;
     player.anim = "death";
     player.attacking = false;
+    player.shotQueued = false;
     sfx("death");
     announce("THE TETHER FRAYS", 70);
     if (player.lives <= 0) {
@@ -1415,7 +1659,7 @@
     horse.facing = player.facing;
     player.blocking = false;
     sfx("checkpoint");
-    announce(era === 6 ? "HULL DOWN" : era === 5 ? "JEEP" : era === 4 ? "LIMBER UP" : era === 3 ? "THE IRON ROAD" : era === 2 ? "THE WHITE ROAD" : "THE STEED", 70);
+    announce(era === 6 ? "HULL DOWN" : era === 5 ? "VICKERS UP" : era === 4 ? "LIMBER UP" : era === 3 ? "THE IRON ROAD" : era === 2 ? "THE WHITE ROAD" : "THE STEED", 70);
     return true;
   }
 
@@ -1463,8 +1707,31 @@
     return fromX <= p.x + p.w * 0.5 ? p.x + 8 : p.x + p.w - 8;
   }
 
+  function slopeLift(px) {
+    let lift = 0;
+    for (const s of slopes) {
+      if (px <= s.x || px >= s.x + s.w) continue;
+      const t = (px - s.x) / s.w;
+      lift = Math.max(lift, s.rise * Math.sin(t * Math.PI));
+    }
+    return lift;
+  }
+
+  function floorY(px) {
+    return GROUND - slopeLift(px);
+  }
+
+  function landed(ent, floor) {
+    if (ent.y >= floor || (ent.vy >= 0 && ent.vy < 4.5 && ent.y >= floor - 12)) {
+      ent.y = floor;
+      ent.vy = 0;
+      return true;
+    }
+    return false;
+  }
+
   function onFloor(e) {
-    return Math.abs(e.y - GROUND) < 8;
+    return Math.abs(e.y - floorY(e.x)) < 10;
   }
 
   function snapOffHole(e) {
@@ -1474,7 +1741,7 @@
     e.x = pitLip(p, e.x);
     e.vx = 0;
     e.vy = 0;
-    e.y = GROUND;
+    e.y = floorY(e.x);
   }
 
   function crowdApart(e) {
@@ -1541,7 +1808,7 @@
   }
 
   function standY(px, py, pvy) {
-    let y = GROUND;
+    let y = floorY(px);
     let onLedge = false;
     for (const L of ledges) {
       if (L.gone) continue;
@@ -1647,7 +1914,7 @@
     const hb = { x: player.x - 28, y: player.y - 28, w: 56, h: 28 };
     for (const e of enemies) {
       if (e.hp <= 0 || e.deadT > 0) continue;
-      if (e.type !== "legionary" && e.type !== "archer" && e.type !== "manatarms" && e.type !== "crossbow" && e.type !== "knight" && e.type !== "lineinf" && e.type !== "lancer" && e.type !== "rifleinf" && e.type !== "modinf") continue;
+      if (e.type !== "legionary" && e.type !== "archer" && e.type !== "manatarms" && e.type !== "crossbow" && e.type !== "knight" && e.type !== "lineinf" && e.type !== "lancer" && e.type !== "rifleinf" && e.type !== "duneinf" && e.type !== "raptor" && e.type !== "modinf" && e.type !== "javelin" && e.type !== "pilum" && e.type !== "arbalist" && e.type !== "voltigeur" && e.type !== "sniper" && e.type !== "marksman") continue;
       if (e.trampleCd > 0) { e.trampleCd--; continue; }
       const box = bodyBox(e);
       if (!aabb(hb.x, hb.y, hb.w, hb.h, box.x, box.y, box.w, box.h)) continue;
@@ -1669,6 +1936,11 @@
 
   window.addEventListener("keydown", (e) => {
     if (e.target && e.target.closest && e.target.closest("input, textarea")) return;
+    if (mode === "cliffs") {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
+      if (!e.repeat && e.code === "KeyM") toggleMute();
+      return;
+    }
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
     if (e.repeat) return;
     if (mode === "intro") {
@@ -1790,6 +2062,13 @@
     }
     const pauseBtn = document.getElementById("btn-pause-keys");
     if (pauseBtn) pauseBtn.textContent = keysOn ? "KEYS ON" : "KEYS OFF";
+    const line = document.querySelector("#keys p");
+    if (line) {
+      const down = firearmEra() ? "DUCK" : "ROLL";
+      line.innerHTML = "<b>A D</b> MOVE <b>W</b> JUMP <b>S</b> " + down + " <b>J</b> LIGHT <b>K</b> HEAVY <b>L</b> GUARD <b>SPACE</b> MOUNT <b>ESC</b> PAUSE";
+    }
+    const duckBtn = document.querySelector(".dpad [data-act='roll']");
+    if (duckBtn) duckBtn.setAttribute("aria-label", firearmEra() ? "Duck" : "Roll");
   }
 
   function toggleKeys() {
@@ -1832,6 +2111,11 @@
     }
   }
 
+  function eraBanner(n) {
+    if (n === 5) return "1942 · THE SAS DESERT";
+    return ERA_LABEL[n] || "ERA I  ·  ALEXANDER";
+  }
+
   function landEra() {
     mode = "play";
     introT = 240;
@@ -1840,13 +2124,77 @@
     tap.jump = false;
     keys.clear();
     sfx("land");
-    announce(ERA_LABEL[era] || "ERA I  ·  ALEXANDER", 160);
+    announce(eraBanner(era), 160);
     if (ROH.musicStart && actx) ROH.musicStart(actx, master, era);
   }
 
   function skipIntro() {
     if (mode !== "intro") return;
     landEra();
+  }
+
+  function openCliffs(opts) {
+    opts = opts || {};
+    layoutStage();
+    if (!isNativeApp()) {
+      try {
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+      } catch (err) { /* ignore */ }
+    }
+    audioInit();
+    if (actx && actx.state === "suspended") actx.resume();
+    applyMute();
+    if (ROH.musicStop) ROH.musicStop();
+    hide(screens.title);
+    hide(screens.how);
+    hideAllPlay();
+    cliffsCleared = false;
+    era = 5;
+    if (!opts.keepLives) {
+      const d = diffCfg();
+      maxLives = d.cap;
+      player.lives = d.lives;
+      score = 0;
+      scoreSaved = false;
+    } else if (opts.freshScore) {
+      score = 0;
+      scoreSaved = false;
+    }
+    mode = "cliffs";
+    keys.clear();
+    tap.light = false;
+    tap.heavy = false;
+    tap.jump = false;
+    tap.roll = false;
+    tap.mount = false;
+    if (window.ROHCliffs) window.ROHCliffs.start({ lives: player.lives, muted: muted });
+  }
+
+  function landFromCliffs(opts) {
+    opts = opts || {};
+    cliffsCleared = true;
+    const lives = opts.lives > 0 ? opts.lives : player.lives;
+    resetLevel({ era: 5, keepLives: true });
+    player.lives = lives;
+    if (opts.airScore) addScore(opts.airScore);
+    mode = "play";
+    announce(eraBanner(5), 160);
+    sfx("land");
+    if (ROH.musicStart && actx) ROH.musicStart(actx, master, 5);
+    persistSave();
+  }
+
+  function downFromCliffs(opts) {
+    opts = opts || {};
+    cliffsCleared = false;
+    era = 5;
+    if (opts.airScore) addScore(opts.airScore);
+    player.lives = 0;
+    mode = "dead";
+    persistSave();
+    fillScoreScreens();
+    hideAllPlay();
+    show(screens.dead);
   }
 
   function begin(playIntro, startEra) {
@@ -1869,6 +2217,7 @@
     maxLives = d.cap;
     player.lives = d.lives;
     const n = startEra || (playIntro ? 1 : (era || 1));
+    if (n === 5) cliffsCleared = true;
     resetLevel({ era: n });
     if (playIntro && n === 1) {
       mode = "intro";
@@ -1877,7 +2226,7 @@
       sfx("intro");
     } else {
       mode = "play";
-      announce(ERA_LABEL[n] || "ERA I  ·  ALEXANDER", 140);
+      announce(eraBanner(n), 140);
       if (ROH.musicStart && actx) ROH.musicStart(actx, master, n);
     }
   }
@@ -1983,14 +2332,24 @@
   }
   bindScoreForm("dead-form", "dead-name");
   bindScoreForm("win-form", "win-name");
+  if (window.ROHCliffs) {
+    window.ROHCliffs.onDesert = landFromCliffs;
+    window.ROHCliffs.onTitle = () => toTitle();
+    window.ROHCliffs.onLife = (n) => { player.lives = n; };
+    window.ROHCliffs.onDowned = downFromCliffs;
+  }
   document.getElementById("btn-eras").addEventListener("click", () => { refreshEraSelect(); show(screens.eras); });
   document.getElementById("btn-era-close").addEventListener("click", () => hide(screens.eras));
   for (let i = 1; i <= 6; i++) {
     const btn = document.getElementById("era-btn-" + i);
     if (!btn) continue;
     btn.addEventListener("click", () => {
-      if (i > unlocked) return;
+      if (i > eraCap()) return;
       hide(screens.eras);
+      if (i === 5 && window.ROHCliffs) {
+        openCliffs({});
+        return;
+      }
       begin(i === 1, i);
     });
   }
@@ -2011,6 +2370,10 @@
     hide(screens.dead);
     player.lives = maxLives;
     persistSave();
+    if (era === 5 && !cliffsCleared && window.ROHCliffs) {
+      openCliffs({ keepLives: true, freshScore: true });
+      return;
+    }
     begin(false);
   });
   document.getElementById("btn-dead-title").addEventListener("click", toTitle);
@@ -2035,7 +2398,8 @@
     const attackingLocked = player.attacking && player.phase !== "rec";
     const mounted = isMounted();
     const tappedAtk = tap.light || tap.heavy;
-    const nowBlock = canAct && !player.attacking && wantBlock() && player.onGround && !mounted && !tappedAtk;
+    const duckHold = wantDuckHold();
+    const nowBlock = canAct && !player.attacking && wantBlock() && player.onGround && !mounted && !tappedAtk && !duckHold;
     if (nowBlock && !player.blocking) player.blockT = 0;
     player.blocking = nowBlock;
     if (player.blocking) {
@@ -2060,6 +2424,9 @@
         player.rollCd = 12;
         player.vx *= 0.4;
       }
+    } else if (firearmEra()) {
+      player.rolling = false;
+      consumeTap("roll");
     } else if (canAct && player.onGround && !player.attacking && !player.blocking && !mounted && player.rollCd === 0 && consumeTap("roll")) {
       player.rollMax = 22;
       player.rollT = player.rollMax;
@@ -2072,6 +2439,9 @@
       sfx("jump");
       sparkBurst(player.x, player.y - 6, 8, true);
     }
+
+    player.ducking = duckHold && canAct && !player.rolling && !mounted && !player.blocking;
+    if (!player.rolling) player.h = player.ducking ? 24 : 40;
 
     if (canAct && !player.rolling) {
       if (consumeTap("light")) {
@@ -2098,14 +2468,14 @@
       const spec = currentSpec();
       const len = player.phase === "wu" ? spec.wu : player.phase === "active" ? spec.act : spec.rec;
       player.phaseT++;
-      if (player.phase === "wu" && player.phaseT === 1) {
+      if (player.phase === "wu" && player.phaseT === 1 && !isGunSpec(spec)) {
         player.vx += player.facing * (player.kind === "heavy" || player.kind === "mega" ? 1.8 : player.combo >= 3 ? 1.4 : 0.9);
       }
       if (player.phaseT >= len) {
         player.phaseT = 0;
         if (player.phase === "wu") {
           player.phase = "active";
-          if (spec.shot || spec.burst || spec.mark) firePistol();
+          if (spec.shot || spec.burst || spec.mark) player.shotQueued = true;
         } else if (player.phase === "active") player.phase = "rec";
         else {
           if (player.buffer === "mega") {
@@ -2126,9 +2496,9 @@
     if (player.rolling) {
       moving = true;
     } else if (!player.blocking && !attackingLocked && player.hurtT === 0) {
-      const spd = mounted
+      const spd = (mounted
         ? (player.attacking ? 1.05 : (era === 6 ? 1.35 : era === 5 ? 4.15 : era === 4 ? 2.2 : era === 3 ? 2.45 : 3.55))
-        : (player.attacking ? 0.7 : 2.15);
+        : (player.attacking ? 0.7 : 2.15)) * (player.ducking ? 0.42 : 1);
       if (wantLeft()) { player.vx = -spd; player.facing = -1; moving = true; }
       else if (wantRight()) { player.vx = spd; player.facing = 1; moving = true; }
       else player.vx *= 0.7;
@@ -2149,14 +2519,10 @@
     player.y += player.vy;
 
     const floor = standY(player.x, player.y, player.vy);
-    if (player.y >= floor) {
-      player.y = floor;
-      player.vy = 0;
-      player.onGround = true;
-    } else player.onGround = false;
+    player.onGround = landed(player, floor);
 
     if (player.deadT === 0 && player.y > GROUND + 28) {
-      announce(era === 6 ? "THE CELLAR TAKES YOU" : era === 5 ? "THE CRATER TAKES YOU" : era === 4 ? "THE ICE TAKES YOU" : era === 3 ? "THE MOAT TAKES YOU" : era === 2 ? "THE CISTERN TAKES YOU" : "THE EARTH TAKES YOU", 80);
+      announce(era === 6 ? "THE CELLAR TAKES YOU" : era === 5 ? (jurassic ? "THE FERN TAKES YOU" : "THE DUNES TAKE YOU") : era === 4 ? "THE ICE TAKES YOU" : era === 3 ? "THE MOAT TAKES YOU" : era === 2 ? "THE CISTERN TAKES YOU" : "THE EARTH TAKES YOU", 80);
       player.hp = 0;
       loseLife();
       player.y = Math.min(player.y, GROUND + 46);
@@ -2179,7 +2545,7 @@
         }
       }
     } else if (horse && horse.alive && !horse.mounted) {
-      horse.y = GROUND;
+      horse.y = floorY(horse.x);
     }
 
     const minX = lock ? lock.left + 10 : 40;
@@ -2198,7 +2564,12 @@
     if (player.rolling) player.anim = "jump";
     else if (player.hurtT > 0) player.anim = "hurt";
     else if (player.blocking) player.anim = "block";
-    else if (player.attacking) player.anim = (player.kind === "heavy" || player.kind === "mega" || (player.kind === "light" && player.combo >= 3)) ? "heavy" : "attack";
+    else if (player.ducking && !player.attacking) player.anim = "block";
+    else if (player.attacking) {
+      const specNow = currentSpec();
+      const gunNow = isGunSpec(specNow);
+      player.anim = (player.kind === "heavy" || player.kind === "mega" || (!gunNow && player.kind === "light" && player.combo >= 3)) ? "heavy" : "attack";
+    }
     else if (mounted) {
       player.anim = "idle";
       if (moving) player.runT++;
@@ -2206,6 +2577,11 @@
     } else if (!player.onGround) player.anim = "jump";
     else if (moving) { player.anim = "run"; player.runT++; }
     else { player.anim = "idle"; player.runT = 0; }
+
+    if (player.shotQueued) {
+      player.shotQueued = false;
+      if (player.deadT === 0 && player.attacking && player.phase === "active") firePistol();
+    }
   }
 
   function hitEnemies() {
@@ -2366,7 +2742,7 @@
       lock = null;
       doorOpen = true;
       placeExitDoor(Math.max(e.x + 140, player.x + 170));
-      announce(e.type === "fracture" ? "THE RIFT STILLS" : e.type === "colonel" ? "SEAL V" : e.type === "powder" ? "SEAL IV" : e.type === "baron" ? "SEAL III" : e.type === "centurion" ? "SEAL II" : "STONE REMEMBERS", 130);
+      announce(e.type === "fracture" ? "THE RIFT STILLS" : (e.type === "colonel" || e.type === "rex") ? "SEAL V" : e.type === "powder" ? "SEAL IV" : e.type === "baron" ? "SEAL III" : e.type === "centurion" ? "SEAL II" : "STONE REMEMBERS", 130);
       sfx("win");
       if (!lifeDamaged) {
         const d = diffCfg();
@@ -2385,7 +2761,7 @@
       if (e.type === "centurion") saveUnlock(3);
       if (e.type === "baron") saveUnlock(4);
       if (e.type === "powder") saveUnlock(5);
-      if (e.type === "colonel") saveUnlock(6);
+      if (e.type === "colonel" || e.type === "rex") saveUnlock(6);
       if (e.type === "fracture") saveUnlock(6);
     }
     if (e.type === "mgnest") {
@@ -2452,6 +2828,90 @@
     });
   }
 
+  function leadShot(e, speed, dmg, type, duck) {
+    const low = duck === "jump";
+    const sx = e.x + e.facing * 16;
+    const sy = low ? floorY(e.x) - 12 : e.y - 26;
+    let vx;
+    let vy;
+    if (low) {
+      vx = e.facing * speed;
+      vy = 0.05;
+    } else {
+      const tx = player.x + (player.vx || 0) * 3;
+      const ty = floorY(player.x) - 22;
+      const dx = tx - sx;
+      const dy = ty - sy;
+      const dist = Math.max(1, Math.hypot(dx, dy));
+      vx = (dx / dist) * speed;
+      vy = (dy / dist) * speed;
+    }
+    shots.push({
+      type,
+      x: sx,
+      y: sy,
+      vx,
+      vy,
+      dmg,
+      life: travelLife(speed) + 24,
+      duck,
+    });
+    sfx("swing");
+  }
+
+  function hurlJavelin(e) {
+    const dist = Math.abs(player.x - e.x);
+    const speed = clamp(dist / 46, 2.1, 3.6);
+    shots.push({
+      type: "javelin",
+      x: e.x + e.facing * 14,
+      y: e.y - 32,
+      vx: e.facing * speed,
+      vy: -2.15 - Math.min(1.4, dist / 260),
+      dmg: 12,
+      life: 140,
+      duck: "jump",
+    });
+    sfx("swing");
+  }
+
+  function holdAndThrow(e, adx, opts) {
+    if (e.state === "flash") {
+      e.flashT--;
+      e.vx = 0;
+      e.aim = opts.aim || null;
+      if (e.flashT <= 0) {
+        e.state = "attack";
+        e.atkT = opts.atk || 12;
+        e.aim = null;
+        opts.fire(e, adx);
+      }
+      return;
+    }
+    if (e.state === "attack") {
+      e.atkT--;
+      e.vx = 0;
+      e.aim = null;
+      if (e.atkT <= 0) { e.state = "idle"; e.cd = opts.cd; }
+      return;
+    }
+    e.aim = null;
+    if (adx < opts.near) {
+      e.vx = -e.facing * opts.back;
+      e.state = "walk";
+    } else if (adx > opts.far) {
+      e.vx = e.facing * opts.chase;
+      e.state = "walk";
+    } else {
+      e.vx = 0;
+      e.state = "idle";
+      if (e.cd === 0) {
+        e.state = "flash";
+        e.flashT = opts.wind;
+      }
+    }
+  }
+
   function updateEnemy(e) {
     if (e.deadT > 0) {
       e.deadT--;
@@ -2471,7 +2931,7 @@
         e.vy += GRAVITY;
         e.y += e.vy;
         const floor = standY(e.x, e.y, e.vy);
-        if (e.y >= floor) { e.y = floor; e.vy = 0; }
+        landed(e, floor);
       }
       e.vx *= 0.9;
       if (e.hurtT === 0) e.state = "idle";
@@ -2856,7 +3316,7 @@
           e.state = "attack";
           e.atkT = 20;
           if (e.phase === 1) {
-            shots.push({ type: "ball", x: e.x, y: GROUND - 8, vx: e.facing * 2.2, vy: 0, dmg: 18, life: 200 });
+            shots.push({ type: "ball", x: e.x, y: GROUND - 8, vx: e.facing * 2.2, vy: 0, dmg: 18, life: travelLife(2.2) });
           } else {
             shots.push({
               type: "bomb", x: player.x, y: GROUND - 12, vx: 0, vy: 0,
@@ -2872,7 +3332,7 @@
         else e.vx = e.facing * 0.25;
         if (e.cd === 0) { e.state = "flash"; e.flashT = 22; e.vx = 0; }
       }
-    } else if (e.type === "rifleinf") {
+    } else if (e.type === "rifleinf" || e.type === "duneinf") {
       if (e.stunT > 0) { e.stunT--; e.vx *= 0.85; }
       else if (e.state === "flash") {
         e.flashT--;
@@ -2880,7 +3340,7 @@
         if (e.flashT <= 0) {
           e.state = "attack";
           e.atkT = 14;
-          shots.push({ type: "musket", x: e.x + e.facing * 14, y: e.y - 26, vx: e.facing * 3.4, vy: 0, dmg: 12, life: 80 });
+          shots.push({ type: "musket", x: e.x + e.facing * 14, y: e.y - 26, vx: e.facing * 3.4, vy: 0, dmg: 12, life: travelLife(3.4) });
         }
       } else if (e.state === "attack") {
         e.atkT--;
@@ -2891,6 +3351,52 @@
         e.vx = 0;
         if (e.cd === 0) { e.state = "flash"; e.flashT = 22; }
       }
+    } else if (e.type === "raptor") {
+      const leapHole = holeAt(e.x + e.facing * 42);
+      if (e.stunT > 0) { e.stunT--; e.vx *= 0.8; }
+      else if (e.state === "flash") {
+        e.flashT--;
+        if (e.flashT <= 0) {
+          e.state = "attack";
+          e.atkT = 12;
+          e.vy = leapHole || adx < 34 ? 0 : -3.2;
+          e.vx = e.facing * (leapHole ? 0.4 : 2.2);
+        }
+      } else if (e.state === "attack") {
+        e.atkT--;
+        if (e.atkT === 8) {
+          const hx = e.facing > 0 ? e.x + 6 : e.x - 36;
+          const pb = bodyBox(player);
+          if (aabb(hx, e.y - 28, 34, 22, pb.x, pb.y, pb.w, pb.h)) hurtPlayer(12, 2.6, e.x);
+        }
+        if (e.atkT <= 0) { e.state = "idle"; e.cd = 28; }
+      } else if (adx > 26) {
+        e.vx = e.facing * 1.85;
+        e.state = "walk";
+      } else {
+        e.vx = 0;
+        if (e.cd === 0) { e.state = "flash"; e.flashT = 10; }
+      }
+    } else if (e.type === "hunter") {
+      if (e.stunT > 0) { e.stunT--; e.vx *= 0.85; }
+      else if (e.state === "flash") {
+        e.flashT--;
+        if (e.flashT <= 0) { e.state = "attack"; e.atkT = 16; }
+      } else if (e.state === "attack") {
+        e.atkT--;
+        if (e.atkT === 10) {
+          const hx = e.facing > 0 ? e.x + 8 : e.x - 52;
+          const pb = bodyBox(player);
+          if (aabb(hx, e.y - 36, 48, 30, pb.x, pb.y, pb.w, pb.h)) hurtPlayer(18, 4.2, e.x);
+        }
+        if (e.atkT <= 0) { e.state = "idle"; e.cd = 48; }
+      } else if (adx > 48) {
+        e.vx = e.facing * 0.95;
+        e.state = "walk";
+      } else {
+        e.vx = 0;
+        if (e.cd === 0) { e.state = "flash"; e.flashT = 16; }
+      }
     } else if (e.type === "mgnest") {
       e.vx = 0;
       e.facing = 1;
@@ -2899,11 +3405,11 @@
         if (e.flashT <= 0) {
           e.state = "attack";
           e.atkT = 24;
-          shots.push({ type: "mg", x: e.x - 28, y: e.y - 28, vx: -4.2, vy: 0, dmg: 8, life: 90 });
+          shots.push({ type: "mg", x: e.x - 28, y: e.y - 28, vx: -4.2, vy: 0, dmg: 8, life: travelLife(4.2) });
         }
       } else if (e.state === "attack") {
         e.atkT--;
-        if (e.atkT === 12) shots.push({ type: "mg", x: e.x - 28, y: e.y - 26, vx: -4.2, vy: 0, dmg: 8, life: 90 });
+        if (e.atkT === 12) shots.push({ type: "mg", x: e.x - 28, y: e.y - 26, vx: -4.2, vy: 0, dmg: 8, life: travelLife(4.2) });
         if (e.atkT <= 0) { e.state = "idle"; e.cd = 36; }
       } else if (e.cd === 0 && player.x < e.x) {
         e.state = "flash"; e.flashT = 10;
@@ -2915,7 +3421,7 @@
         if (e.flashT <= 0) {
           e.state = "attack";
           e.atkT = 16;
-          shots.push({ type: "musket", x: e.x + e.facing * 30, y: e.y - 28, vx: e.facing * 4.0, vy: 0, dmg: 16, life: 80 });
+          shots.push({ type: "musket", x: e.x + e.facing * 30, y: e.y - 28, vx: e.facing * 4.0, vy: 0, dmg: 16, life: travelLife(4) });
         }
       } else if (e.state === "attack") {
         e.atkT--;
@@ -2953,6 +3459,34 @@
         e.vx = 0;
         if (e.cd === 0) { e.state = "flash"; e.flashT = 16; }
       }
+    } else if (e.type === "rex") {
+      if (e.hp <= 130 && e.phase === 1) {
+        e.phase = 2;
+        announce("THE KING TURNS", 110);
+        brassSting();
+      }
+      if (e.state === "flash") {
+        e.flashT--;
+        if (e.flashT <= 0) {
+          e.state = "charge";
+          e.charge = e.phase === 2 ? 42 : 28;
+          e.vx = e.facing * (e.phase === 2 ? 3.4 : 2.2);
+        }
+      } else if (e.state === "charge") {
+        e.charge--;
+        const pb = bodyBox(player);
+        const box = bodyBox(e);
+        if (aabb(box.x, box.y, box.w, box.h, pb.x, pb.y, pb.w, pb.h)) {
+          hurtPlayer(e.phase === 2 ? 24 : 18, 5.2, e.x);
+        }
+        if (e.charge <= 0) { e.state = "idle"; e.cd = e.phase === 2 ? 36 : 48; e.vx = 0; }
+      } else {
+        if (adx > 80) {
+          e.vx = e.facing * (e.phase === 2 ? 1.25 : 0.7);
+          e.state = "walk";
+        } else e.vx = e.facing * 0.25;
+        if (e.cd === 0) { e.state = "flash"; e.flashT = e.phase === 2 ? 14 : 22; e.vx = 0; }
+      }
     } else if (e.type === "modinf") {
       const cover = wrecks.find((w) => w.alive && Math.abs(w.x - e.x) < 80);
       if (cover && player.x < cover.x && e.x > cover.x - 30) {
@@ -2968,7 +3502,7 @@
         if (e.flashT <= 0) {
           e.state = "attack";
           e.atkT = 12;
-          shots.push({ type: "burst", x: e.x + e.facing * 12, y: e.y - 24, vx: e.facing * 4.6, vy: 0, dmg: 11, life: 40 });
+          shots.push({ type: "burst", x: e.x + e.facing * 12, y: e.y - 24, vx: e.facing * 4.6, vy: 0, dmg: 11, life: travelLife(4.6) });
         }
       } else if (e.state === "attack") {
         e.atkT--;
@@ -2984,7 +3518,7 @@
         e.flashT--;
         if (e.flashT <= 0) {
           e.state = "attack"; e.atkT = 16;
-          shots.push({ type: "burst", x: e.x + e.facing * 32, y: e.y - 26, vx: e.facing * 4.8, vy: 0, dmg: 16, life: 70 });
+          shots.push({ type: "burst", x: e.x + e.facing * 32, y: e.y - 26, vx: e.facing * 4.8, vy: 0, dmg: 16, life: travelLife(4.8) });
         }
       } else if (e.state === "attack") {
         e.atkT--;
@@ -3011,7 +3545,7 @@
             shots.push({ type: "ghosthorse", x: e.x, y: GROUND, vx: e.facing * 3.4, vy: 0, dmg: 14, life: 50, facing: e.facing });
           } else {
             e.vx = 0;
-            shots.push({ type: "shell", x: e.x + e.facing * 20, y: e.y - 28, vx: e.facing * 5.2, vy: 0, dmg: 22, life: 70, warn: 14, facing: e.facing });
+            shots.push({ type: "shell", x: e.x + e.facing * 20, y: e.y - 28, vx: e.facing * 5.2, vy: 0, dmg: 22, life: travelLife(5.2), warn: 14, facing: e.facing });
             shots.push({ type: "divedrone", x: player.x + rand(-50, 50), y: -8, vx: 0, vy: 0, warn: 36, dmg: 14, life: 70 });
           }
         }
@@ -3028,6 +3562,18 @@
         else e.vx = e.facing * 0.2;
         if (e.cd === 0) { e.state = "flash"; e.flashT = e.phase === 1 ? 18 : 14; e.vx = 0; }
       }
+    } else if (e.type === "javelin") {
+      holdAndThrow(e, adx, { near: 100, far: 230, back: 0.8, chase: 0.7, wind: 28, cd: 74, atk: 14, fire: hurlJavelin });
+    } else if (e.type === "pilum") {
+      holdAndThrow(e, adx, { near: 90, far: 250, back: 0.75, chase: 0.65, wind: 22, cd: 68, aim: "gold", fire: (en) => leadShot(en, 3.8, 13, "pilum", "roll") });
+    } else if (e.type === "arbalist") {
+      holdAndThrow(e, adx, { near: 110, far: 280, back: 0.6, chase: 0.5, wind: 34, cd: 92, aim: "low", fire: (en) => leadShot(en, 4.4, 16, "bolt", "jump") });
+    } else if (e.type === "voltigeur") {
+      holdAndThrow(e, adx, { near: 120, far: 300, back: 0.7, chase: 0.6, wind: 30, cd: 80, aim: "red", fire: (en) => leadShot(en, 4.6, 14, "musket", "roll") });
+    } else if (e.type === "sniper") {
+      holdAndThrow(e, adx, { near: 180, far: 420, back: 0.55, chase: 0.45, wind: 48, cd: 100, aim: "red", fire: (en) => leadShot(en, 6.2, 18, "rifle", "roll") });
+    } else if (e.type === "marksman") {
+      holdAndThrow(e, adx, { near: 150, far: 380, back: 0.7, chase: 0.55, wind: 36, cd: 84, aim: "red", fire: (en) => leadShot(en, 6.8, 16, "rifle", "roll") });
     }
 
     if (e.ledge) {
@@ -3037,7 +3583,7 @@
       e.vy += GRAVITY;
       e.y += e.vy;
       const floor = standY(e.x, e.y, e.vy);
-      if (e.y >= floor) { e.y = floor; e.vy = 0; }
+      landed(e, floor);
     }
     steerAwayFromHoles(e);
     e.x += e.vx * diffCfg().spd;
@@ -3045,6 +3591,27 @@
     const right = lock ? lock.right - 20 : LEVEL_W - 40;
     e.x = clamp(e.x, left, right);
     snapOffHole(e);
+  }
+
+  function coverSolids() {
+    const boxes = covers.slice();
+    for (const w of wrecks) {
+      if (!w.alive) continue;
+      boxes.push({ x: w.x - 22, y: GROUND - 30, w: 44, h: 30, kind: "wreck" });
+    }
+    return boxes;
+  }
+
+  function shotHitsCover(x0, x1, y) {
+    if (y == null || x0 == null || x1 == null) return null;
+    const left = Math.min(x0, x1);
+    const right = Math.max(x0, x1);
+    for (const b of coverSolids()) {
+      if (y < b.y || y > b.y + b.h) continue;
+      if (right < b.x || left > b.x + b.w) continue;
+      return b;
+    }
+    return null;
   }
 
   function updateShots() {
@@ -3099,11 +3666,28 @@
         if (s.warn === 0) { /* flies next frames */ }
         else continue;
       }
-      s.vy += s.type === "stone" ? 0.18 : s.type === "bolt" ? 0.04 : 0;
-      s.x += s.vx;
-      s.y += s.vy;
-      if (s.type !== "ball" && s.type !== "laneshot" && s.y > GROUND - 4) {
-        s.dead = true; sparkBurst(s.x, GROUND - 4, 5, true); continue;
+      const born = !!s.fresh;
+      if (s.fresh) s.fresh = false;
+      const prevX = s.x;
+      if (!born) {
+        s.vy += s.type === "stone" ? 0.18 : s.type === "javelin" ? 0.12 : s.type === "bolt" ? 0.04 : 0;
+        s.x += s.vx || 0;
+        s.y += s.vy || 0;
+        if (s.vx && ((s.vx > 0 && s.x > camX + VW + 16) || (s.vx < 0 && s.x < camX - 16))) {
+          s.dead = true;
+          continue;
+        }
+        if (s.type !== "arty" && s.type !== "bomb" && s.type !== "dronestrike" && s.type !== "divedrone" && s.type !== "ghosthorse" && s.type !== "chandelier") {
+          if (shotHitsCover(prevX, s.x, s.y)) {
+            sparkBurst(s.x, s.y, s.type === "rocket" || s.type === "shell" ? 14 : 6, true);
+            if (s.type === "rocket" || s.type === "shell") bumpShake(6);
+            s.dead = true;
+            continue;
+          }
+        }
+        if (s.type !== "ball" && s.type !== "laneshot" && s.type !== "rocket" && s.y > floorY(s.x) - 4) {
+          s.dead = true; sparkBurst(s.x, floorY(s.x) - 4, 5, true); continue;
+        }
       }
       if (s.type === "ball") s.y = GROUND - 8;
       const sw = s.type === "chandelier" ? 22 : s.type === "limber" ? 12 : s.type === "ball" ? 10 : 8;
@@ -3126,30 +3710,62 @@
         }
         continue;
       }
-      if (s.type === "pistol" || s.type === "limber" || s.type === "rifle" || s.type === "mg" || s.type === "burst" || s.type === "shell") {
+      if (s.friendly) {
+        let hit = false;
+        const boom = s.type === "rocket" ? (s.boom || 28) : 0;
         for (const e of enemies) {
           if (e.hp <= 0 || e.deadT > 0) continue;
-          if (e.type === "mgnest" && s.x < e.x) continue;
-          if (e.type === "modinf" && e.guarded && s.x < e.x) continue;
+          if (!boom && e.type === "mgnest" && s.x < e.x) continue;
+          if (!boom && e.type === "modinf" && e.guarded && s.x < e.x) continue;
           const box = bodyBox(e);
-          if (!aabb(s.x - 6, s.y - 4, 14, 8, box.x, box.y, box.w, box.h)) continue;
-          e.hp -= s.dmg;
+          const direct = aabb(s.x - 6, s.y - 4, 14, 8, box.x, box.y, box.w, box.h);
+          const splash = boom && Math.abs(e.x - s.x) < boom && Math.abs(e.y - e.h * 0.45 - s.y) < boom * 0.65;
+          if (!direct && !splash) continue;
+          if (!direct && shotHitsCover(s.x, e.x, e.y - 16)) continue;
+          const dmg = direct ? s.dmg : Math.ceil(s.dmg * 0.4);
+          e.hp -= dmg;
           e.hurtT = 12;
-          e.vx = (s.vx > 0 ? 1 : -1) * 3.2;
-          sparkBurst(s.x, s.y, 10, true);
-          bloodBurst(s.x, s.y, s.vx > 0 ? 1 : -1, 10, e.hp <= 0);
-          floatText(e.x, e.y - e.h - 4, "-" + s.dmg, "#d23a3a");
+          e.vx = (s.vx > 0 ? 1 : -1) * (boom ? 4.2 : 3.2);
+          sparkBurst(s.x, s.y, boom ? 16 : 10, true);
+          bloodBurst(direct ? s.x : e.x, direct ? s.y : e.y - e.h * 0.4, s.vx > 0 ? 1 : -1, 10, e.hp <= 0);
+          floatText(e.x, e.y - e.h - 4, "-" + dmg, "#d23a3a");
           sfx("hit");
-          hitstop = Math.max(hitstop, 4);
-          s.dead = true;
+          hitstop = Math.max(hitstop, boom ? 6 : 4);
+          hit = true;
           if (e.hp <= 0) killEnemy(e);
-          break;
+          if (!boom) break;
+        }
+        if (!hit && era === 4) {
+          for (const c of cannons) {
+            if (c.dead) continue;
+            const box = { x: c.x - 26, y: GROUND - 26, w: 52, h: 26 };
+            const direct = aabb(s.x - 6, s.y - 4, 14, 8, box.x, box.y, box.w, box.h);
+            const splash = boom && Math.abs(c.x - s.x) < boom && Math.abs(GROUND - 14 - s.y) < boom * 0.65;
+            if (!direct && !splash) continue;
+            c.hp = (c.hp == null ? 36 : c.hp) - (direct ? s.dmg : Math.ceil(s.dmg * 0.4));
+            sparkBurst(s.x, s.y, boom ? 16 : 8, true);
+            sfx("hit");
+            hit = true;
+            if (c.hp <= 0) {
+              c.dead = true;
+              c.hp = 0;
+              bumpShake(8);
+              floatText(c.x, GROUND - 36, "SPIKED", "#e6c35c");
+            }
+            if (!boom) break;
+          }
+        }
+        if (hit) {
+          s.dead = true;
+          if (boom) bumpShake(10);
         }
         continue;
       }
       if (aabb(s.x - sw / 2, s.y - sh / 2, sw, sh, pb.x, pb.y, pb.w, pb.h)) {
-        if (s.type === "laneshot" && (player.y < GROUND - 18 || player.rolling)) continue;
-        if (s.type === "ball" && player.y < GROUND - 14) continue;
+        if (s.type === "laneshot" && (player.y < floorY(player.x) - 18 || player.rolling || isDucking())) continue;
+        if (s.type === "ball" && player.y < floorY(player.x) - 14) continue;
+        if (s.duck === "roll" && (player.rolling || isDucking())) continue;
+        if (s.duck === "jump" && player.y < floorY(player.x) - 12) continue;
         hurtPlayer(s.dmg, 2.6, s.x);
         s.dead = true;
         sparkBurst(s.x, s.y, 8, true);
@@ -3343,10 +3959,15 @@
       if (warpT >= 120) {
         const lives = player.lives;
         const next = warpTo || 2;
+        if (next === 5 && window.ROHCliffs && !skipCliffs) {
+          openCliffs({ keepLives: true });
+          return;
+        }
+        if (next === 5) cliffsCleared = true;
         resetLevel({ era: next, keepLives: true });
         player.lives = lives;
         mode = "play";
-        announce(ERA_LABEL[next] || "ERA II  ·  ROME", 150);
+        announce(eraBanner(next), 150);
         sfx("land");
         if (ROH.musicStart && actx) ROH.musicStart(actx, master, next);
       }
@@ -3358,7 +3979,14 @@
     updatePlayer();
     hitEnemies();
     for (const e of enemies) updateEnemy(e);
-    if (era === 5 && player.deadT === 0 && !player.rolling) {
+    if (era === 5 && !jurassic && player.x >= ROH.RIFT_X && player.deadT === 0) {
+      jurassic = true;
+      announce("THE RIFT OPENS", 140);
+      brassSting();
+      bumpShake(18);
+      sparkBurst(player.x, player.y - 40, 24, true);
+    }
+    if (era === 5 && searchlights.length && player.deadT === 0 && !player.rolling) {
       for (const L of searchlights) {
         L.a += L.da;
         if (L.a < 0.12 || L.a > 1.55) L.da *= -1;
@@ -3383,6 +4011,7 @@
     updateShots();
     if (era === 4) {
       for (const c of cannons) {
+        if (c.dead) continue;
         c.t++;
         if (c.t % 150 === 96) {
           shots.push({
@@ -3407,27 +4036,34 @@
 
   function blitMount(spr, x, y, facing, dh) {
     if (!spr) return;
-    const kind = (horse && horse.kind) || era;
-    const vehicle = kind >= 4;
-    const gallop = Math.abs(player.vx) > 0.45;
-    const gait = time * (gallop ? 0.5 : 0.14);
-    const bob = Math.sin(gait) * (gallop ? (vehicle ? 1.6 : 3.6) : (vehicle ? 0.5 : 1.15));
-    const pitchAmt = vehicle ? (gallop ? 0.03 : 0.01) : (gallop ? 0.12 : 0.03);
-    const pitch = Math.sin(gait) * pitchAmt * (facing < 0 ? -1 : 1);
-    const squash = gallop ? 1 - Math.cos(gait * 2) * (vehicle ? 0.02 : 0.055) : 1;
-    const h = dh * squash;
+    const pose = mountPose(dh);
+    const h = pose.h;
     const w = (spr.w / spr.h) * dh;
     const dx = Math.round(x - camX);
-    const dy = Math.round(y + bob);
+    const dy = Math.round(y + pose.bob);
     const ax = spr.anchor != null ? spr.anchor : 0.5;
     ctx.save();
     ctx.translate(dx, dy);
     ctx.scale(facing < 0 ? -1 : 1, 1);
-    ctx.rotate(pitch);
+    ctx.rotate(pose.pitch);
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(spr.canvas, -w * ax, -h, w, h);
     ctx.restore();
-    horse.bob = bob;
+    horse.bob = pose.bob;
+  }
+
+  function drawJeepGuns() {
+    const dir = player.facing > 0 ? 1 : -1;
+    ctx.save();
+    for (const m of jeepGunTips()) {
+      const x = m.x - camX;
+      const y = m.y;
+      ctx.fillStyle = "#14160f";
+      ctx.fillRect(dir > 0 ? x - 20 : x, y - 1.5, 20, 3);
+      ctx.fillStyle = "#3a4030";
+      ctx.fillRect(dir > 0 ? x - 4 : x, y - 2.2, 4, 4.4);
+    }
+    ctx.restore();
   }
 
   function blitRider(spr, x, y, facing) {
@@ -3503,11 +4139,21 @@
       ctx.shadowColor = "rgba(243, 226, 160, 0.45)";
       ctx.shadowBlur = 8;
       ctx.drawImage(spr.canvas, -w * ax, -h * 0.55, w, h);
+    } else if (isDucking()) {
+      ctx.scale(facing < 0 ? -1 : 1, 0.82);
+      const kick = gunDrawKick();
+      if (kick) ctx.translate(kick, 0);
+      ctx.shadowColor = "rgba(8, 0, 6, 0.9)";
+      ctx.shadowBlur = perfLow ? 0 : 6;
+      ctx.drawImage(spr.canvas, -w * ax, -h * 0.9, w, h);
     } else {
-      const lean = player.attacking
+      const gunPose = player.attacking && isGunSpec(currentSpec());
+      const lean = !gunPose && player.attacking
         ? (player.phase === "wu" ? -0.22 : player.phase === "active" ? 0.32 : 0.08)
         : 0;
+      const kick = gunDrawKick();
       ctx.scale(facing < 0 ? -1 : 1, 1);
+      if (kick) ctx.translate(kick, 0);
       if (lean) ctx.rotate(lean);
       ctx.shadowColor = "rgba(8, 0, 6, 0.9)";
       ctx.shadowBlur = perfLow ? 0 : 6;
@@ -3584,6 +4230,58 @@
     }
   }
 
+  function drawCovers() {
+    for (const c of covers) {
+      const x = c.x - camX;
+      if (x + c.w < -8 || x > VW + 8) continue;
+      if (c.kind === "frond") {
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.fillRect(x + 2, c.y + c.h - 6, c.w, 8);
+        ctx.fillStyle = "#5a3a18";
+        ctx.fillRect(x, c.y + c.h - 10, c.w, 8);
+        ctx.fillStyle = "#2a6a28";
+        ctx.beginPath();
+        ctx.moveTo(x + 4, c.y + c.h - 8);
+        ctx.lineTo(x + 16, c.y);
+        ctx.lineTo(x + 28, c.y + c.h - 8);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + 18, c.y + c.h - 6);
+        ctx.lineTo(x + 32, c.y + 4);
+        ctx.lineTo(x + c.w - 4, c.y + c.h - 6);
+        ctx.fill();
+      } else if (c.kind === "bags") {
+        ctx.fillStyle = "rgba(0,0,0,0.35)";
+        ctx.fillRect(x + 3, c.y + 4, c.w, c.h);
+        const rows = 3;
+        for (let row = 0; row < rows; row++) {
+          const n = row === 1 ? 2 : 3;
+          for (let i = 0; i < n; i++) {
+            const bw = c.w / n;
+            const bx = x + i * bw + (row === 1 ? bw * 0.35 : 0);
+            const by = c.y + row * (c.h / rows);
+            ctx.fillStyle = row % 2 ? "#8a7a48" : "#a89058";
+            ctx.beginPath();
+            ctx.ellipse(bx + bw * 0.35, by + c.h / rows * 0.55, bw * 0.42, c.h / rows * 0.42, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#5a4a28";
+            ctx.stroke();
+          }
+        }
+      } else {
+        ctx.fillStyle = "rgba(0,0,0,0.35)";
+        ctx.fillRect(x + 3, c.y + 4, c.w, c.h);
+        ctx.fillStyle = "#6a4424";
+        ctx.fillRect(x, c.y, c.w, c.h);
+        ctx.fillStyle = "#8a5a30";
+        ctx.fillRect(x, c.y, c.w, 6);
+        ctx.fillStyle = "#3a2414";
+        ctx.fillRect(x, c.y + c.h * 0.45, c.w, 2);
+        ctx.fillRect(x + c.w * 0.5, c.y, 2, c.h);
+      }
+    }
+  }
+
   function drawSwing() {
     if (!player.attacking || player.deadT > 0) return;
     const spec = currentSpec();
@@ -3597,29 +4295,40 @@
     if (riding && kind >= 6) { ox += dir * 26; oy = player.y - 22; }
     else if (riding && kind === 5) { ox += dir * 16; oy = player.y - 18; }
     else if (riding && kind === 4) { ox += dir * 10; oy = player.y - 28; }
-    const gun = !!(spec.shot || spec.burst || spec.mark);
+    const gun = isGunSpec(spec);
     const t = player.phase === "wu" ? player.phaseT / Math.max(1, spec.wu) : player.phase === "active" ? 1 : 0.35;
     const mega = player.kind === "mega";
     ctx.save();
     if (gun) {
-      if (player.phase === "wu" || player.phase === "active") {
-        const reach = spec.range || 80;
-        ctx.strokeStyle = player.phase === "wu" ? "rgba(243,226,160,0.55)" : "rgba(255,246,200,0.9)";
-        ctx.lineWidth = player.phase === "active" ? (mega ? 3.4 : 2.4) : 1;
-        ctx.beginPath();
-        ctx.moveTo(ox + dir * 10, oy);
-        ctx.lineTo(ox + dir * (player.phase === "wu" ? reach * 0.7 : 22), oy);
-        ctx.stroke();
+      const mouths = gunMuzzles();
+      const flashR = spec.shotgun ? 20 : spec.bazooka ? 16 : (mega ? 14 : 10);
+      for (const m of mouths) {
+        const mx = m.x - camX;
+        const my = m.y;
         if (player.phase === "active") {
-          const flashR = mega ? 26 : 16;
-          const g = ctx.createRadialGradient(ox + dir * 14, oy, 1, ox + dir * 14, oy, flashR);
-          g.addColorStop(0, "rgba(255,246,200,0.95)");
-          g.addColorStop(0.4, mega ? "rgba(255,210,90,0.7)" : "rgba(255,160,60,0.55)");
+          const g = ctx.createRadialGradient(mx, my, 1, mx, my, flashR);
+          g.addColorStop(0, "rgba(255,250,220,0.95)");
+          g.addColorStop(0.45, spec.bazooka ? "rgba(255,140,40,0.7)" : "rgba(255,210,120,0.55)");
           g.addColorStop(1, "rgba(210,58,58,0)");
           ctx.fillStyle = g;
           ctx.beginPath();
-          ctx.arc(ox + dir * 14, oy, flashR, 0, Math.PI * 2);
+          ctx.arc(mx, my, flashR, 0, Math.PI * 2);
           ctx.fill();
+          if (spec.shotgun) {
+            ctx.strokeStyle = "rgba(255,236,180,0.45)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(mx, my);
+            ctx.lineTo(mx + dir * 28, my - 10);
+            ctx.moveTo(mx, my);
+            ctx.lineTo(mx + dir * 34, my);
+            ctx.moveTo(mx, my);
+            ctx.lineTo(mx + dir * 28, my + 10);
+            ctx.stroke();
+          }
+        } else if (player.phase === "wu") {
+          ctx.fillStyle = "rgba(255,246,200," + (0.25 + t * 0.35) + ")";
+          ctx.fillRect(mx - 1, my - 1, 3, 3);
         }
       }
       ctx.restore();
@@ -3854,11 +4563,16 @@
       g.addColorStop(0.4, "#6a7078");
       g.addColorStop(0.75, "#8a8884");
       g.addColorStop(1, "#9a9488");
+    } else if (era === 5 && jurassic) {
+      g.addColorStop(0, "#1a3a28");
+      g.addColorStop(0.45, "#3a6a3a");
+      g.addColorStop(0.78, "#6a8a48");
+      g.addColorStop(1, "#c4b070");
     } else if (era === 5) {
-      g.addColorStop(0, "#05060a");
-      g.addColorStop(0.45, "#12151c");
-      g.addColorStop(0.78, "#2a2218");
-      g.addColorStop(1, "#3a2a1c");
+      g.addColorStop(0, "#6aa0d0");
+      g.addColorStop(0.4, "#e0b070");
+      g.addColorStop(0.75, "#e8c080");
+      g.addColorStop(1, "#f0d0a0");
     } else if (era === 4) {
       g.addColorStop(0, "#9aa8b4");
       g.addColorStop(0.4, "#c4ced6");
@@ -3949,6 +4663,7 @@
   }
 
   function drawEraBack() {
+    if (era === 5) return;
     const spr = SPR["bg" + era];
     if (!spr || !spr.canvas) return;
     const extra = 80;
@@ -4206,9 +4921,61 @@
     }
   }
 
+  function drawFern() {
+    const p = camX * 0.22;
+    ctx.fillStyle = "#14301c";
+    ctx.beginPath();
+    ctx.moveTo(0, 150);
+    for (let x = 0; x <= VW; x += 16) {
+      const wx = x + p;
+      ctx.lineTo(x, 132 + Math.sin(wx * 0.02) * 14 + Math.sin(wx * 0.05) * 6);
+    }
+    ctx.lineTo(VW, GROUND);
+    ctx.lineTo(0, GROUND);
+    ctx.fill();
+    ctx.fillStyle = "#1e4a28";
+    for (let i = 0; i < 9; i++) {
+      const x = ((i * 78 - camX * 0.35) % (VW + 60)) - 20;
+      ctx.beginPath();
+      ctx.moveTo(x, GROUND - 8);
+      ctx.lineTo(x - 16, GROUND - 48);
+      ctx.lineTo(x, GROUND - 70);
+      ctx.lineTo(x + 16, GROUND - 48);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#2f6a34";
+      ctx.fillRect(x - 1, GROUND - 28, 3, 22);
+      ctx.fillStyle = "#1e4a28";
+    }
+    if (!perfLow) {
+      ctx.fillStyle = "rgba(180, 220, 120, 0.12)";
+      for (let y = 40; y < 120; y += 6) ctx.fillRect(0, y + Math.sin(time * 0.03 + y) * 2, VW, 2);
+    }
+  }
+
+  function drawTimeRift() {
+    const x = ROH.RIFT_X - camX;
+    if (x < -30 || x > VW + 30) return;
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = "#e6c35c";
+    ctx.shadowColor = "#e6c35c";
+    ctx.shadowBlur = perfLow ? 0 : 12;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let y = 8;
+    ctx.moveTo(x, y);
+    for (let i = 0; i < 14; i++) {
+      y += 16;
+      ctx.lineTo(x + Math.sin(time * 0.08 + i) * 6, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawDunes() {
     const p = camX * 0.25;
-    if (!SPR["bg" + era]) {
+    if (era === 5 || !SPR["bg" + era]) {
       ctx.fillStyle = "#b86a32";
       ctx.beginPath();
       ctx.moveTo(0, 168);
@@ -4409,6 +5176,46 @@
     }
   }
 
+  function drawSlopes() {
+    if (!slopes.length) return;
+    const lip = era === 4 ? "#f7fbff" : era === 6 ? "#d0cec8" : era === 5 && jurassic ? "#8ed082" : era === 5 ? "#f6d48a" : era === 3 ? "#8a6840" : era === 2 ? "#c4b49a" : "#f6d090";
+    const fill = era === 4 ? "#d5e0ea" : era === 6 ? "#7a7874" : era === 5 && jurassic ? "#2a5c32" : era === 5 ? "#d09848" : era === 3 ? "#3a3020" : era === 2 ? "#6e6658" : "#d09848";
+    const shade = era === 4 ? "#8ea0b0" : era === 6 ? "#3a3836" : era === 5 && jurassic ? "#0c2412" : era === 5 ? "#7a4818" : era === 3 ? "#120e0a" : era === 2 ? "#2a2622" : "#7a4818";
+    for (const s of slopes) {
+      const x0 = s.x - camX;
+      const x1 = s.x + s.w - camX;
+      if (x1 < -24 || x0 > VW + 24) continue;
+      const top = GROUND - s.rise;
+      ctx.beginPath();
+      ctx.moveTo(x0, GROUND + 2);
+      const steps = 20;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const y = GROUND - s.rise * Math.sin(t * Math.PI);
+        ctx.lineTo(s.x + s.w * t - camX, y);
+      }
+      ctx.lineTo(x1, GROUND + 2);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(0, top, 0, GROUND + 4);
+      g.addColorStop(0, fill);
+      g.addColorStop(0.55, fill);
+      g.addColorStop(1, shade);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const y = GROUND - s.rise * Math.sin(t * Math.PI);
+        const x = s.x + s.w * t - camX;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = lip;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
   function drawGround() {
     if (era === 6) {
       ctx.fillStyle = "#6a6864";
@@ -4427,9 +5234,11 @@
       return;
     }
     if (era === 5) {
-      ctx.fillStyle = "#1a1814";
+      ctx.fillStyle = jurassic ? "#1c3a22" : "#c48a3c";
       ctx.fillRect(0, GROUND - 4, VW, VH - (GROUND - 4));
-      const tile = SPR.cobble || SPR.ground;
+      ctx.fillStyle = jurassic ? "#14301c" : "#a86c28";
+      ctx.fillRect(0, GROUND + 12, VW, VH - GROUND - 12);
+      const tile = jurassic ? (SPR.mud || SPR.ground) : (SPR.ground || SPR.cobble);
       if (tile) {
         ctx.save();
         ctx.globalAlpha = 0.8;
@@ -4440,7 +5249,7 @@
         }
         ctx.restore();
       }
-      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.fillStyle = jurassic ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.18)";
       ctx.fillRect(0, GROUND - 4, VW, 3);
       return;
     }
@@ -4583,12 +5392,13 @@
     ctx.fillText(String(score), VW / 2, 16);
     const touchHud = !!(document.getElementById("stage") && document.getElementById("stage").classList.contains("play-touch"));
     ctx.textAlign = "right";
-    ctx.fillText(era === 6 ? "ERA VI  TODAY" : era === 5 ? "ERA V  WW2" : era === 4 ? "ERA IV  NAPOLEON" : era === 3 ? "ERA III  KNIGHTS" : era === 2 ? "ERA II  ROME" : "ERA I  ALEXANDER", VW - 10, touchHud ? 44 : 16);
+    ctx.fillText(era === 6 ? "ERA VI  TODAY" : era === 5 ? (jurassic ? "ERA V  JURASSIC" : "ERA V  1942") : era === 4 ? "ERA IV  NAPOLEON" : era === 3 ? "ERA III  KNIGHTS" : era === 2 ? "ERA II  ROME" : "ERA I  ALEXANDER", VW - 10, touchHud ? 44 : 16);
 
     ctx.textAlign = "left";
     ctx.fillStyle = player.heavyCd > 0 ? "#5a4a28" : "#e6c35c";
-    const ready = era === 6 ? "DRONE READY" : era === 5 ? "RIFLE READY" : era === 4 ? "PISTOL READY" : era === 3 ? "CLEAVE READY" : era === 2 ? "BASH READY" : "SPEAR READY";
-    const wait = era === 6 ? "DRONE" : era === 5 ? "RIFLE" : era === 4 ? "PISTOL" : era === 3 ? "CLEAVE" : era === 2 ? "BASH" : "SPEAR";
+    const vickers = era === 5 && horse && horse.mounted && horse.alive;
+    const ready = vickers ? "VICKERS READY" : era === 6 ? "DRONE READY" : era === 5 ? "RIFLE READY" : era === 4 ? "PISTOL READY" : era === 3 ? "CLEAVE READY" : era === 2 ? "BASH READY" : "SPEAR READY";
+    const wait = vickers ? "VICKERS" : era === 6 ? "DRONE" : era === 5 ? "RIFLE" : era === 4 ? "PISTOL" : era === 3 ? "CLEAVE" : era === 2 ? "BASH" : "SPEAR";
     const showSteed = !!horse;
     if (showSteed) {
       const filled = (horse.hp || 0) / Math.max(1, horse.maxHp);
@@ -4597,7 +5407,7 @@
       ctx.fillStyle = callReady ? "#ffe27a" : "#8a7340";
       ctx.font = "6px Cinzel, serif";
       ctx.fillText(mountedNow
-        ? (era === 6 ? "TANK" : era === 5 ? "JEEP" : era === 4 ? "CART" : "STEED")
+        ? (era === 6 ? "TANK" : era === 5 ? "VICKERS" : era === 4 ? "CART" : "STEED")
         : (callReady ? "MOUNT READY" : "MOUNT"), 8, 41);
       ctx.fillStyle = "#1a120c";
       ctx.fillRect(8, 43, 104, 7);
@@ -4616,7 +5426,7 @@
       ctx.fillText(player.heavyCd > 0 ? wait : ready, 8, 42);
     }
 
-    const boss = enemies.find((e) => (e.type === "boss" || e.type === "centurion" || e.type === "baron" || e.type === "powder" || e.type === "colonel" || e.type === "fracture") && (e.hp > 0 || e.deadT > 0));
+    const boss = enemies.find((e) => (e.type === "boss" || e.type === "centurion" || e.type === "baron" || e.type === "powder" || e.type === "colonel" || e.type === "rex" || e.type === "fracture") && (e.hp > 0 || e.deadT > 0));
     if (boss && boss.hp > 0) {
       ctx.fillStyle = "rgba(0,0,0,0.45)";
       ctx.fillRect(VW / 2 - 80, 22, 160, 12);
@@ -4627,7 +5437,7 @@
       ctx.fillStyle = "#f3e2a0";
       ctx.font = "7px Cinzel, serif";
       ctx.textAlign = "center";
-      const name = boss.type === "fracture" ? "THE FRACTURE" : boss.type === "colonel" ? "RADIO COLONEL" : boss.type === "powder" ? "POWDER GENERAL" : boss.type === "baron" ? "CLOCKWORK BARON" : boss.type === "centurion" ? "CENTURION OF HOURS" : "MARBLE HETAIROI";
+      const name = boss.type === "fracture" ? "THE FRACTURE" : boss.type === "rex" ? "THE KING" : boss.type === "colonel" ? "RADIO COLONEL" : boss.type === "powder" ? "POWDER GENERAL" : boss.type === "baron" ? "CLOCKWORK BARON" : boss.type === "centurion" ? "CENTURION OF HOURS" : "MARBLE HETAIROI";
       ctx.fillText(name + "  ·  PH " + boss.phase, VW / 2, 20);
     }
 
@@ -4676,15 +5486,21 @@
 
     drawSky();
     if (era === 6) drawPresent();
-    else if (era === 5) drawNightStreet();
+    else if (era === 5) {
+      if (jurassic) drawFern();
+      else drawDunes();
+      drawTimeRift();
+    }
     else if (era === 4) drawEmpire();
     else if (era === 3) drawKeep();
     else if (era === 2) drawRome();
     else drawDunes();
     drawGround();
+    drawSlopes();
     drawPits();
     if (era === 2) drawAqueduct();
     drawLedges();
+    drawCovers();
 
     for (const st of stains) {
       ctx.globalAlpha = Math.min(1, Math.max(0, st.a * Math.min(1, st.life / 400)));
@@ -4718,6 +5534,13 @@
     }
 
     for (const c of cannons) {
+      if (c.dead) {
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        blit(SPR.cannon, c.x, GROUND + 6, c.facing, 36, false, 0);
+        ctx.restore();
+        continue;
+      }
       const warn = (c.t % 150) > 60 && (c.t % 150) < 96;
       blit(SPR.cannon, c.x, GROUND, c.facing, 42, warn && time % 6 < 3, 0);
       if (warn) {
@@ -4746,7 +5569,9 @@
       const bob = e.state === "walk" ? Math.sin(time * 0.25) * 1.4 : 0;
       let spr = SPR.infantry;
       let dh = 52;
+      if (e.type === "javelin") { spr = SPR.infantry; dh = 52; }
       if (e.type === "slinger") { spr = SPR.slinger; dh = 52; }
+      if (e.type === "pilum") { spr = SPR.legionary; dh = 56; }
       if (e.type === "legionary") { spr = SPR.legionary; dh = 56; }
       if (e.type === "archer") { spr = SPR.archer; dh = 52; }
       if (e.type === "elephant") { spr = SPR.elephant; dh = 78; }
@@ -4754,17 +5579,25 @@
       if (e.type === "centurion") { spr = SPR.centurion; dh = 90; }
       if (e.type === "manatarms") { spr = SPR.manatarms; dh = 56; }
       if (e.type === "crossbow") { spr = SPR.crossbow; dh = 54; }
+      if (e.type === "arbalist") { spr = SPR.crossbow; dh = 54; }
       if (e.type === "knight") { spr = SPR.knight; dh = 68; }
       if (e.type === "gate") { spr = SPR.gate; dh = 110; }
       if (e.type === "baron") { spr = SPR.baron; dh = 92; }
       if (e.type === "lineinf") { spr = SPR.lineinf; dh = 54; }
+      if (e.type === "voltigeur") { spr = SPR.lineinf; dh = 54; }
       if (e.type === "lancer") { spr = SPR.lancer; dh = 70; }
       if (e.type === "powder") { spr = SPR.powder; dh = 90; }
       if (e.type === "rifleinf") { spr = SPR.rifleinf; dh = 54; }
+      if (e.type === "duneinf") { spr = SPR.duneinf || SPR.rifleinf; dh = 54; }
+      if (e.type === "sniper") { spr = SPR.duneinf || SPR.rifleinf; dh = 54; }
+      if (e.type === "raptor") { spr = SPR.raptor || SPR.elephant; dh = 50; }
+      if (e.type === "hunter") { spr = SPR.hunter || SPR.elephant; dh = 72; }
+      if (e.type === "rex") { spr = SPR.rex || SPR.boss; dh = 100; }
       if (e.type === "mgnest") { spr = SPR.mgnest; dh = 70; }
       if (e.type === "armorcar") { spr = SPR.armorcar; dh = 56; }
       if (e.type === "colonel") { spr = SPR.colonel; dh = 88; }
       if (e.type === "modinf") { spr = SPR.modinf; dh = 54; }
+      if (e.type === "marksman") { spr = SPR.modinf; dh = 54; }
       if (e.type === "ifv") { spr = SPR.ifv; dh = 58; }
       if (e.type === "fracture") { spr = SPR.fracture; dh = 92; }
       const deadSink = e.deadT > 0 ? (40 - Math.min(40, e.deadT)) * 0.4 : 0;
@@ -4784,7 +5617,38 @@
         if (e.phase === 3 && SPR.tank) blit(SPR.tank, e.x + e.facing * 6, e.y, e.facing, 34, false, bob);
         ctx.globalAlpha = 1;
       }
-      if ((e.type === "spear" || e.type === "slinger") && SPR.crackStamp && e.deadT === 0) {
+      if ((e.type === "javelin" || e.type === "pilum") && e.deadT === 0 && e.state !== "attack") {
+        ctx.save();
+        ctx.strokeStyle = e.type === "pilum" ? "#e6c35c" : "#f0d8b0";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const hx = e.x - camX + e.facing * 8;
+        const hy = e.y - 30 + bob;
+        ctx.moveTo(hx - e.facing * 6, hy + 8);
+        ctx.lineTo(hx + e.facing * 16, hy - 10);
+        ctx.stroke();
+        ctx.restore();
+      }
+      if (e.aim && e.state === "flash" && e.deadT === 0) {
+        const low = e.aim === "low";
+        const sx = e.x + e.facing * 14;
+        const sy = low ? floorY(e.x) - 12 : e.y - 26;
+        const tx = player.x;
+        const ty = floorY(player.x) - (low ? 8 : 22);
+        ctx.save();
+        const wind = Math.max(8, e.flashT + 8);
+        ctx.globalAlpha = Math.min(0.9, 0.25 + (1 - e.flashT / wind) * 0.65);
+        ctx.strokeStyle = e.aim === "red" ? "#ff5a4a" : "#e6c35c";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.moveTo(sx - camX, sy);
+        ctx.lineTo(tx - camX, ty);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+      if ((e.type === "spear" || e.type === "slinger" || e.type === "javelin") && SPR.crackStamp && e.deadT === 0) {
         const h = dh;
         const w = (spr.w / spr.h) * h;
         const dx = Math.round(e.x - camX);
@@ -4808,15 +5672,14 @@
         : (era === 4 || horse.kind === 4) ? (SPR.cart || SPR.horse)
         : (era === 3 || horse.kind === 3) ? (SPR.horse3 || SPR.horse) : SPR.horse;
       blitMount(hs, hx, hy + 2, horse.facing || player.facing, (era === 6 || horse.kind === 6) ? 48 : (era === 5 || horse.kind === 5) ? 42 : (era === 4 || horse.kind === 4) ? 64 : 58);
+      if (horse.kind === 5) drawJeepGuns();
     }
 
     if (player.rolling || player.invuln === 0 || time % 4 < 2 || player.deadT > 0) {
       const mounted = isMounted();
-      const bob = mounted || player.rolling ? 0 : player.anim === "idle" ? Math.sin(time * 0.08) * 1.1 : player.anim === "run" ? Math.sin(player.runT * 0.45) * 1.6 : 0;
-      const lunge = mounted ? 0 : player.attacking
-        ? (player.phase === "wu" ? player.facing * -6 : player.phase === "active" ? player.facing * (player.kind === "heavy" || player.kind === "mega" ? 11 : player.combo >= 3 ? 9 : 5) : player.facing * 2)
-        : 0;
-      const dh = player.rolling ? 48 : player.anim === "death" ? 38 : 62;
+      const bob = mounted || player.rolling || isDucking() ? 0 : player.anim === "idle" ? Math.sin(time * 0.08) * 1.1 : player.anim === "run" ? Math.sin(player.runT * 0.45) * 1.6 : 0;
+      const lunge = footLunge();
+      const dh = footDrawH();
       if (player.rolling && !perfLow) {
         ctx.save();
         ctx.globalAlpha = 0.22;
@@ -4843,22 +5706,24 @@
       drawSwing();
       if (era === 6 && player.attacking && (player.kind === "heavy" || player.kind === "mega") && player.phase === "wu") {
         const tankAim = !!(horse && horse.mounted && horse.kind === 6);
+        const aim = gunMuzzles()[0];
         ctx.save();
         ctx.strokeStyle = tankAim ? "rgba(230,195,92,0.8)" : "rgba(243,226,160,0.55)";
         ctx.lineWidth = tankAim ? 2 : 1;
         ctx.beginPath();
-        ctx.moveTo(player.x - camX + player.facing * 20, player.y - 26);
-        ctx.lineTo(player.x - camX + player.facing * (tankAim ? 140 : 110), player.y - 26);
+        ctx.moveTo(aim.x - camX, aim.y);
+        ctx.lineTo(aim.x - camX + player.facing * (tankAim ? 140 : 110), aim.y);
         ctx.stroke();
         ctx.restore();
       }
       if (era === 5 && player.attacking && (player.kind === "heavy" || player.kind === "mega") && player.phase === "wu" && !(horse && horse.mounted && horse.kind === 5)) {
+        const aim = gunMuzzles()[0];
         ctx.save();
         ctx.strokeStyle = "rgba(243, 226, 160, 0.7)";
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(player.x - camX + player.facing * 18, player.y - 26);
-        ctx.lineTo(player.x - camX + player.facing * 160, player.y - 26);
+        ctx.moveTo(aim.x - camX, aim.y);
+        ctx.lineTo(aim.x - camX + player.facing * 160, aim.y);
         ctx.stroke();
         ctx.restore();
       }
@@ -4962,18 +5827,28 @@
         ctx.fillText(String(Math.max(1, Math.ceil((s.fuse || 0) / 60))), s.x - camX, s.y - 14);
         ctx.fillStyle = "#e6c35c";
         ctx.fillRect(s.x - camX - 1, s.y - 12, 2, 6);
-      } else if (s.type === "ball" || s.type === "laneshot" || s.type === "pistol" || s.type === "limber" || s.type === "musket" || s.type === "rifle" || s.type === "mg" || s.type === "burst" || s.type === "shell") {
-        const gunshot = s.type === "pistol" || s.type === "limber" || s.type === "rifle" || s.type === "mg" || s.type === "burst" || s.type === "shell";
+      } else if (s.type === "ball" || s.type === "laneshot" || s.type === "pistol" || s.type === "limber" || s.type === "musket" || s.type === "rifle" || s.type === "mg" || s.type === "burst" || s.type === "shell" || s.type === "pellet" || s.type === "rocket") {
+        const gunshot = s.type === "pistol" || s.type === "limber" || s.type === "rifle" || s.type === "mg" || s.type === "burst" || s.type === "shell" || s.type === "musket" || s.type === "pellet" || s.type === "rocket";
         if (gunshot) {
-          ctx.strokeStyle = s.type === "shell" ? "rgba(230,195,92,0.7)" : "rgba(255,220,140,0.55)";
-          ctx.lineWidth = s.type === "shell" ? 3 : 1.6;
+          ctx.strokeStyle = s.type === "rocket" ? "rgba(255,120,40,0.85)" : s.type === "shell" ? "rgba(230,195,92,0.7)" : "rgba(255,220,140,0.75)";
+          ctx.lineWidth = s.type === "rocket" ? 4 : s.type === "shell" ? 3 : s.type === "pellet" ? 1.2 : 2;
+          const dirS = Math.sign(s.vx || 1) || 1;
+          let back;
+          if (s.ox != null) {
+            const traveled = Math.hypot(s.x - s.ox, s.y - s.oy);
+            const cap = s.type === "rocket" ? 16 : s.type === "pellet" ? 5 : 12;
+            back = Math.min(traveled, cap);
+          } else {
+            const trail = s.type === "rocket" ? 8 : s.type === "pellet" ? 2 : 5;
+            back = Math.abs(s.vx || 4) * trail * 0.35;
+          }
           ctx.beginPath();
-          ctx.moveTo(s.x - camX - (s.vx || 4) * 3, s.y);
+          ctx.moveTo(s.x - camX - dirS * back, s.y - (s.vy || 0) * (back / Math.max(1, Math.abs(s.vx || 1))));
           ctx.lineTo(s.x - camX, s.y);
           ctx.stroke();
         }
-        ctx.fillStyle = s.type === "pistol" || s.type === "limber" || s.type === "burst" ? "#fff6c8" : "#2a2420";
-        const r = s.type === "limber" || s.type === "shell" ? 5 : s.type === "ball" ? 6 : 3;
+        ctx.fillStyle = s.type === "rocket" ? "#ff8a2a" : s.type === "pellet" || s.type === "rifle" || s.type === "musket" || s.type === "burst" ? "#fff6c8" : s.type === "pistol" || s.type === "limber" ? "#fff6c8" : "#2a2420";
+        const r = s.type === "rocket" ? 4.5 : s.type === "limber" || s.type === "shell" ? 5 : s.type === "ball" ? 6 : s.type === "pellet" ? 2 : 3;
         ctx.beginPath();
         ctx.arc(s.x - camX, s.y, r, 0, Math.PI * 2);
         ctx.fill();
@@ -4981,14 +5856,15 @@
           ctx.fillStyle = "#5a4a28";
           ctx.fillRect(s.x - camX - 6, s.y - 2, 12, 4);
         }
-      } else if (s.type === "arrow" || s.type === "bolt") {
+      } else if (s.type === "arrow" || s.type === "bolt" || s.type === "javelin" || s.type === "pilum") {
         ctx.save();
         ctx.translate(s.x - camX, s.y);
         ctx.rotate(Math.atan2(s.vy, s.vx));
-        ctx.fillStyle = s.type === "bolt" ? "#2a1c12" : "#3a2a18";
-        ctx.fillRect(s.type === "bolt" ? -10 : -8, -1.5, s.type === "bolt" ? 18 : 14, s.type === "bolt" ? 3 : 2);
+        const spear = s.type === "javelin" || s.type === "pilum";
+        ctx.fillStyle = s.type === "bolt" || s.type === "pilum" ? "#2a1c12" : "#3a2a18";
+        ctx.fillRect(spear ? -12 : s.type === "bolt" ? -10 : -8, spear ? -1.2 : -1.5, spear ? 22 : s.type === "bolt" ? 18 : 14, spear ? 2.4 : s.type === "bolt" ? 3 : 2);
         ctx.fillStyle = "#c9a227";
-        ctx.fillRect(s.type === "bolt" ? 6 : 4, -2, 5, 4);
+        ctx.fillRect(spear ? 8 : s.type === "bolt" ? 6 : 4, -2, 5, 4);
         ctx.restore();
       } else {
         ctx.fillStyle = "#3a3228";
@@ -5060,7 +5936,10 @@
     if (mode === "intro") drawIntro();
     else if (mode === "warp") drawWarp();
     else if (mode === "play" || mode === "pause" || mode === "dead" || mode === "win") draw();
-    else if (mode === "title") {
+    else if (mode === "cliffs") {
+      ctx.fillStyle = "#061018";
+      ctx.fillRect(0, 0, VW, VH);
+    } else if (mode === "title") {
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, VW, VH);
     }
@@ -5091,14 +5970,21 @@
       gateCleared,
       cannons: cannons.length,
       rolling: !!player.rolling,
+      ducking: !!player.ducking,
       combo: player.combo || 0,
       kind: player.kind || null,
       phase: player.phase || null,
       attacking: !!player.attacking,
       score,
       difficulty,
+      localPreview: isLocalPreview(),
+      jurassic,
+      covers: covers.length,
+      shots: shots.filter((s) => !s.dead).map((s) => ({ type: s.type, x: s.x | 0, y: s.y | 0, vx: +(s.vx || 0).toFixed(1), friendly: !!s.friendly, life: s.life | 0, duck: s.duck || null })),
       nestCleared,
       pits: pits.length,
+      slopes: slopes.length,
+      floor: floorY(player.x) | 0,
     }),
     mute: () => toggleMute(),
     back: () => handleBack(),
@@ -5111,6 +5997,7 @@
     },
     skipIntro,
     begin,
+    skipCliffs: () => { skipCliffs = true; },
     title: () => toTitle(),
     dumpHorse: () => dumpHorse(),
     die: () => { player.hp = 0; loseLife(); },
@@ -5140,6 +6027,7 @@
     era5: () => {
       hide(screens.title);
       hideAllPlay();
+      cliffsCleared = true;
       resetLevel({ era: 5, keepLives: true });
       mode = "play";
     },
@@ -5154,11 +6042,20 @@
       if (e) killEnemy(e);
     },
     unlock: (n) => saveUnlock(n),
+    poke: (s) => shots.push(s),
     smashGate: () => {
       const e = enemies.find((n) => n.type === "gate");
       if (e) killEnemy(e);
     },
     mount: () => { if (horse) { horse.hp = horse.maxHp; mountHorse(); } },
+    hold: () => { mode = "pause"; },
+    step: () => {
+      const was = mode;
+      mode = "play";
+      update();
+      if (was === "pause") mode = "pause";
+    },
+    muzzles: () => gunMuzzles().map((m) => ({ x: +m.x.toFixed(1), y: +m.y.toFixed(1) })),
   };
 
   loadAll()
