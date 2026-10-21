@@ -932,6 +932,8 @@
     player.rolling = false;
     player.ducking = false;
     player.landT = 0;
+    player.gait = 0;
+    player.struckT = 0;
     lifeDamaged = false;
   }
 
@@ -1305,11 +1307,11 @@
 
   function footLunge() {
     if (isMounted() || !player.attacking) return 0;
-    if (player.phase === "wu") return player.facing * -6;
+    if (player.phase === "wu") return player.facing * -4;
     if (player.phase === "active") {
-      return player.facing * (player.kind === "heavy" || player.kind === "mega" ? 11 : player.combo >= 3 ? 9 : 5);
+      return player.facing * (player.kind === "heavy" || player.kind === "mega" ? 6 : player.combo >= 3 ? 5 : 3);
     }
-    return player.facing * 2;
+    return player.facing * 1;
   }
 
   function gunDrawKick() {
@@ -1759,6 +1761,97 @@
     return fromX <= p.x + p.w * 0.5 ? p.x + 8 : p.x + p.w - 8;
   }
 
+  function gaitFrom(t) {
+    const p = (t || 0) * 0.19;
+    const swing = Math.sin(p);
+    const plant = Math.abs(Math.cos(p));
+    return { p, swing, plant, step: swing >= 0 };
+  }
+
+  function strideOf(spr) {
+    if (!spr || !spr.canvas) return spr;
+    if (spr.stride) return spr.stride;
+    const w = spr.w, h = spr.h;
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+    const x = c.getContext("2d");
+    const split = Math.max(4, (h * 0.56) | 0);
+    const shift = Math.max(2, Math.round(w * 0.09));
+    x.drawImage(spr.canvas, 0, 0, w, split, 0, 0, w, split);
+    x.drawImage(spr.canvas, 0, split, w, h - split, -shift, split, w, h - split);
+    spr.stride = { canvas: c, w, h, anchor: spr.anchor };
+    return spr.stride;
+  }
+
+  function usesStride(type) {
+    return type !== "gate" && type !== "mgnest" && type !== "armorcar" && type !== "ifv" && type !== "elephant" && type !== "colonel";
+  }
+
+  function foeSolid(e) {
+    if (!e || e.hp <= 0 || e.deadT > 0) return false;
+    if (e.type === "gate") return false;
+    if (e.ledge) return false;
+    if (!onFloor(e) && (e.y || 0) < GROUND - 18) return false;
+    return true;
+  }
+
+  function addLunge(amt) {
+    const nx = player.x + player.facing * amt * 4;
+    if (player.onGround && holeAt(nx) && !holeAt(player.x)) return;
+    player.vx += player.facing * amt;
+  }
+
+  function stopOnFoes(prevX) {
+    if (isMounted() || player.hurtT > 0 || player.deadT > 0) return;
+    if (!player.onGround) return;
+    const pw = player.rolling ? 8 : Math.max(8, player.w * 0.45);
+    for (const e of enemies) {
+      if (!foeSolid(e)) continue;
+      if (Math.abs((e.y || GROUND) - player.y) > 28) continue;
+      const hw = Math.max(12, (e.w || 18) * 0.5);
+      if (player.x + pw <= e.x - hw || player.x - pw >= e.x + hw) continue;
+      const nx = prevX <= e.x ? e.x - hw - pw - 0.05 : e.x + hw + pw + 0.05;
+      player.x = holeAt(nx) && !holeAt(prevX) ? prevX : nx;
+      player.vx = 0;
+      if (player.rolling) {
+        player.rollT = 0;
+        player.rolling = false;
+        player.h = 40;
+        player.rollCd = 12;
+      }
+    }
+  }
+
+  function holdAtPit(prevX) {
+    if (player.hurtT > 0 || player.deadT > 0) return;
+    if (!player.onGround) return;
+    const hold = player.attacking || (player.struckT || 0) > 0;
+    if (!hold) return;
+    if (!holeAt(player.x) || holeAt(prevX)) return;
+    const p = holeAt(player.x);
+    player.x = pitLip(p, prevX);
+    player.vx = 0;
+    if (player.rolling) {
+      player.rollT = 0;
+      player.rolling = false;
+      player.h = 40;
+      player.rollCd = 12;
+    }
+  }
+
+  function plantOnHit(e) {
+    if (!e || isMounted() || player.hurtT > 0 || !player.onGround) return;
+    const hw = Math.max(12, (e.w || 18) * 0.5);
+    const pw = Math.max(8, player.w * 0.45);
+    const face = player.x <= e.x ? e.x - hw - pw : e.x + hw + pw;
+    if (!holeAt(face)) player.x = face;
+    else if (!holeAt(player.x)) { /* stay */ }
+    else player.x = pitLip(holeAt(face) || holeAt(player.x), player.x);
+    player.vx *= 0.08;
+    player.struckT = 18;
+  }
+
   function slopeLift(px) {
     let lift = 0;
     for (const s of slopes) {
@@ -1933,10 +2026,10 @@
       brassSting();
       announce("MEGA", 70);
       floatText(player.x, player.y - player.h - 12, "MEGA", "#ffe27a");
-      player.vx += player.facing * 2.6;
+      addLunge(2.6);
       addScore(80);
     } else {
-      player.vx += player.facing * (combo >= 3 ? 2.0 : 0.7);
+      addLunge(combo >= 3 ? 2.0 : 0.7);
       if (combo >= 3) {
         announce("OVERHEAD", 54);
         floatText(player.x, player.y - player.h - 12, "OVERHEAD", "#fff6c8");
@@ -2445,6 +2538,7 @@
     if (player.heavyCd > 0) player.heavyCd--;
     if (player.invuln > 0) player.invuln--;
     if (player.hurtT > 0) player.hurtT--;
+    if ((player.struckT || 0) > 0) player.struckT--;
 
     const canAct = player.hurtT === 0;
     const attackingLocked = player.attacking && player.phase !== "rec";
@@ -2522,7 +2616,7 @@
       const len = player.phase === "wu" ? spec.wu : player.phase === "active" ? spec.act : spec.rec;
       player.phaseT++;
       if (player.phase === "wu" && player.phaseT === 1 && !isGunSpec(spec)) {
-        player.vx += player.facing * (player.kind === "heavy" || player.kind === "mega" ? 1.8 : player.combo >= 3 ? 1.4 : 0.9);
+        addLunge(player.kind === "heavy" || player.kind === "mega" ? 1.8 : player.combo >= 3 ? 1.4 : 0.9);
       }
       if (player.phaseT >= len) {
         player.phaseT = 0;
@@ -2568,8 +2662,14 @@
 
     updateLedges();
     const wasAir = !player.onGround;
+    const prevX = player.x;
+    const wasGround = player.onGround;
     player.vy += GRAVITY;
     player.x += player.vx;
+    if (wasGround) {
+      stopOnFoes(prevX);
+      holdAtPit(prevX);
+    }
     player.y += player.vy;
 
     const floor = standY(player.x, player.y, player.vy);
@@ -2616,6 +2716,13 @@
 
     if (era === 3 && player.onGround && moving && !perfLow && (time % 3 === 0)) {
       muds.push({ x: player.x - player.facing * 8, y: GROUND - 2, vx: -player.facing * rand(0.4, 1.2), vy: -rand(0.6, 1.8), life: 14 });
+    }
+    if (player.onGround && moving && !player.rolling) {
+      player.gait = (player.gait || 0) + Math.max(0.7, Math.abs(player.vx));
+      const g = gaitFrom(player.gait);
+      if (!perfLow && g.plant > 0.88) spawnDust(player.x - player.facing * 6, player.y - 1, mounted ? 3 : 2);
+    } else if (!moving && player.onGround && !player.rolling) {
+      player.gait = 0;
     }
     if (player.onGround && moving && !perfLow && !player.rolling && time % 4 === 0) {
       spawnDust(player.x - player.facing * 8, player.y - 1, mounted ? 3 : 2);
@@ -2669,6 +2776,7 @@
       } else if (!aabb(hb.x, hb.y, hb.w, hb.h, box.x, box.y, box.w, box.h)) continue;
 
       e.hitBy = player.swingId;
+      plantOnHit(e);
       const spec = hb.spec;
       const dir = player.facing;
       const mega = player.kind === "mega";
@@ -3649,7 +3757,10 @@
       landed(e, floor);
     }
     steerAwayFromHoles(e);
-    e.x += e.vx * diffCfg().spd;
+    if (e.gait == null) e.gait = e.x * 0.13;
+    const step = e.vx * diffCfg().spd;
+    e.gait += Math.abs(step);
+    e.x += step;
     const left = lock ? lock.left + 20 : 40;
     const right = lock ? lock.right - 20 : LEVEL_W - 40;
     e.x = clamp(e.x, left, right);
@@ -4215,9 +4326,10 @@
       if (player.vy < -1.2) { sx = 0.9; sy = 1.14; }
       else if (player.vy > 2) { sx = 1.1; sy = 0.88; }
     } else if (player.anim === "run") {
-      const g = Math.sin((player.runT || 0) * 0.5);
-      sx = 1 + g * 0.05;
-      sy = 1 - g * 0.07;
+      const g = gaitFrom(player.gait || player.runT || 0);
+      sx = 1 + g.plant * 0.08;
+      sy = 1 - g.plant * 0.1;
+      rot = g.swing * 0.07;
     } else if (player.anim === "idle") {
       const b = Math.sin(time * 0.08);
       sx = 1 + b * 0.012;
@@ -5472,7 +5584,11 @@
   function kaelSprite() {
     const p = era === 6 ? "kael6-" : era === 5 ? "kael5-" : era === 4 ? "kael4-" : era === 3 ? "kael3-" : era === 2 ? "kael2-" : "kael-";
     switch (player.anim) {
-      case "run": return SPR[p + "run"] || SPR["kael-run"];
+      case "run": {
+        const g = gaitFrom(player.gait || player.runT || 0);
+        if (g.swing < -0.2 && g.plant > 0.45) return SPR[p + "idle"] || SPR["kael-idle"];
+        return SPR[p + "run"] || SPR["kael-run"];
+      }
       case "jump": return SPR[p + "jump"] || SPR["kael-jump"];
       case "attack": return SPR[p + "attack"] || SPR["kael-attack"];
       case "heavy": return SPR[p + "heavy"] || SPR["kael-heavy"];
@@ -5691,8 +5807,10 @@
 
     for (const e of enemies) {
       const telegraph = e.state === "flash" && (time % 6 < 3);
-      const bob = e.state === "walk" ? Math.sin(time * 0.25) * 1.4 : 0;
-      const squash = e.deadT > 0 ? 0.72 : e.hurtT > 0 ? 0.88 : e.state === "walk" ? 1 - Math.sin(time * 0.25) * 0.05 : 1;
+      const walking = e.deadT === 0 && e.hurtT === 0 && usesStride(e.type) && (e.state === "walk" || Math.abs(e.vx) > 0.12);
+      const gWalk = walking ? gaitFrom(e.gait || 0) : null;
+      const bob = gWalk ? -Math.abs(Math.sin(gWalk.p)) * 3.8 : (e.state === "walk" ? Math.sin(time * 0.25) * 1.4 : 0);
+      const squash = e.deadT > 0 ? 0.72 : e.hurtT > 0 ? 0.88 : gWalk ? 1 - gWalk.plant * 0.12 : e.state === "walk" ? 1 - Math.sin(time * 0.25) * 0.05 : 1;
       let spr = SPR.infantry;
       let dh = 52;
       if (e.type === "javelin") { spr = SPR.infantry; dh = 52; }
@@ -5732,7 +5850,7 @@
         ctx.save();
         ctx.globalAlpha = 0.75;
       }
-      blit(spr, e.x, e.y + deadSink, e.facing, dh, telegraph || e.hurtT > 0, bob, squash);
+      blit(gWalk && !gWalk.step ? strideOf(spr) : spr, e.x, e.y + deadSink, e.facing, dh, telegraph || e.hurtT > 0, bob, squash);
       if (e.hurtT > 0) {
         ctx.fillStyle = "rgba(180, 20, 20, 0.28)";
         ctx.fillRect(e.x - camX - 16, e.y + deadSink - dh, 32, dh);
@@ -5805,7 +5923,7 @@
 
     if (player.rolling || player.invuln === 0 || time % 4 < 2 || player.deadT > 0) {
       const mounted = isMounted();
-      const bob = mounted || player.rolling || isDucking() ? 0 : player.anim === "idle" ? Math.sin(time * 0.08) * 1.1 : player.anim === "run" ? Math.sin(player.runT * 0.45) * 1.6 : 0;
+      const bob = mounted || player.rolling || isDucking() ? 0 : player.anim === "idle" ? Math.sin(time * 0.08) * 1.1 : player.anim === "run" ? -Math.abs(Math.sin(gaitFrom(player.gait || 0).p)) * 4.4 : 0;
       const lunge = footLunge();
       const dh = footDrawH();
       if (!mounted) drawBlobShadow(player.x + lunge, player.y, player.rolling || isDucking() ? 14 : 10);
@@ -6140,6 +6258,9 @@
       x: player.x | 0,
       y: player.y | 0,
       anim: player.anim,
+      gait: +(player.gait || 0).toFixed(1),
+      vx: +(player.vx || 0).toFixed(2),
+      struckT: player.struckT | 0,
       enemies: enemies.map((e) => ({ type: e.type, x: e.x | 0, y: e.y | 0, hp: e.hp, facing: e.facing, state: e.state, hits: e.hits, guarded: e.guarded })),
       lock,
       doorOpen,
