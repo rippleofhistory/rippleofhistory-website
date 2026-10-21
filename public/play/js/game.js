@@ -173,6 +173,8 @@
   let gateCleared = false;
   let rain = [];
   let muds = [];
+  let dusts = [];
+  let motes = [];
   let cannons = [];
   let snows = [];
   let searchlights = [];
@@ -917,6 +919,7 @@
     player.blockT = 0;
     player.rolling = false;
     player.ducking = false;
+    player.landT = 0;
     lifeDamaged = false;
   }
 
@@ -947,6 +950,8 @@
     gateCleared = false;
     rain.length = 0;
     muds.length = 0;
+    dusts.length = 0;
+    motes.length = 0;
     cannons.length = 0;
     snows.length = 0;
     searchlights.length = 0;
@@ -1038,8 +1043,36 @@
       s.s = blood ? rand(1.4, 3.2) : rand(1, 2.4);
       s.gold = !blood && gold !== false;
       s.blood = blood;
+      s.glow = !blood;
       sparks.push(s);
     }
+  }
+
+  function dustColor() {
+    if (era === 4) return "rgba(232,240,248,0.7)";
+    if (era === 6) return "rgba(90,88,82,0.55)";
+    if (era === 5 && jurassic) return "rgba(40,80,36,0.55)";
+    if (era === 3) return "rgba(74,48,20,0.7)";
+    if (era === 2) return "rgba(90,82,70,0.55)";
+    return "rgba(196,138,60,0.7)";
+  }
+
+  function spawnDust(x, y, n) {
+    if (perfLow) return;
+    n = Math.min(n || 5, 10);
+    for (let i = 0; i < n; i++) {
+      dusts.push({
+        x: x + rand(-8, 8),
+        y: y + rand(-2, 2),
+        vx: rand(-1.1, 1.1),
+        vy: rand(-1.8, -0.2),
+        life: rand(10, 20),
+        max: 20,
+        s: rand(1.4, 3.4),
+        col: dustColor(),
+      });
+    }
+    if (dusts.length > 70) dusts.splice(0, dusts.length - 70);
   }
 
   function bloodBurst(x, y, dir, n, kill) {
@@ -1432,6 +1465,7 @@
         facing: dir,
       });
       sparkBurst(muzzle.x, muzzle.y, 12, true);
+      spawnDust(muzzle.x, muzzle.y, 6);
       sfx("swing");
       return;
     }
@@ -1446,7 +1480,10 @@
           vy: (i < 2 ? -0.18 : 0.18),
           dmg: 9,
         });
-        if (i < mouths.length) sparkBurst(m.x, m.y, 8, true);
+        if (i < mouths.length) {
+          sparkBurst(m.x, m.y, 8, true);
+          spawnDust(m.x, m.y, 2);
+        }
       }
       sfx("swing");
       return;
@@ -1465,6 +1502,7 @@
         });
       }
       sparkBurst(muzzle.x, muzzle.y, 16, true);
+      spawnDust(muzzle.x, muzzle.y, 5);
       sfx("swing");
       return;
     }
@@ -1477,6 +1515,7 @@
         dmg: 28,
       });
       sparkBurst(muzzle.x, muzzle.y, 14, true);
+      spawnDust(muzzle.x, muzzle.y, 5);
       sfx("swing");
       return;
     }
@@ -1493,6 +1532,7 @@
       });
     }
     sparkBurst(muzzle.x, muzzle.y, 8, true);
+    spawnDust(muzzle.x, muzzle.y, 4);
     sfx("swing");
   }
 
@@ -2438,6 +2478,7 @@
       player.anim = "run";
       sfx("jump");
       sparkBurst(player.x, player.y - 6, 8, true);
+      spawnDust(player.x, player.y - 2, 8);
     }
 
     player.ducking = duckHold && canAct && !player.rolling && !mounted && !player.blocking;
@@ -2514,12 +2555,19 @@
     tap.jump = false;
 
     updateLedges();
+    const wasAir = !player.onGround;
     player.vy += GRAVITY;
     player.x += player.vx;
     player.y += player.vy;
 
     const floor = standY(player.x, player.y, player.vy);
     player.onGround = landed(player, floor);
+    if (wasAir && player.onGround) {
+      player.landT = 9;
+      spawnDust(player.x, player.y - 2, 7);
+      sparkBurst(player.x, player.y - 4, 4, true);
+    }
+    if ((player.landT || 0) > 0) player.landT--;
 
     if (player.deadT === 0 && player.y > GROUND + 28) {
       announce(era === 6 ? "THE CELLAR TAKES YOU" : era === 5 ? (jurassic ? "THE FERN TAKES YOU" : "THE DUNES TAKE YOU") : era === 4 ? "THE ICE TAKES YOU" : era === 3 ? "THE MOAT TAKES YOU" : era === 2 ? "THE CISTERN TAKES YOU" : "THE EARTH TAKES YOU", 80);
@@ -2557,14 +2605,17 @@
     if (era === 3 && player.onGround && moving && !perfLow && (time % 3 === 0)) {
       muds.push({ x: player.x - player.facing * 8, y: GROUND - 2, vx: -player.facing * rand(0.4, 1.2), vy: -rand(0.6, 1.8), life: 14 });
     }
+    if (player.onGround && moving && !perfLow && !player.rolling && time % 4 === 0) {
+      spawnDust(player.x - player.facing * 8, player.y - 1, mounted ? 3 : 2);
+    }
     if (mounted && player.onGround && moving && !perfLow && time % 2 === 0) {
       muds.push({ x: player.x - player.facing * 10, y: GROUND - 1, vx: -player.facing * rand(0.5, 1.6), vy: -rand(0.4, 1.4), life: 12 });
     }
 
-    if (player.rolling) player.anim = "jump";
+    if (player.rolling) player.anim = "run";
     else if (player.hurtT > 0) player.anim = "hurt";
     else if (player.blocking) player.anim = "block";
-    else if (player.ducking && !player.attacking) player.anim = "block";
+    else if (player.ducking && !player.attacking) player.anim = "idle";
     else if (player.attacking) {
       const specNow = currentSpec();
       const gunNow = isGunSpec(specNow);
@@ -3877,6 +3928,7 @@
       }
       for (const r of rain) { r.y += r.vy; r.x += 0.35; r.life--; }
       for (let i = rain.length - 1; i >= 0; i--) {
+        if (rain[i].y > GROUND && rain[i].life > 2) spawnDust(rain[i].x, GROUND - 1, 1);
         if (rain[i].life <= 0 || rain[i].y > GROUND) rain.splice(i, 1);
       }
       if (rain.length > 90) rain.splice(0, rain.length - 90);
@@ -3886,6 +3938,22 @@
       rain.length = 0;
       muds.length = 0;
     }
+    for (const d of dusts) { d.x += d.vx; d.y += d.vy; d.vy += 0.08; d.life--; }
+    for (let i = dusts.length - 1; i >= 0; i--) if (dusts[i].life <= 0) dusts.splice(i, 1);
+    if (!perfLow && motes.length < 16 && time % 5 === 0 && (mode === "play" || mode === "pause")) {
+      motes.push({
+        x: camX + rand(-20, VW + 20),
+        y: rand(18, GROUND - 24),
+        vx: rand(-0.18, 0.18),
+        vy: rand(-0.16, 0.08),
+        life: rand(70, 140),
+        max: 140,
+        s: rand(0.7, 1.6),
+      });
+    }
+    for (const m of motes) { m.x += m.vx; m.y += m.vy; m.life--; }
+    for (let i = motes.length - 1; i >= 0; i--) if (motes[i].life <= 0) motes.splice(i, 1);
+    if (motes.length > 24) motes.splice(0, motes.length - 24);
   }
 
   function updateCamera() {
@@ -4102,16 +4170,17 @@
     drawScarfTrail(dx, dy - h * 0.15, facing, h, bob);
   }
 
-  function blit(spr, x, y, facing, dh, flash, bob) {
+  function blit(spr, x, y, facing, dh, flash, bob, squash) {
     if (!spr) return;
     const h = dh;
     const w = (spr.w / spr.h) * h;
     const dx = Math.round(x - camX);
     const dy = Math.round(y + (bob || 0));
     const ax = spr.anchor != null ? spr.anchor : 0.5;
+    const sy = squash == null ? 1 : squash;
     ctx.save();
     ctx.translate(dx, dy);
-    ctx.scale(facing < 0 ? -1 : 1, 1);
+    ctx.scale(facing < 0 ? -1 : 1, sy);
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(spr.canvas, -w * ax, -h, w, h);
     if (flash) {
@@ -4122,8 +4191,53 @@
     ctx.restore();
   }
 
+  function kaelPose() {
+    if (player.rolling) {
+      const p = 1 - player.rollT / Math.max(1, player.rollMax);
+      return { sx: 1, sy: 0.7, rot: player.facing * p * Math.PI * 2.1, yOff: 0.55 };
+    }
+    if (isDucking()) return { sx: 1, sy: 0.82, rot: 0, yOff: 0.9 };
+    let sx = 1, sy = 1, rot = 0;
+    if ((player.landT || 0) > 0) { sx = 1.14; sy = 0.82; }
+    else if (!player.onGround) {
+      if (player.vy < -1.2) { sx = 0.9; sy = 1.14; }
+      else if (player.vy > 2) { sx = 1.1; sy = 0.88; }
+    } else if (player.anim === "run") {
+      const g = Math.sin((player.runT || 0) * 0.5);
+      sx = 1 + g * 0.05;
+      sy = 1 - g * 0.07;
+    } else if (player.anim === "idle") {
+      const b = Math.sin(time * 0.08);
+      sx = 1 + b * 0.012;
+      sy = 1 - b * 0.02;
+    }
+    const gunPose = player.attacking && isGunSpec(currentSpec());
+    if (player.attacking && !gunPose) {
+      rot = player.phase === "wu" ? -0.22 : player.phase === "active" ? 0.32 : 0.08;
+      if (player.phase === "active") { sx *= 1.06; sy *= 0.96; }
+      else if (player.phase === "wu") { sx *= 0.96; sy *= 1.05; }
+    }
+    return { sx, sy, rot, yOff: 1 };
+  }
+
+  function drawBlobShadow(wx, footY, rw) {
+    if (perfLow) return;
+    if (overPit(wx)) return;
+    const dx = wx - camX;
+    const dy = Math.min(footY, GROUND) + 1;
+    if (dx < -24 || dx > VW + 24) return;
+    ctx.save();
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(dx, dy, rw, rw * 0.28, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   function blitKael(spr, x, y, facing, dh, bob) {
     if (!spr) return;
+    const pose = kaelPose();
     const h = dh;
     const w = (spr.w / spr.h) * h;
     const dx = Math.round(x - camX);
@@ -4132,33 +4246,13 @@
     ctx.save();
     ctx.translate(dx, dy);
     ctx.imageSmoothingEnabled = true;
-    if (player.rolling) {
-      const p = 1 - player.rollT / Math.max(1, player.rollMax);
-      ctx.rotate(facing * p * Math.PI * 2.1);
-      ctx.scale(facing < 0 ? -1 : 1, 0.7);
-      ctx.shadowColor = "rgba(243, 226, 160, 0.45)";
-      ctx.shadowBlur = 8;
-      ctx.drawImage(spr.canvas, -w * ax, -h * 0.55, w, h);
-    } else if (isDucking()) {
-      ctx.scale(facing < 0 ? -1 : 1, 0.82);
-      const kick = gunDrawKick();
-      if (kick) ctx.translate(kick, 0);
-      ctx.shadowColor = "rgba(8, 0, 6, 0.9)";
-      ctx.shadowBlur = perfLow ? 0 : 6;
-      ctx.drawImage(spr.canvas, -w * ax, -h * 0.9, w, h);
-    } else {
-      const gunPose = player.attacking && isGunSpec(currentSpec());
-      const lean = !gunPose && player.attacking
-        ? (player.phase === "wu" ? -0.22 : player.phase === "active" ? 0.32 : 0.08)
-        : 0;
-      const kick = gunDrawKick();
-      ctx.scale(facing < 0 ? -1 : 1, 1);
-      if (kick) ctx.translate(kick, 0);
-      if (lean) ctx.rotate(lean);
-      ctx.shadowColor = "rgba(8, 0, 6, 0.9)";
-      ctx.shadowBlur = perfLow ? 0 : 6;
-      ctx.drawImage(spr.canvas, -w * ax, -h, w, h);
-    }
+    ctx.scale(facing < 0 ? -pose.sx : pose.sx, pose.sy);
+    const kick = gunDrawKick();
+    if (kick) ctx.translate(kick, 0);
+    if (pose.rot) ctx.rotate(pose.rot);
+    ctx.shadowColor = player.rolling ? "rgba(243, 226, 160, 0.45)" : "rgba(8, 0, 6, 0.9)";
+    ctx.shadowBlur = player.rolling ? 8 : (perfLow ? 0 : 6);
+    ctx.drawImage(spr.canvas, -w * ax, -h * pose.yOff, w, h);
     ctx.shadowBlur = 0;
     ctx.restore();
     if (!player.rolling && player.anim !== "death" && player.anim !== "idle") drawScarfTrail(dx, dy, facing, h, bob);
@@ -4306,14 +4400,24 @@
         const mx = m.x - camX;
         const my = m.y;
         if (player.phase === "active") {
-          const g = ctx.createRadialGradient(mx, my, 1, mx, my, flashR);
-          g.addColorStop(0, "rgba(255,250,220,0.95)");
-          g.addColorStop(0.45, spec.bazooka ? "rgba(255,140,40,0.7)" : "rgba(255,210,120,0.55)");
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          const g = ctx.createRadialGradient(mx, my, 1, mx, my, flashR * 1.35);
+          g.addColorStop(0, "rgba(255,255,240,1)");
+          g.addColorStop(0.28, spec.bazooka ? "rgba(255,160,50,0.85)" : "rgba(255,220,140,0.75)");
           g.addColorStop(1, "rgba(210,58,58,0)");
           ctx.fillStyle = g;
           ctx.beginPath();
-          ctx.arc(mx, my, flashR, 0, Math.PI * 2);
+          ctx.arc(mx, my, flashR * 1.35, 0, Math.PI * 2);
           ctx.fill();
+          ctx.fillStyle = "#fff6c8";
+          ctx.beginPath();
+          ctx.moveTo(mx, my - 3);
+          ctx.lineTo(mx + dir * (flashR + 8), my);
+          ctx.lineTo(mx, my + 3);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
           if (spec.shotgun) {
             ctx.strokeStyle = "rgba(255,236,180,0.45)";
             ctx.lineWidth = 2;
@@ -4705,23 +4809,25 @@
       }
     }
 
-    const kx = 3900 - camX * 0.32;
-    ctx.fillStyle = "#10141a";
-    ctx.fillRect(kx, 78, 160, GROUND - 78);
-    ctx.fillRect(kx + 40, 42, 36, 40);
-    ctx.fillRect(kx + 100, 28, 28, 54);
-    ctx.fillStyle = "#0a0c10";
-    ctx.beginPath();
-    ctx.moveTo(kx - 8, 80);
-    ctx.lineTo(kx + 80, 48);
-    ctx.lineTo(kx + 168, 80);
-    ctx.fill();
-    ctx.fillStyle = "#e6c35c";
-    ctx.globalAlpha = 0.35;
-    ctx.fillRect(kx + 22, 110, 10, 16);
-    ctx.fillRect(kx + 70, 118, 10, 16);
-    ctx.fillRect(kx + 118, 108, 10, 16);
-    ctx.globalAlpha = 1;
+    if (!SPR["bg" + era]) {
+      const kx = 3900 - camX * 0.32;
+      ctx.fillStyle = "#10141a";
+      ctx.fillRect(kx, 78, 160, GROUND - 78);
+      ctx.fillRect(kx + 40, 42, 36, 40);
+      ctx.fillRect(kx + 100, 28, 28, 54);
+      ctx.fillStyle = "#0a0c10";
+      ctx.beginPath();
+      ctx.moveTo(kx - 8, 80);
+      ctx.lineTo(kx + 80, 48);
+      ctx.lineTo(kx + 168, 80);
+      ctx.fill();
+      ctx.fillStyle = "#e6c35c";
+      ctx.globalAlpha = 0.35;
+      ctx.fillRect(kx + 22, 110, 10, 16);
+      ctx.fillRect(kx + 70, 118, 10, 16);
+      ctx.fillRect(kx + 118, 108, 10, 16);
+      ctx.globalAlpha = 1;
+    }
 
     if (lock && enemies.some((n) => n.type === "baron" && n.hp > 0)) {
       ctx.fillStyle = "rgba(8, 6, 10, 0.45)";
@@ -4771,17 +4877,20 @@
       ctx.fill();
     }
 
-    for (let i = 0; i < 10; i++) {
-      const x = ((i * 92 - camX * 0.4) % (VW + 80)) - 20;
-      ctx.fillStyle = "#0c0c0e";
-      ctx.beginPath();
-      ctx.moveTo(x, GROUND - 8);
-      ctx.lineTo(x - 9, GROUND - 48 - (i % 3) * 10);
-      ctx.lineTo(x, GROUND - 78 - (i % 4) * 8);
-      ctx.lineTo(x + 9, GROUND - 48 - (i % 3) * 10);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillRect(x - 1.5, GROUND - 12, 3, 12);
+    if (!SPR["bg" + era]) {
+      for (let i = 0; i < 10; i++) {
+        const x = ((i * 92 - camX * 0.4) % (VW + 80)) - 20;
+        ctx.fillStyle = "#3a4a3a";
+        ctx.beginPath();
+        ctx.moveTo(x, GROUND - 8);
+        ctx.lineTo(x - 9, GROUND - 48 - (i % 3) * 10);
+        ctx.lineTo(x, GROUND - 78 - (i % 4) * 8);
+        ctx.lineTo(x + 9, GROUND - 48 - (i % 3) * 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#2a1810";
+        ctx.fillRect(x - 1.5, GROUND - 12, 3, 12);
+      }
     }
 
     for (let i = 0; i < 5; i++) {
@@ -4890,16 +4999,18 @@
         ctx.fillRect(x + 22, GROUND - 36, 18, 36);
       }
     }
-    for (let i = 0; i < 8; i++) {
-      const x = ((i * 88 - camX * 0.42) % (VW + 60)) - 16;
-      ctx.fillStyle = "#1c2018";
-      ctx.beginPath();
-      ctx.moveTo(x, GROUND - 6);
-      ctx.lineTo(x - 6, GROUND - 40);
-      ctx.lineTo(x, GROUND - 62);
-      ctx.lineTo(x + 6, GROUND - 40);
-      ctx.closePath();
-      ctx.fill();
+    if (!SPR["bg" + era]) {
+      for (let i = 0; i < 8; i++) {
+        const x = ((i * 88 - camX * 0.42) % (VW + 60)) - 16;
+        ctx.fillStyle = "#2a3228";
+        ctx.beginPath();
+        ctx.moveTo(x, GROUND - 6);
+        ctx.lineTo(x - 6, GROUND - 40);
+        ctx.lineTo(x, GROUND - 62);
+        ctx.lineTo(x + 6, GROUND - 40);
+        ctx.closePath();
+        ctx.fill();
+      }
     }
     ctx.fillStyle = "#6a5420";
     for (let i = 0; i < 4; i++) {
@@ -5057,9 +5168,11 @@
       ctx.fill();
     }
 
-    for (let i = 0; i < 9; i++) {
-      const wx = i * 220 + 40;
-      drawCypress(((wx - camX * 0.45) % (VW + 160)) - 40, 176, 38 + (i % 3) * 8);
+    if (!SPR["bg" + era]) {
+      for (let i = 0; i < 9; i++) {
+        const wx = i * 220 + 40;
+        drawCypress(((wx - camX * 0.45) % (VW + 160)) - 40, 176, 38 + (i % 3) * 8);
+      }
     }
 
     if (horse && horse.alive && !horse.mounted && horse.shrineX) {
@@ -5567,6 +5680,7 @@
     for (const e of enemies) {
       const telegraph = e.state === "flash" && (time % 6 < 3);
       const bob = e.state === "walk" ? Math.sin(time * 0.25) * 1.4 : 0;
+      const squash = e.deadT > 0 ? 0.72 : e.hurtT > 0 ? 0.88 : e.state === "walk" ? 1 - Math.sin(time * 0.25) * 0.05 : 1;
       let spr = SPR.infantry;
       let dh = 52;
       if (e.type === "javelin") { spr = SPR.infantry; dh = 52; }
@@ -5601,11 +5715,12 @@
       if (e.type === "ifv") { spr = SPR.ifv; dh = 58; }
       if (e.type === "fracture") { spr = SPR.fracture; dh = 92; }
       const deadSink = e.deadT > 0 ? (40 - Math.min(40, e.deadT)) * 0.4 : 0;
+      drawBlobShadow(e.x, e.y + deadSink, e.type === "elephant" || e.type === "rex" ? 22 : e.type === "gate" ? 18 : 11);
       if (e.hurtT > 0) {
         ctx.save();
         ctx.globalAlpha = 0.75;
       }
-      blit(spr, e.x, e.y + deadSink, e.facing, dh, telegraph || e.hurtT > 0, bob);
+      blit(spr, e.x, e.y + deadSink, e.facing, dh, telegraph || e.hurtT > 0, bob, squash);
       if (e.hurtT > 0) {
         ctx.fillStyle = "rgba(180, 20, 20, 0.28)";
         ctx.fillRect(e.x - camX - 16, e.y + deadSink - dh, 32, dh);
@@ -5671,6 +5786,7 @@
         : (era === 5 || horse.kind === 5) ? (SPR.jeep || SPR.horse)
         : (era === 4 || horse.kind === 4) ? (SPR.cart || SPR.horse)
         : (era === 3 || horse.kind === 3) ? (SPR.horse3 || SPR.horse) : SPR.horse;
+      drawBlobShadow(hx, hy + 2, horse.kind >= 6 ? 22 : horse.kind === 5 ? 18 : horse.kind === 4 ? 20 : 16);
       blitMount(hs, hx, hy + 2, horse.facing || player.facing, (era === 6 || horse.kind === 6) ? 48 : (era === 5 || horse.kind === 5) ? 42 : (era === 4 || horse.kind === 4) ? 64 : 58);
       if (horse.kind === 5) drawJeepGuns();
     }
@@ -5680,12 +5796,18 @@
       const bob = mounted || player.rolling || isDucking() ? 0 : player.anim === "idle" ? Math.sin(time * 0.08) * 1.1 : player.anim === "run" ? Math.sin(player.runT * 0.45) * 1.6 : 0;
       const lunge = footLunge();
       const dh = footDrawH();
+      if (!mounted) drawBlobShadow(player.x + lunge, player.y, player.rolling || isDucking() ? 14 : 10);
       if (player.rolling && !perfLow) {
         ctx.save();
-        ctx.globalAlpha = 0.22;
+        ctx.globalAlpha = 0.28;
         blitKael(kaelSprite(), player.x - player.rollDir * 14, player.y, player.facing, dh, 0);
-        ctx.globalAlpha = 0.12;
+        ctx.globalAlpha = 0.14;
         blitKael(kaelSprite(), player.x - player.rollDir * 26, player.y, player.facing, dh, 0);
+        ctx.restore();
+      } else if (!mounted && player.anim === "run" && Math.abs(player.vx) > 1.4 && !perfLow) {
+        ctx.save();
+        ctx.globalAlpha = 0.16;
+        blitKael(kaelSprite(), player.x + lunge - player.facing * 9, player.y, player.facing, dh, bob);
         ctx.restore();
       }
       if (mounted) blitRider(kaelSprite(), player.x, player.y, player.facing);
@@ -5875,10 +5997,42 @@
     }
 
     for (const s of sparks) {
-      ctx.globalAlpha = Math.max(0, s.life / s.max);
+      const a = Math.max(0, s.life / s.max);
+      const px = s.x - camX;
+      ctx.globalAlpha = a;
+      if (s.glow && !perfLow) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = s.gold ? "rgba(255,246,200,0.55)" : "rgba(255,255,255,0.4)";
+        ctx.beginPath();
+        ctx.arc(px, s.y, s.s * 1.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        ctx.globalAlpha = a;
+      }
       ctx.fillStyle = s.blood ? (s.life > 14 ? "#d23a3a" : "#6a1010") : s.gold ? (s.life > 10 ? "#fff6c8" : "#e6c35c") : "#fff";
-      ctx.fillRect(s.x - camX, s.y, s.s, s.s);
+      ctx.beginPath();
+      ctx.arc(px, s.y, Math.max(0.8, s.s * 0.55), 0, Math.PI * 2);
+      ctx.fill();
       ctx.globalAlpha = 1;
+    }
+    for (const d of dusts) {
+      ctx.globalAlpha = Math.max(0, d.life / (d.max || 20)) * 0.7;
+      ctx.fillStyle = d.col || dustColor();
+      ctx.beginPath();
+      ctx.arc(d.x - camX, d.y, d.s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    if (!perfLow) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      for (const m of motes) {
+        ctx.globalAlpha = Math.max(0, m.life / (m.max || 140)) * 0.35;
+        ctx.fillStyle = era === 4 ? "#e8f0f8" : era === 3 ? "#9ab0c8" : era === 6 ? "#e6c35c" : "#ffe27a";
+        ctx.fillRect(m.x - camX, m.y, m.s, m.s);
+      }
+      ctx.restore();
     }
 
     ctx.font = "8px Cinzel, serif";
@@ -5911,7 +6065,24 @@
       }
     }
 
+    if (era === 1 && !perfLow) {
+      ctx.save();
+      ctx.globalAlpha = 0.07;
+      ctx.fillStyle = "#ffc070";
+      for (let y = 132; y < GROUND; y += 3) {
+        ctx.fillRect(Math.sin(time * 0.07 + y * 0.18) * 2.2, y, VW, 1);
+      }
+      ctx.restore();
+    }
+
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (!perfLow) {
+      const vg = ctx.createRadialGradient(VW * 0.5, VH * 0.52, 70, VW * 0.5, VH * 0.52, 280);
+      vg.addColorStop(0, "rgba(0,0,0,0)");
+      vg.addColorStop(1, era === 3 ? "rgba(0,0,4,0.38)" : era === 6 ? "rgba(4,0,10,0.32)" : "rgba(0,0,0,0.26)");
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, VW, VH);
+    }
     if (hurtFlash > 0) {
       ctx.fillStyle = "rgba(120, 8, 8," + Math.min(0.28, hurtFlash * 0.03) + ")";
       ctx.fillRect(0, 0, VW, VH);

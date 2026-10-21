@@ -107,6 +107,27 @@ html.force-land #stage {
   background: #000;
 }
 
+#cliffs {
+  display: none;
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 37.5%;
+  height: 100%;
+  background: #061018;
+  touch-action: none;
+}
+
+#stage.cliffs-on {
+  background: #061018;
+}
+
+#stage.cliffs-on #cliffs {
+  display: block;
+}
+
 #scan {
   pointer-events: none;
   position: absolute;

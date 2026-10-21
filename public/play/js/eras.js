@@ -22,36 +22,36 @@
         { wu: 7, act: 12, rec: 18, dmg: 24, kb: 6.4, range: 48, lift: -3.0, tall: 42, overhead: true },
       ],
       4: [
-        { wu: 3, act: 7, rec: 9, dmg: 8, kb: 2.4, range: 28, lift: 0 },
-        { wu: 3, act: 7, rec: 10, dmg: 11, kb: 2.8, range: 30, lift: 0 },
-        { wu: 6, act: 10, rec: 16, dmg: 20, kb: 5.2, range: 36, lift: -2.4, tall: 34, overhead: true },
+        { wu: 8, act: 5, rec: 14, dmg: 14, kb: 2.2, range: 480, lift: 0, shot: true },
+        { wu: 7, act: 5, rec: 12, dmg: 16, kb: 2.4, range: 480, lift: 0, shot: true },
+        { wu: 8, act: 5, rec: 14, dmg: 18, kb: 2.6, range: 480, lift: 0, shot: true },
       ],
       5: [
-        { wu: 4, act: 8, rec: 10, dmg: 10, kb: 2.8, range: 34, lift: 0 },
-        { wu: 4, act: 8, rec: 11, dmg: 13, kb: 3.2, range: 36, lift: 0 },
-        { wu: 7, act: 10, rec: 16, dmg: 22, kb: 5.6, range: 42, lift: -2.2, tall: 36, overhead: true },
+        { wu: 6, act: 4, rec: 10, dmg: 16, kb: 2.4, range: 480, lift: 0, shot: true },
+        { wu: 5, act: 4, rec: 10, dmg: 18, kb: 2.6, range: 480, lift: 0, shot: true },
+        { wu: 6, act: 4, rec: 12, dmg: 20, kb: 2.8, range: 480, lift: 0, shot: true },
       ],
       6: [
-        { wu: 3, act: 6, rec: 8, dmg: 8, kb: 2.0, range: 40, lift: 0, burst: true },
-        { wu: 3, act: 6, rec: 8, dmg: 10, kb: 2.2, range: 40, lift: 0, burst: true },
-        { wu: 6, act: 10, rec: 16, dmg: 22, kb: 5.4, range: 34, lift: -2.2, tall: 34, overhead: true },
+        { wu: 4, act: 4, rec: 8, dmg: 12, kb: 2.0, range: 480, lift: 0, shot: true },
+        { wu: 3, act: 4, rec: 7, dmg: 13, kb: 2.1, range: 480, lift: 0, shot: true },
+        { wu: 4, act: 5, rec: 8, dmg: 15, kb: 2.4, range: 480, lift: 0, shot: true, burst: true },
       ],
     },
     heavy: {
       1: { wu: 9, act: 10, rec: 18, dmg: 22, kb: 5.6, range: 52, lift: 0, cd: 78 },
       2: { wu: 6, act: 8, rec: 14, dmg: 16, kb: 4.8, range: 36, lift: 0, cd: 64, stun: 90 },
       3: { wu: 8, act: 12, rec: 18, dmg: 24, kb: 6.2, range: 62, lift: -1.2, cd: 84, tall: 36 },
-      4: { wu: 5, act: 6, rec: 14, dmg: 20, kb: 3.0, range: 86, lift: 0, cd: 72, shot: true },
-      5: { wu: 12, act: 8, rec: 16, dmg: 26, kb: 4.0, range: 200, lift: 0, cd: 80, shot: true, telegraph: true },
-      6: { wu: 8, act: 6, rec: 14, dmg: 32, kb: 3.0, range: 140, lift: 0, cd: 96, shot: true, mark: true },
+      4: { wu: 10, act: 6, rec: 18, dmg: 8, kb: 3.2, range: 220, lift: 0, cd: 72, shot: true, shotgun: true, pellets: 6 },
+      5: { wu: 14, act: 8, rec: 20, dmg: 42, kb: 5.2, range: 480, lift: 0, cd: 86, shot: true, bazooka: true },
+      6: { wu: 8, act: 6, rec: 16, dmg: 9, kb: 3.4, range: 200, lift: 0, cd: 68, shot: true, shotgun: true, pellets: 6 },
     },
     mega: {
       1: { wu: 10, act: 14, rec: 22, dmg: 42, kb: 8.2, range: 62, lift: -3.6, tall: 52, overhead: true, mega: true, cd: 96 },
       2: { wu: 8, act: 12, rec: 20, dmg: 34, kb: 7.4, range: 48, lift: -2.4, tall: 40, mega: true, stun: 110, cd: 88 },
       3: { wu: 10, act: 16, rec: 22, dmg: 46, kb: 8.6, range: 72, lift: -3.2, tall: 48, overhead: true, mega: true, cd: 100 },
-      4: { wu: 8, act: 10, rec: 20, dmg: 38, kb: 5.0, range: 120, lift: 0, shot: true, burst: true, mega: true, cd: 96 },
-      5: { wu: 10, act: 10, rec: 20, dmg: 44, kb: 5.6, range: 220, lift: 0, shot: true, mega: true, cd: 104 },
-      6: { wu: 8, act: 8, rec: 18, dmg: 52, kb: 5.2, range: 160, lift: 0, shot: true, mark: true, mega: true, cd: 110 },
+      4: { wu: 12, act: 8, rec: 22, dmg: 46, kb: 6.0, range: 480, lift: 0, shot: true, bazooka: true, mega: true, cd: 100 },
+      5: { wu: 16, act: 8, rec: 22, dmg: 58, kb: 6.4, range: 480, lift: 0, shot: true, bazooka: true, mega: true, cd: 110 },
+      6: { wu: 12, act: 8, rec: 20, dmg: 54, kb: 6.2, range: 480, lift: 0, shot: true, bazooka: true, mega: true, cd: 104 },
     },
   };
 
@@ -62,6 +62,7 @@
   R.CART_X = 1960;
   R.COURT = { left: 4480, right: 5280 };
   R.NEST_X = 1680;
+  R.RIFT_X = 2480;
   R.JEEP_X = 1980;
   R.TANK_X = 1980;
   R.NEST_RUBBLE = [
@@ -99,6 +100,15 @@
     for (let i = 0; i < n; i++) W.pits.push({ x: x + i * (pitW + land), w: pitW });
   }
 
+  function hill(W, x, w, rise) {
+    if (!W.slopes) return;
+    W.slopes.push({ x, w, rise });
+  }
+
+  function placeCover(W, xs, kind) {
+    xs.forEach((x) => W.covers.push({ x: x - 22, y: W.GROUND - 30, w: 44, h: 30, kind }));
+  }
+
   R.applyEra = function (n, W) {
     const G = W.GROUND;
     if (n === 2) {
@@ -127,13 +137,16 @@
       hops(W, 4240, 2, 56, 40);
       ledge(W, { x: 980, w: 64, y: 186, kind: "brick" });
       ledge(W, { x: 1056, w: 56, y: 164, kind: "brick" });
+      hill(W, 560, 240, 26);
+      hill(W, 1140, 220, 30);
+      hill(W, 3980, 220, 28);
       spawn(W, [
         [560, "legionary"], [680, "legionary"], [840, "legionary"],
-        [1080, "legionary"], [1220, "legionary"],
+        [1080, "legionary"], [1220, "pilum"],
         [1620, "archer"], [1980, "archer"],
         [2320, "legionary"], [2480, "legionary"], [2640, "legionary"],
         [3100, "legionary"], [3260, "legionary"], [3440, "legionary"],
-        [3720, "legionary"], [3920, "legionary"], [4120, "legionary"],
+        [3720, "legionary"], [3920, "legionary"], [4120, "pilum"],
         [4560, "centurion"],
       ]);
       return;
@@ -163,14 +176,17 @@
         { x: 4430, w: 48, y: 192, kind: "wood" },
       ]);
       ledge(W, { x: 2360, w: 70, y: 180, kind: "wood" });
+      hill(W, 700, 160, 28);
+      hill(W, 2520, 380, 34);
+      hill(W, 3480, 300, 30);
       spawn(W, [
-        [520, "manatarms"], [640, "manatarms"], [780, "crossbow"],
+        [520, "manatarms"], [640, "manatarms"], [780, "arbalist"],
         [980, "manatarms"], [1040, "crossbow"], [1480, "manatarms"],
         [R.GATE_X, "gate"],
         [2140, "manatarms"], [2280, "manatarms"], [2440, "crossbow"],
-        [2680, "manatarms"], [2860, "crossbow"],
+        [2680, "manatarms"], [2710, "arbalist"],
         [3120, "knight"],
-        [3480, "manatarms"], [3620, "crossbow"], [3780, "manatarms"],
+        [3480, "manatarms"], [3620, "arbalist"], [3780, "manatarms"],
         [4020, "manatarms"], [4160, "crossbow"],
         [4560, "baron"],
       ]);
@@ -184,6 +200,7 @@
       W.pickups.push({ type: "hourglass", x: 3340, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3880, y: G - 18, taken: false });
       W.cannons.push({ x: 980, facing: -1, t: 20 }, { x: 1480, facing: 1, t: 70 }, { x: 2480, facing: -1, t: 40 }, { x: 3480, facing: 1, t: 10 });
+      placeCover(W, [700, 1180, 1760, 2320, 3080, 3680, 4080], "crate");
       W.horse = { x: 0, y: G, hp: 0, maxHp: 120, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 4 };
       hops(W, 1336, 1, 60, 0);
       crossing(W, 2050, 140, [
@@ -198,52 +215,50 @@
       ]);
       hops(W, 4256, 1, 80, 0);
       ledge(W, { x: 2388, w: 58, y: 178, kind: "ice" });
+      hill(W, 500, 160, 24);
+      hill(W, 2890, 150, 28);
       spawn(W, [
-        [520, "lineinf"], [640, "lineinf"], [780, "lancer"],
+        [520, "lineinf"], [640, "voltigeur"], [780, "lancer"],
         [1100, "lineinf"], [1240, "lineinf"],
         [1680, "lancer"], [1840, "lineinf"],
         [2200, "lineinf"], [2360, "lancer"], [2580, "lineinf"],
-        [3000, "lineinf"], [3180, "lancer"], [3360, "lineinf"],
-        [3720, "lineinf"], [3920, "lancer"], [4120, "lineinf"],
+        [3000, "voltigeur"], [3180, "lancer"], [3360, "lineinf"],
+        [3720, "lineinf"], [3920, "lancer"], [4120, "voltigeur"],
         [4560, "powder"],
       ]);
       return;
     }
     if (n === 5) {
-      W.banner = { text: "ERA V  WORLD WAR II", t: 160 };
-      R.NEST_RUBBLE.forEach((s) => W.ledges.push({ x: s.x, w: s.w, y: s.y }));
-      W.flags.push({ x: 360, y: G, on: false }, { x: 2920, y: G, on: false });
+      W.banner = { text: "THE WESTERN DESERT", t: 170 };
+      W.flags.push({ x: 360, y: G, on: false }, { x: 2100, y: G, on: false });
       W.pickups.push({ type: "plus", x: 860, y: G - 18, taken: false });
-      W.pickups.push({ type: "plus", x: R.NEST_X + 280, y: G - 18, taken: false });
-      W.pickups.push({ type: "hourglass", x: 3380, y: G - 20, taken: false });
-      W.pickups.push({ type: "plus", x: 3920, y: G - 18, taken: false });
-      W.horse = { x: 0, y: G, hp: 0, maxHp: 48, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 5 };
-      W.searchlights.push({ x: 720, a: 0.2, da: 0.008, w: 46 }, { x: 1180, a: 1.1, da: -0.007, w: 50 }, { x: 2460, a: 0.6, da: 0.009, w: 44 }, { x: 3640, a: 1.4, da: -0.008, w: 48 });
-      hops(W, 1288, 1, 58, 0);
-      crossing(W, 2070, 160, [
-        { x: 2082, w: 46, y: 190, kind: "rubble" },
-        { x: 2144, w: 40, y: 164, kind: "rubble", fragile: true },
-        { x: 2204, w: 48, y: 186, kind: "rubble" },
+      W.pickups.push({ type: "plus", x: 1760, y: G - 18, taken: false });
+      W.pickups.push({ type: "hourglass", x: 3600, y: G - 20, taken: false });
+      W.pickups.push({ type: "plus", x: 4040, y: G - 18, taken: false });
+      W.horse = { x: 80, y: G, hp: 96, maxHp: 96, facing: 1, mounted: true, alive: true, shrineX: 0, kind: 5 };
+      placeCover(W, [700, 1080, 1560, 2060], "bags");
+      placeCover(W, [2860, 3680, 4000], "frond");
+      hops(W, 1240, 1, 56, 0);
+      crossing(W, 3340, 150, [
+        { x: 3352, w: 44, y: 190, kind: "wood" },
+        { x: 3410, w: 40, y: 166, kind: "wood", fragile: true },
+        { x: 3464, w: 44, y: 188, kind: "wood" },
       ]);
-      crossing(W, 2680, 180, [
-        { x: 2692, w: 50, y: 190, kind: "rubble" },
-        { x: 2760, w: 44, y: 164, kind: "rubble", fragile: true },
-        { x: 2828, w: 50, y: 188, kind: "rubble" },
-      ]);
-      crossing(W, 4230, 190, [
-        { x: 4242, w: 46, y: 192, kind: "rubble" },
-        { x: 4304, w: 42, y: 168, kind: "rubble", moveAmp: 16, moveSpd: 0.026 },
-        { x: 4370, w: 48, y: 188, kind: "rubble" },
-      ]);
+      hops(W, 4180, 1, 70, 0);
+      hill(W, 900, 150, 26);
+      hill(W, 1340, 180, 24);
+      hill(W, 2180, 240, 30);
+      hill(W, 2920, 170, 28);
+      hill(W, 4300, 200, 26);
       spawn(W, [
-        [520, "rifleinf"], [660, "rifleinf"], [820, "rifleinf"],
-        [1040, "rifleinf"], [1220, "rifleinf"],
-        [R.NEST_X, "mgnest"],
-        [2280, "rifleinf"], [2440, "rifleinf"], [2620, "rifleinf"],
-        [3120, "armorcar"],
-        [3480, "rifleinf"], [3660, "rifleinf"], [3840, "rifleinf"],
-        [4100, "rifleinf"],
-        [4560, "colonel"],
+        [520, "duneinf"], [680, "duneinf"], [900, "sniper"],
+        [1120, "duneinf"], [1480, "duneinf"],
+        [1900, "armorcar"],
+        [2300, "sniper"],
+        [2720, "raptor"], [2940, "raptor"], [3180, "raptor"],
+        [3600, "hunter"],
+        [3860, "raptor"], [4080, "raptor"], [4360, "raptor"],
+        [4560, "rex"],
       ]);
       return;
     }
@@ -270,12 +285,17 @@
       ]);
       hops(W, 4270, 1, 86, 0);
       ledge(W, { x: 2380, w: 64, y: 176, kind: "concrete" });
+      hill(W, 460, 150, 22);
+      hill(W, 1080, 200, 28);
+      hill(W, 1800, 240, 26);
+      hill(W, 2440, 200, 30);
+      hill(W, 4000, 220, 28);
       spawn(W, [
         [520, "modinf"], [720, "modinf"], [900, "modinf"],
-        [1140, "modinf"], [1480, "modinf"],
+        [1140, "marksman"], [1480, "modinf"],
         [2200, "modinf"], [2480, "modinf"], [2720, "modinf"],
         [3120, "ifv"],
-        [3520, "modinf"], [3760, "modinf"], [4040, "modinf"],
+        [3520, "modinf"], [3760, "modinf"], [4040, "marksman"],
         [4560, "fracture"],
       ]);
       return;
@@ -306,14 +326,16 @@
     ledge(W, { x: 1000, w: 62, y: 186, kind: "sand" });
     ledge(W, { x: 1074, w: 54, y: 164, kind: "sand" });
     W.pickups.push({ type: "plus", x: 1100, y: 146, taken: false });
+    hill(W, 1880, 220, 32);
+    hill(W, 3340, 260, 34);
     spawn(W, [
       [520, "spear"], [620, "spear"], [760, "slinger"],
-      [980, "spear"], [1080, "spear"], [1220, "slinger"],
+      [980, "spear"], [1080, "spear"], [1220, "javelin"],
       [1420, "spear"], [1540, "slinger"], [1680, "spear"],
-      [1860, "spear"], [1960, "spear"], [2100, "slinger"],
+      [1860, "spear"], [1960, "javelin"], [2100, "slinger"],
       [2480, "elephant"],
       [3040, "spear"], [3140, "spear"], [3280, "slinger"],
-      [3440, "spear"], [3580, "slinger"], [3720, "spear"],
+      [3440, "javelin"], [3580, "slinger"], [3720, "spear"],
       [3900, "spear"], [4020, "slinger"], [4140, "spear"],
       [4560, "boss"],
     ]);
