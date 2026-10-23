@@ -198,6 +198,12 @@
   let hitstop = 0;
   let time = 0;
   let introT = 0;
+  const INTRO_LEN = 480;
+  const INTRO_CRAWL = [
+    "The Tether of Time has been altered by the Axis of Evil kidnapping the Legends of History!",
+    "You must go back and defeat their armies to restore humanity today!",
+    "Good luck young warrior! You're going to need it...",
+  ];
   let perfLow = false;
   let perfHits = 0;
   let windOn = false;
@@ -2524,7 +2530,10 @@
   document.getElementById("btn-dead-title").addEventListener("click", toTitle);
   document.getElementById("btn-win-title").addEventListener("click", toTitle);
 
-  canvas.addEventListener("pointerdown", () => { if (mode === "intro") skipIntro(); });
+  function skipIntroIfOn() { if (mode === "intro") skipIntro(); }
+  canvas.addEventListener("pointerdown", skipIntroIfOn);
+  const stageEl = document.getElementById("stage");
+  if (stageEl) stageEl.addEventListener("pointerdown", skipIntroIfOn);
 
   function updatePlayer() {
     if (player.deadT > 0) {
@@ -4141,7 +4150,7 @@
     time++;
     if (mode === "intro") {
       introT++;
-      if (introT >= 240) landEra();
+      if (introT >= INTRO_LEN) landEra();
       return;
     }
     if (mode === "warp") {
@@ -4708,10 +4717,28 @@
     ctx.restore();
   }
 
+  function wrapIntroLine(str, maxW) {
+    ctx.font = "12px Cinzel, serif";
+    const words = str.split(/\s+/);
+    const lines = [];
+    let cur = "";
+    for (let i = 0; i < words.length; i++) {
+      const test = cur ? cur + " " + words[i] : words[i];
+      if (cur && ctx.measureText(test).width > maxW) {
+        lines.push(cur);
+        cur = words[i];
+      } else {
+        cur = test;
+      }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
   function drawIntro() {
     const t = introT;
-    const p = Math.min(1, t / 240);
-    ctx.fillStyle = "#000";
+    const p = Math.min(1, t / INTRO_LEN);
+    ctx.fillStyle = "#050814";
     ctx.fillRect(0, 0, VW, VH);
 
     const crackH = Math.min(VH, t * 3.4);
@@ -4733,47 +4760,47 @@
     ctx.fill();
     ctx.restore();
 
-    const layers = [
-      { name: "OLD KINGDOM", col: "#24160c", acc: "#6a4a20" },
-      { name: "TROY", col: "#2e1c12", acc: "#8a5a28" },
-      { name: "MARATHON", col: "#3a2416", acc: "#a07038" },
-      { name: "ALEXANDER", col: "#c46a38", acc: "#f3e2a0" },
-    ];
-    for (let i = 0; i < layers.length; i++) {
-      const fall = t * 2.35 - i * 58;
-      const y = 36 + fall;
-      if (y > VH + 40 || y < -80) continue;
-      const L = layers[i];
-      ctx.fillStyle = L.col;
-      ctx.globalAlpha = 0.9;
-      ctx.fillRect(0, y, VW, 50);
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = "rgba(230,195,92,0.4)";
-      ctx.fillRect(0, y, VW, 2);
-      ctx.fillRect(0, y + 48, VW, 2);
-      ctx.fillStyle = L.acc;
-      ctx.font = "12px Cinzel, serif";
-      ctx.textAlign = "center";
-      ctx.fillText(L.name, VW / 2, y + 30);
-      ctx.fillStyle = "#2a1810";
-      for (let s = 0; s < 12; s++) {
-        ctx.fillRect(20 + s * 38 + (i % 2) * 8, y + 38, 2, 7);
+    const rows = [];
+    for (let pi = 0; pi < INTRO_CRAWL.length; pi++) {
+      const wrapped = wrapIntroLine(INTRO_CRAWL[pi], 400);
+      for (let li = 0; li < wrapped.length; li++) {
+        rows.push({ text: wrapped[li], punch: pi === INTRO_CRAWL.length - 1 });
       }
+      if (pi < INTRO_CRAWL.length - 1) rows.push({ text: "", punch: false });
     }
 
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = "rgba(0,0,0,0.72)";
-    ctx.fillRect(0, 0, VW, 38);
-    ctx.fillStyle = "#f3e2a0";
-    ctx.font = "13px Cinzel, serif";
     ctx.textAlign = "center";
-    ctx.fillText("FALLING THROUGH TIME", VW / 2, 24);
+    ctx.textBaseline = "middle";
+    const speed = 1.12;
+    const gap = 22;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.text) continue;
+      const y = -36 - i * gap + t * speed;
+      if (y < -18 || y > VH + 18) continue;
+      let a = 1;
+      if (y < 26) a = Math.max(0, (y + 16) / 42);
+      if (y > VH - 34) a = Math.min(a, (VH + 10 - y) / 44);
+      const sway = Math.sin(t * 0.06 + i * 0.7) * 5;
+      ctx.globalAlpha = a;
+      ctx.font = row.punch ? "13px Cinzel, serif" : "12px Cinzel, serif";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 3.4;
+      ctx.strokeStyle = "#050814";
+      ctx.strokeText(row.text, VW / 2 + sway, y);
+      ctx.fillStyle = row.punch ? "#e6c35c" : "#f3e2a0";
+      ctx.fillText(row.text, VW / 2 + sway, y);
+    }
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = "alphabetic";
+
     ctx.fillStyle = "#8a7340";
     ctx.font = "8px Cinzel, serif";
-    ctx.fillText("PRESS ANY KEY  ·  SKIP", VW / 2, VH - 14);
+    ctx.textAlign = "center";
+    ctx.fillText("TAP TO SKIP", VW / 2, VH - 12);
 
-    if (p > 0.78) {
-      const a = (p - 0.78) / 0.22;
+    if (p > 0.82) {
+      const a = (p - 0.82) / 0.18;
       ctx.fillStyle = "rgba(224,154,74," + (a * 0.55) + ")";
       ctx.fillRect(0, 0, VW, VH);
     }
