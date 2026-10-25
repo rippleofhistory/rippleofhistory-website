@@ -5210,33 +5210,48 @@
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const speed = 1.12;
     const gap = 22;
+    const speed = (VH + 48 + rows.length * gap) / INTRO_LEN;
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       if (!row.text) continue;
-      const y = -36 - i * gap + t * speed;
+      const y = VH + 28 + i * gap - t * speed;
       if (y < -18 || y > VH + 18) continue;
       let a = 1;
-      if (y < 26) a = Math.max(0, (y + 16) / 42);
-      if (y > VH - 34) a = Math.min(a, (VH + 10 - y) / 44);
+      if (y < 28) a = Math.max(0, (y + 14) / 42);
+      if (y > VH - 52) a = Math.min(a, Math.max(0, (VH - 22 - y) / 30));
       const sway = Math.sin(t * 0.06 + i * 0.7) * 5;
-      ctx.globalAlpha = a;
+      const cx = VW / 2 + sway;
       ctx.font = row.punch ? "13px Cinzel, serif" : "12px Cinzel, serif";
+      const tw = ctx.measureText(row.text).width;
+      ctx.globalAlpha = a * 0.82;
+      ctx.fillStyle = "#050814";
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(cx - tw / 2 - 11, y - 10, tw + 22, 20, 6);
+      } else {
+        ctx.rect(cx - tw / 2 - 11, y - 10, tw + 22, 20);
+      }
+      ctx.fill();
+      ctx.globalAlpha = a;
       ctx.lineJoin = "round";
-      ctx.lineWidth = 3.4;
-      ctx.strokeStyle = "#050814";
-      ctx.strokeText(row.text, VW / 2 + sway, y);
-      ctx.fillStyle = row.punch ? "#e6c35c" : "#f3e2a0";
-      ctx.fillText(row.text, VW / 2 + sway, y);
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = "#0b1220";
+      ctx.shadowColor = "rgba(5,8,20,0.9)";
+      ctx.shadowBlur = 8;
+      ctx.strokeText(row.text, cx, y);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = row.punch ? "#ffe27a" : "#f6e7a8";
+      ctx.fillText(row.text, cx, y);
     }
     ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
     ctx.textBaseline = "alphabetic";
 
-    ctx.fillStyle = "#8a7340";
+    ctx.fillStyle = "#cbb57a";
     ctx.font = "8px Cinzel, serif";
     ctx.textAlign = "center";
-    ctx.fillText("TAP TO SKIP", VW / 2, VH - 12);
+    ctx.fillText("TAP TO SKIP", VW / 2, 14);
 
     if (p > 0.82) {
       const a = (p - 0.82) / 0.18;
