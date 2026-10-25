@@ -9,6 +9,9 @@
   const GRAVITY = 0.32;
   const MAX_LIVES = 5;
   const LIVES_FLOOR = 3;
+  const WIND_UP = 30;
+  const MOUNT_UP = 10;
+  const WRECK_T = 28;
   const SAVE_KEY = "roh.save";
   const BOARD_KEY = "roh.board";
   const TETHER_KEY = "roh.tether";
@@ -1115,12 +1118,18 @@
       c.dead = false;
     }
     resetPlayer(80);
-    if (horse && horse.mounted) {
-      horse.alive = true;
-      horse.hp = horse.maxHp;
-      horse.x = player.x;
-      horse.y = player.y;
-      horse.facing = player.facing;
+    if (horse) {
+      if (horse.mountT == null) horse.mountT = 0;
+      if (horse.wreckT == null) horse.wreckT = 0;
+      if (horse.mounted) {
+        horse.alive = true;
+        horse.hp = horse.maxHp;
+        horse.mountT = 0;
+        horse.wreckT = 0;
+        horse.x = player.x;
+        horse.y = player.y;
+        horse.facing = player.facing;
+      }
     }
     player.lives = savedLives;
     player.invuln = 0;
@@ -1318,6 +1327,7 @@
     e.ledge = false;
     e.trampleCd = 0;
     e.aim = null;
+    e.windMax = 0;
     ROH.fillEnemy(e, type, GROUND, AQUA.y);
     if (e.type !== "elephant") {
       e.hp = e.maxHp = Math.max(1, Math.round((e.maxHp || 1) * diffCfg().hp));
@@ -1418,7 +1428,38 @@
   }
 
   function isMounted() {
-    return !!(horse && horse.mounted && horse.alive);
+    return !!(horse && horse.mounted && horse.alive && (horse.wreckT || 0) <= 0);
+  }
+  function isMounting() {
+    return !!(horse && (horse.mountT || 0) > 0);
+  }
+  function isWrecking() {
+    return !!(horse && (horse.wreckT || 0) > 0);
+  }
+  function isGoldAim(aim) {
+    return aim === "gold" || aim === "low" || aim === "jump";
+  }
+  function isRedAim(aim) {
+    return aim === "red" || aim === "roll";
+  }
+  function beginWind(e, aim, frames) {
+    const n = frames == null ? WIND_UP : frames;
+    e.state = "flash";
+    e.flashT = n;
+    e.windMax = n;
+    e.aim = aim || null;
+    e.vx = 0;
+  }
+  function airborneDodge() {
+    return player.y < floorY(player.x) - 12 || (!player.onGround && player.vy < -0.2);
+  }
+  function dodgesShot(s) {
+    if (!s || s.friendly) return false;
+    if (s.duck === "roll") return !!(player.rolling || isDucking());
+    if (s.duck === "jump") return airborneDodge();
+    if (s.type === "laneshot") return !!(player.rolling || isDucking() || player.y < floorY(player.x) - 18);
+    if (s.type === "ball") return player.y < floorY(player.x) - 14;
+    return false;
   }
 
   function firearmEra() {
@@ -1637,9 +1678,9 @@
 
   function firePistol() {
     const spec = currentSpec() || {};
-    const jeep = !!(horse && horse.mounted && horse.kind === 5);
-    const cart = !!(horse && horse.mounted && horse.kind === 4);
-    const tank = !!(horse && horse.mounted && horse.kind === 6);
+    const jeep = isMounted() && horse.kind === 5;
+    const cart = isMounted() && horse.kind === 4;
+    const tank = isMounted() && horse.kind === 6;
     const dir = player.facing;
     const mouths = gunMuzzles();
     const muzzle = mouths[0];
@@ -1731,21 +1772,19 @@
   }
 
   function hurtPlayer(dmg, kb, srcX) {
-    if (player.invuln > 0 || player.deadT > 0 || player.rolling) return;
+    if (player.invuln > 0 || player.deadT > 0 || isMounting()) return;
     const d = diffCfg();
     dmg = Math.max(1, Math.round(dmg * d.dmgIn));
     const dir = player.x >= srcX ? 1 : -1;
     markDamaged();
-    if (horse && horse.mounted && horse.alive && !player.blocking) {
+    if (isMounted() && !player.blocking) {
       horse.hp -= dmg;
-      player.hp -= Math.ceil(dmg * 0.25);
-      player.vx = dir * kb * 0.45;
-      player.invuln = Math.max(4, Math.round(28 * d.iFrames));
+      player.vx = dir * kb * 0.35;
+      player.invuln = Math.max(4, Math.round(16 * d.iFrames));
       sfx("hurt");
       sparkBurst(player.x, player.y - 28, 10, true);
       bumpShake(8);
       if (horse.hp <= 0) dumpHorse();
-      if (player.hp <= 0) { player.hp = 0; loseLife(); }
       return;
     }
     if (player.blocking) {
@@ -1844,12 +1883,14 @@
 
   function ensureHorse(kind, maxHp) {
     if (!horse) {
-      horse = { x: player.x, y: GROUND, hp: 0, maxHp, facing: 1, mounted: false, alive: false, shrineX: 0, kind };
+      horse = { x: player.x, y: GROUND, hp: 0, maxHp, facing: 1, mounted: false, alive: false, shrineX: 0, kind, mountT: 0, wreckT: 0 };
       return;
     }
     horse.kind = kind;
     horse.maxHp = maxHp;
     if (horse.hp > maxHp) horse.hp = maxHp;
+    if (horse.mountT == null) horse.mountT = 0;
+    if (horse.wreckT == null) horse.wreckT = 0;
   }
 
   function addMountCharge(amount) {
@@ -1881,40 +1922,98 @@
     door.x = x;
   }
 
-  function mountHorse() {
-    if (!horse || horse.mounted) return false;
-    if ((horse.hp || 0) < horse.maxHp) return false;
+  function seatMount() {
+    if (!horse) return;
     horse.alive = true;
     horse.mounted = true;
+    horse.mountT = 0;
+    horse.wreckT = 0;
     horse.x = player.x;
     horse.y = player.y;
     horse.facing = player.facing;
     player.blocking = false;
+    player.rolling = false;
+    player.ducking = false;
+    player.rollT = 0;
+  }
+
+  function mountHorse() {
+    if (!horse || isMounted() || isMounting() || isWrecking()) return false;
+    if ((horse.hp || 0) < horse.maxHp) return false;
+    horse.alive = true;
+    horse.mounted = false;
+    horse.mountT = MOUNT_UP;
+    horse.wreckT = 0;
+    horse.x = player.x;
+    horse.y = player.y;
+    horse.facing = player.facing;
+    player.blocking = false;
+    player.rolling = false;
+    player.ducking = false;
+    player.rollT = 0;
+    player.attacking = false;
+    player.phase = null;
     sfx("checkpoint");
     announce(era === 6 ? "HULL DOWN" : era === 5 ? "VICKERS UP" : era === 4 ? "LIMBER UP" : era === 3 ? "THE IRON ROAD" : era === 2 ? "THE WHITE ROAD" : "THE STEED", 70);
     return true;
   }
 
   function dismountHorse() {
-    if (!horse || !horse.mounted) return;
+    if (!horse || !isMounted()) return;
     horse.mounted = false;
     horse.alive = false;
+    horse.mountT = 0;
     horse.facing = player.facing;
+    player.invuln = Math.max(player.invuln, 12);
   }
 
   function dumpHorse(opts) {
     if (!horse) return;
-    const had = horse.mounted || horse.alive || (horse.hp || 0) > 0;
+    const had = horse.mounted || horse.alive || (horse.hp || 0) > 0 || isMounting();
     horse.hp = 0;
-    horse.alive = false;
-    horse.mounted = false;
+    horse.mountT = 0;
     horse.x = player.x;
-    if (!had) return;
-    if (opts && opts.silent) return;
-    sparkBurst(player.x, player.y - 18, 18, true);
-    bumpShake(12);
-    announce("THE STEED FALLS", 80);
-    player.invuln = Math.max(player.invuln, 40);
+    horse.y = player.y;
+    horse.facing = player.facing;
+    horse.mounted = false;
+    if (!had) {
+      horse.alive = false;
+      horse.wreckT = 0;
+      return;
+    }
+    if (opts && opts.silent) {
+      horse.alive = false;
+      horse.wreckT = 0;
+      return;
+    }
+    horse.alive = true;
+    horse.wreckT = WRECK_T;
+    player.invuln = Math.max(player.invuln, 48);
+    sparkBurst(player.x, player.y - 18, 22, true);
+    coverBurst(player.x, player.y - 10, 1);
+    bumpShake(16);
+    announce(era === 6 ? "HULL LOST" : era === 5 ? "THE JEEP BURNS" : era === 4 ? "THE LIMBER SPLITS" : "THE STEED FALLS", 80);
+    floatText(player.x, player.y - 56, "ON FOOT", "#ffe27a");
+  }
+
+  function updateMount() {
+    if (!horse) return;
+    if (horse.mountT > 0) {
+      horse.mountT--;
+      horse.x = player.x;
+      horse.y = player.y;
+      horse.facing = player.facing;
+      if (horse.mountT === 0) seatMount();
+    }
+    if (horse.wreckT > 0) {
+      horse.wreckT--;
+      if (time % 2 === 0) sparkBurst(horse.x + rand(-10, 10), horse.y - rand(6, 22), 4, true);
+      if (horse.wreckT === 0) {
+        horse.alive = false;
+        horse.mounted = false;
+        horse.hp = 0;
+      }
+    }
   }
 
   function overPit(px) {
@@ -2233,7 +2332,7 @@
   }
 
   function trampleEnemies() {
-    if (!horse || !horse.mounted || !horse.alive) return;
+    if (!isMounted()) return;
     const hb = { x: player.x - 28, y: player.y - 28, w: 56, h: 28 };
     for (const e of enemies) {
       if (e.hp <= 0 || e.deadT > 0) continue;
@@ -2736,8 +2835,16 @@
     } else player.blockT = 0;
 
     if (canAct && consumeTap("mount")) {
-      if (mounted) dismountHorse();
+      if (isWrecking() || isMounting()) { /* wait for the swap */ }
+      else if (mounted) dismountHorse();
       else if (!mountHorse()) floatText(player.x, player.y - 48, "KILL TO CALL MOUNT", "#e6c35c");
+    }
+
+    if (isMounting()) {
+      player.vx *= 0.55;
+      player.rolling = false;
+      player.ducking = false;
+      player.blocking = false;
     }
 
     if (player.rollCd > 0) player.rollCd--;
@@ -2755,7 +2862,7 @@
     } else if (firearmEra()) {
       player.rolling = false;
       consumeTap("roll");
-    } else if (canAct && player.onGround && !player.attacking && !player.blocking && !mounted && player.rollCd === 0 && consumeTap("roll")) {
+    } else if (canAct && player.onGround && !player.attacking && !player.blocking && !mounted && !isMounting() && player.rollCd === 0 && consumeTap("roll")) {
       player.rollMax = 22;
       player.rollT = player.rollMax;
       player.rolling = true;
@@ -2769,10 +2876,10 @@
       spawnDust(player.x, player.y - 2, 8);
     }
 
-    player.ducking = duckHold && canAct && !player.rolling && !mounted && !player.blocking;
+    player.ducking = duckHold && canAct && !player.rolling && !mounted && !player.blocking && !isMounting();
     if (!player.rolling) player.h = player.ducking ? 24 : 40;
 
-    if (canAct && !player.rolling) {
+    if (canAct && !player.rolling && !isMounting()) {
       if (consumeTap("light")) {
         player.blocking = false;
         player.blockT = 0;
@@ -3235,7 +3342,7 @@
     if (e.state === "flash") {
       e.flashT--;
       e.vx = 0;
-      e.aim = opts.aim || null;
+      e.aim = opts.aim || e.aim;
       if (e.flashT <= 0) {
         e.state = "attack";
         e.atkT = opts.atk || 12;
@@ -3261,10 +3368,7 @@
     } else {
       e.vx = 0;
       e.state = "idle";
-      if (e.cd === 0) {
-        e.state = "flash";
-        e.flashT = opts.wind;
-      }
+      if (e.cd === 0) beginWind(e, opts.aim, opts.wind || WIND_UP);
     }
   }
 
@@ -3506,18 +3610,13 @@
     } else if (e.type === "crossbow") {
       if (e.state === "flash") {
         e.flashT--;
+        e.vx = 0;
+        e.aim = "gold";
         if (e.flashT <= 0) {
           e.state = "attack";
           e.atkT = 16;
-          shots.push({
-            type: "bolt",
-            x: e.x + e.facing * 14,
-            y: e.y - 24,
-            vx: e.facing * 1.35,
-            vy: -0.15,
-            dmg: 14,
-            life: 220,
-          });
+          e.aim = null;
+          leadShot(e, 1.35, 14, "bolt", "jump");
         }
       } else if (e.state === "attack") {
         e.atkT--;
@@ -3530,7 +3629,7 @@
         e.state = "walk";
       } else {
         e.vx = 0;
-        if (e.cd === 0) { e.state = "flash"; e.flashT = 28; }
+        if (e.cd === 0) beginWind(e, "gold");
       }
     } else if (e.type === "knight") {
       if (e.openT > 0) {
@@ -3608,18 +3707,12 @@
       else if (e.state === "flash") {
         e.flashT--;
         e.vx = 0;
+        e.aim = "red";
         if (e.flashT <= 0) {
           e.state = "attack";
           e.atkT = 18;
-          shots.push({
-            type: "musket",
-            x: e.x + e.facing * 14,
-            y: e.y - 26,
-            vx: e.facing * 2.6,
-            vy: 0,
-            dmg: 13,
-            life: 90,
-          });
+          e.aim = null;
+          leadShot(e, 2.6, 13, "musket", "roll");
         }
       } else if (e.state === "attack") {
         e.atkT--;
@@ -3633,7 +3726,7 @@
       } else {
         e.vx = 0;
         e.state = "idle";
-        if (e.cd === 0) { e.state = "flash"; e.flashT = 36; }
+        if (e.cd === 0) beginWind(e, "red");
       }
     } else if (e.type === "lancer") {
       if (e.stunT > 0) { e.stunT--; e.vx *= 0.8; }
@@ -3693,10 +3786,12 @@
       else if (e.state === "flash") {
         e.flashT--;
         e.vx = 0;
+        e.aim = "red";
         if (e.flashT <= 0) {
           e.state = "attack";
           e.atkT = 14;
-          shots.push({ type: "musket", x: e.x + e.facing * 14, y: e.y - 26, vx: e.facing * 3.4, vy: 0, dmg: 12, life: travelLife(3.4) });
+          e.aim = null;
+          leadShot(e, 3.4, 12, "musket", "roll");
         }
       } else if (e.state === "attack") {
         e.atkT--;
@@ -3705,7 +3800,7 @@
         e.vx = e.facing * 0.75; e.state = "walk";
       } else {
         e.vx = 0;
-        if (e.cd === 0) { e.state = "flash"; e.flashT = 22; }
+        if (e.cd === 0) beginWind(e, "red");
       }
     } else if (e.type === "raptor") {
       const leapHole = holeAt(e.x + e.facing * 42);
@@ -3758,26 +3853,30 @@
       e.facing = 1;
       if (e.state === "flash") {
         e.flashT--;
+        e.aim = "red";
         if (e.flashT <= 0) {
           e.state = "attack";
           e.atkT = 24;
-          shots.push({ type: "mg", x: e.x - 28, y: e.y - 28, vx: -4.2, vy: 0, dmg: 8, life: travelLife(4.2) });
+          e.aim = null;
+          shots.push({ type: "mg", x: e.x - 28, y: e.y - 28, vx: -4.2, vy: 0, dmg: 8, life: travelLife(4.2), duck: "roll" });
         }
       } else if (e.state === "attack") {
         e.atkT--;
-        if (e.atkT === 12) shots.push({ type: "mg", x: e.x - 28, y: e.y - 26, vx: -4.2, vy: 0, dmg: 8, life: travelLife(4.2) });
+        if (e.atkT === 12) shots.push({ type: "mg", x: e.x - 28, y: e.y - 26, vx: -4.2, vy: 0, dmg: 8, life: travelLife(4.2), duck: "roll" });
         if (e.atkT <= 0) { e.state = "idle"; e.cd = 36; }
       } else if (e.cd === 0 && player.x < e.x) {
-        e.state = "flash"; e.flashT = 10;
+        beginWind(e, "red");
       }
     } else if (e.type === "armorcar") {
       if (e.stunT > 0) { e.stunT--; e.vx *= 0.8; }
       else if (e.state === "flash") {
         e.flashT--;
+        e.aim = "red";
         if (e.flashT <= 0) {
           e.state = "attack";
           e.atkT = 16;
-          shots.push({ type: "musket", x: e.x + e.facing * 30, y: e.y - 28, vx: e.facing * 4.0, vy: 0, dmg: 16, life: travelLife(4) });
+          e.aim = null;
+          leadShot(e, 4.0, 16, "musket", "roll");
         }
       } else if (e.state === "attack") {
         e.atkT--;
@@ -3785,7 +3884,7 @@
       } else {
         if (adx > 80) { e.vx = e.facing * 0.85; e.state = "walk"; }
         else e.vx = e.facing * 0.2;
-        if (e.cd === 0) { e.state = "flash"; e.flashT = 18; e.vx = 0; }
+        if (e.cd === 0) beginWind(e, "red");
       }
     } else if (e.type === "colonel") {
       if (e.stunT > 0) e.stunT--;
@@ -3855,10 +3954,12 @@
       else if (e.state === "flash") {
         e.flashT--;
         e.vx = 0;
+        e.aim = "red";
         if (e.flashT <= 0) {
           e.state = "attack";
           e.atkT = 12;
-          shots.push({ type: "burst", x: e.x + e.facing * 12, y: e.y - 24, vx: e.facing * 4.6, vy: 0, dmg: 11, life: travelLife(4.6) });
+          e.aim = null;
+          leadShot(e, 4.6, 11, "burst", "roll");
         }
       } else if (e.state === "attack") {
         e.atkT--;
@@ -3866,15 +3967,17 @@
       } else if (!e.guarded && adx > 90) {
         e.vx = e.facing * 0.8; e.state = "walk";
       } else if (!e.guarded && e.cd === 0) {
-        e.state = "flash"; e.flashT = 18;
+        beginWind(e, "red");
       }
     } else if (e.type === "ifv") {
       if (e.stunT > 0) { e.stunT--; e.vx *= 0.8; }
       else if (e.state === "flash") {
         e.flashT--;
+        e.aim = "red";
         if (e.flashT <= 0) {
           e.state = "attack"; e.atkT = 16;
-          shots.push({ type: "burst", x: e.x + e.facing * 32, y: e.y - 26, vx: e.facing * 4.8, vy: 0, dmg: 16, life: travelLife(4.8) });
+          e.aim = null;
+          leadShot(e, 4.8, 16, "burst", "roll");
         }
       } else if (e.state === "attack") {
         e.atkT--;
@@ -3882,7 +3985,7 @@
       } else {
         if (adx > 90) { e.vx = e.facing * 0.7; e.state = "walk"; }
         else e.vx = e.facing * 0.15;
-        if (e.cd === 0) { e.state = "flash"; e.flashT = 18; e.vx = 0; }
+        if (e.cd === 0) beginWind(e, "red");
       }
     } else if (e.type === "fracture") {
       if (e.stunT > 0) e.stunT--;
@@ -3919,17 +4022,17 @@
         if (e.cd === 0) { e.state = "flash"; e.flashT = e.phase === 1 ? 18 : 14; e.vx = 0; }
       }
     } else if (e.type === "javelin") {
-      holdAndThrow(e, adx, { near: 100, far: 230, back: 0.8, chase: 0.7, wind: 28, cd: 74, atk: 14, fire: hurlJavelin });
+      holdAndThrow(e, adx, { near: 100, far: 230, back: 0.8, chase: 0.7, wind: WIND_UP, cd: 74, atk: 14, aim: "gold", fire: hurlJavelin });
     } else if (e.type === "pilum") {
-      holdAndThrow(e, adx, { near: 90, far: 250, back: 0.75, chase: 0.65, wind: 22, cd: 68, aim: "gold", fire: (en) => leadShot(en, 3.8, 13, "pilum", "roll") });
+      holdAndThrow(e, adx, { near: 90, far: 250, back: 0.75, chase: 0.65, wind: WIND_UP, cd: 68, aim: "red", fire: (en) => leadShot(en, 3.8, 13, "pilum", "roll") });
     } else if (e.type === "arbalist") {
-      holdAndThrow(e, adx, { near: 110, far: 280, back: 0.6, chase: 0.5, wind: 34, cd: 92, aim: "low", fire: (en) => leadShot(en, 4.4, 16, "bolt", "jump") });
+      holdAndThrow(e, adx, { near: 110, far: 280, back: 0.6, chase: 0.5, wind: WIND_UP, cd: 92, aim: "gold", fire: (en) => leadShot(en, 4.4, 16, "bolt", "jump") });
     } else if (e.type === "voltigeur") {
-      holdAndThrow(e, adx, { near: 120, far: 300, back: 0.7, chase: 0.6, wind: 30, cd: 80, aim: "red", fire: (en) => leadShot(en, 4.6, 14, "musket", "roll") });
+      holdAndThrow(e, adx, { near: 120, far: 300, back: 0.7, chase: 0.6, wind: WIND_UP, cd: 80, aim: "red", fire: (en) => leadShot(en, 4.6, 14, "musket", "roll") });
     } else if (e.type === "sniper") {
-      holdAndThrow(e, adx, { near: 180, far: 420, back: 0.55, chase: 0.45, wind: 48, cd: 100, aim: "red", fire: (en) => leadShot(en, 6.2, 18, "rifle", "roll") });
+      holdAndThrow(e, adx, { near: 180, far: 420, back: 0.55, chase: 0.45, wind: WIND_UP, cd: 100, aim: "red", fire: (en) => leadShot(en, 6.2, 18, "rifle", "roll") });
     } else if (e.type === "marksman") {
-      holdAndThrow(e, adx, { near: 150, far: 380, back: 0.7, chase: 0.55, wind: 36, cd: 84, aim: "red", fire: (en) => leadShot(en, 6.8, 16, "rifle", "roll") });
+      holdAndThrow(e, adx, { near: 150, far: 380, back: 0.7, chase: 0.55, wind: WIND_UP, cd: 84, aim: "red", fire: (en) => leadShot(en, 6.8, 16, "rifle", "roll") });
     }
 
     if (e.ledge) {
@@ -4123,10 +4226,7 @@
         continue;
       }
       if (aabb(s.x - sw / 2, s.y - sh / 2, sw, sh, pb.x, pb.y, pb.w, pb.h)) {
-        if (s.type === "laneshot" && (player.y < floorY(player.x) - 18 || player.rolling || isDucking())) continue;
-        if (s.type === "ball" && player.y < floorY(player.x) - 14) continue;
-        if (s.duck === "roll" && (player.rolling || isDucking())) continue;
-        if (s.duck === "jump" && player.y < floorY(player.x) - 12) continue;
+        if (dodgesShot(s)) continue;
         hurtPlayer(s.dmg, 2.6, s.x);
         s.dead = true;
         sparkBurst(s.x, s.y, 8, true);
@@ -4369,6 +4469,7 @@
     if (mode !== "play") return;
     if (hitstop > 0) { hitstop--; updateFx(); return; }
     trySpawns();
+    updateMount();
     updatePlayer();
     hitEnemies();
     for (const e of enemies) updateEnemy(e);
@@ -5857,13 +5958,13 @@
 
     ctx.textAlign = "left";
     ctx.fillStyle = player.heavyCd > 0 ? "#5a4a28" : "#e6c35c";
-    const vickers = era === 5 && horse && horse.mounted && horse.alive;
+    const vickers = era === 5 && isMounted();
     const ready = vickers ? "VICKERS READY" : era === 6 ? "DRONE READY" : era === 5 ? "RIFLE READY" : era === 4 ? "PISTOL READY" : era === 3 ? "CLEAVE READY" : era === 2 ? "BASH READY" : "SPEAR READY";
     const wait = vickers ? "VICKERS" : era === 6 ? "DRONE" : era === 5 ? "RIFLE" : era === 4 ? "PISTOL" : era === 3 ? "CLEAVE" : era === 2 ? "BASH" : "SPEAR";
     const showSteed = !!horse;
     if (showSteed) {
       const filled = (horse.hp || 0) / Math.max(1, horse.maxHp);
-      const mountedNow = !!(horse.mounted && horse.alive);
+      const mountedNow = isMounted() || isMounting();
       const callReady = !mountedNow && filled >= 1;
       ctx.fillStyle = callReady ? "#ffe27a" : "#8a7340";
       ctx.font = "6px Cinzel, serif";
@@ -5910,7 +6011,7 @@
       ctx.fillText("STRIKE THE GOLDEN LEGS   " + ele.hits + " / 3", VW / 2, VH - 12);
     }
 
-    if (horse && !horse.mounted && (horse.hp || 0) >= horse.maxHp) {
+    if (horse && !isMounted() && !isMounting() && !isWrecking() && (horse.hp || 0) >= horse.maxHp) {
       ctx.fillStyle = "#f3e2a0";
       ctx.font = "7px Cinzel, serif";
       ctx.textAlign = "center";
@@ -6024,7 +6125,8 @@
     }
 
     for (const e of enemies) {
-      const telegraph = e.state === "flash" && (time % 6 < 3);
+      const winding = e.state === "flash";
+      const telegraph = winding && (e.aim ? true : (time % 6 < 3));
       const walking = e.deadT === 0 && e.hurtT === 0 && usesStride(e.type) && (e.state === "walk" || Math.abs(e.vx) > 0.12);
       const gWalk = walking ? gaitFrom(e.gait || 0) : null;
       const bob = gWalk ? -Math.abs(Math.sin(gWalk.p)) * 3.8 : (e.state === "walk" ? Math.sin(time * 0.25) * 1.4 : 0);
@@ -6069,6 +6171,10 @@
         ctx.globalAlpha = 0.75;
       }
       blit(gWalk && !gWalk.step ? strideOf(spr) : spr, e.x, e.y + deadSink, e.facing, dh, telegraph || e.hurtT > 0, bob, squash);
+      if (winding && e.aim && e.deadT === 0) {
+        ctx.fillStyle = isRedAim(e.aim) ? "rgba(255, 70, 50, 0.22)" : "rgba(230, 195, 92, 0.22)";
+        ctx.fillRect(e.x - camX - 16, e.y + deadSink - dh, 32, dh);
+      }
       if (e.hurtT > 0) {
         ctx.fillStyle = "rgba(180, 20, 20, 0.28)";
         ctx.fillRect(e.x - camX - 16, e.y + deadSink - dh, 32, dh);
@@ -6093,22 +6199,30 @@
         ctx.restore();
       }
       if (e.aim && e.state === "flash" && e.deadT === 0) {
-        const low = e.aim === "low";
+        const gold = isGoldAim(e.aim);
         const sx = e.x + e.facing * 14;
-        const sy = low ? floorY(e.x) - 12 : e.y - 26;
+        const sy = gold ? floorY(e.x) - 12 : e.y - 26;
         const tx = player.x;
-        const ty = floorY(player.x) - (low ? 8 : 22);
+        const ty = floorY(player.x) - (gold ? 8 : 22);
+        const max = Math.max(1, e.windMax || WIND_UP);
+        const p = 1 - clamp(e.flashT / max, 0, 1);
         ctx.save();
-        const wind = Math.max(8, e.flashT + 8);
-        ctx.globalAlpha = Math.min(0.9, 0.25 + (1 - e.flashT / wind) * 0.65);
-        ctx.strokeStyle = e.aim === "red" ? "#ff5a4a" : "#e6c35c";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 4]);
+        ctx.globalAlpha = 0.3 + p * 0.65;
+        ctx.strokeStyle = gold ? "#e6c35c" : "#ff5a4a";
+        ctx.shadowColor = gold ? "rgba(230,195,92,0.9)" : "rgba(255,70,50,0.9)";
+        ctx.shadowBlur = perfLow ? 0 : 8;
+        ctx.lineWidth = 1.4 + p * 1.8;
+        ctx.setLineDash(p > 0.78 ? [] : (gold ? [6, 5] : [3, 6]));
         ctx.beginPath();
         ctx.moveTo(sx - camX, sy);
         ctx.lineTo(tx - camX, ty);
         ctx.stroke();
         ctx.setLineDash([]);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = gold ? "#ffe27a" : "#ff8a78";
+        ctx.beginPath();
+        ctx.arc(sx - camX, sy, 1.8 + p * 2.2, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
       }
       if ((e.type === "spear" || e.type === "slinger" || e.type === "javelin") && SPR.crackStamp && e.deadT === 0) {
@@ -6127,16 +6241,20 @@
       ctx.globalAlpha = 1;
     }
 
-    if (isMounted()) {
-      const hx = player.x;
-      const hy = player.y;
+    if (isMounted() || isMounting() || isWrecking()) {
+      const hx = isMounted() || isMounting() ? player.x : horse.x;
+      const hy = isMounted() || isMounting() ? player.y : horse.y;
       const hs = (era === 6 || horse.kind === 6) ? (SPR.tank || SPR.horse)
         : (era === 5 || horse.kind === 5) ? (SPR.jeep || SPR.horse)
         : (era === 4 || horse.kind === 4) ? (SPR.cart || SPR.horse)
         : (era === 3 || horse.kind === 3) ? (SPR.horse3 || SPR.horse) : SPR.horse;
+      ctx.save();
+      if (isMounting()) ctx.globalAlpha = 1 - horse.mountT / MOUNT_UP;
+      if (isWrecking()) ctx.globalAlpha = Math.max(0.15, horse.wreckT / WRECK_T);
       drawBlobShadow(hx, hy + 2, horse.kind >= 6 ? 22 : horse.kind === 5 ? 18 : horse.kind === 4 ? 20 : 16);
       blitMount(hs, hx, hy + 2, horse.facing || player.facing, (era === 6 || horse.kind === 6) ? 48 : (era === 5 || horse.kind === 5) ? 42 : (era === 4 || horse.kind === 4) ? 64 : 58);
-      if (horse.kind === 5) drawJeepGuns();
+      if (horse.kind === 5 && isMounted()) drawJeepGuns();
+      ctx.restore();
     }
 
     if (player.rolling || player.invuln === 0 || time % 4 < 2 || player.deadT > 0) {
@@ -6498,12 +6616,12 @@
       gait: +(player.gait || 0).toFixed(1),
       vx: +(player.vx || 0).toFixed(2),
       struckT: player.struckT | 0,
-      enemies: enemies.map((e) => ({ type: e.type, x: e.x | 0, y: e.y | 0, hp: e.hp, facing: e.facing, state: e.state, hits: e.hits, guarded: e.guarded })),
+      enemies: enemies.map((e) => ({ type: e.type, x: e.x | 0, y: e.y | 0, hp: e.hp, facing: e.facing, state: e.state, hits: e.hits, guarded: e.guarded, aim: e.aim || null, flashT: e.flashT | 0, windMax: e.windMax | 0 })),
       lock,
       doorOpen,
       doorX: door.x | 0,
       checkpoint,
-      horse: horse && { x: horse.x | 0, hp: horse.hp, mounted: horse.mounted, alive: horse.alive, kind: horse.kind || 0 },
+      horse: horse && { x: horse.x | 0, hp: horse.hp, maxHp: horse.maxHp, mounted: horse.mounted, alive: horse.alive, kind: horse.kind || 0, mountT: horse.mountT | 0, wreckT: horse.wreckT | 0 },
       unlocked,
       maxLives,
       muted,
@@ -6512,6 +6630,7 @@
       cannons: cannons.length,
       rolling: !!player.rolling,
       ducking: !!player.ducking,
+      invuln: player.invuln | 0,
       combo: player.combo || 0,
       kind: player.kind || null,
       phase: player.phase || null,
@@ -6588,7 +6707,7 @@
       const e = enemies.find((n) => n.type === "gate");
       if (e) killEnemy(e);
     },
-    mount: () => { if (horse) { horse.hp = horse.maxHp; mountHorse(); } },
+    mount: () => { if (horse) { horse.hp = horse.maxHp; horse.mountT = 0; horse.wreckT = 0; seatMount(); } },
     hold: () => { mode = "pause"; },
     step: () => {
       const was = mode;

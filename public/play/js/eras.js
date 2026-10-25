@@ -235,7 +235,7 @@
       W.pickups.push({ type: "plus", x: 1760, y: G - 18, taken: false });
       W.pickups.push({ type: "hourglass", x: 3600, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 4040, y: G - 18, taken: false });
-      W.horse = { x: 80, y: G, hp: 96, maxHp: 96, facing: 1, mounted: true, alive: true, shrineX: 0, kind: 5 };
+      W.horse = { x: 80, y: G, hp: 96, maxHp: 96, facing: 1, mounted: true, alive: true, shrineX: 0, kind: 5, mountT: 0, wreckT: 0 };
       placeCover(W, [700, 1080, 1560, 2060], "bags");
       placeCover(W, [2860, 3680, 4000], "frond");
       hops(W, 1240, 1, 56, 0);
