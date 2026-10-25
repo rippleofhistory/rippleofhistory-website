@@ -37,7 +37,22 @@
   let onLife = null;
   let onDowned = null;
 
-  if (WOW.loadAssets) WOW.loadAssets();
+  let loadP = null;
+
+  function preload() {
+    if (WOW.assetsReady && WOW.images && WOW.images.player) return Promise.resolve();
+    if (loadP) return loadP;
+    if (!WOW.loadAssets) return Promise.resolve();
+    loadP = WOW.loadAssets().catch(function (err) {
+      loadP = null;
+      throw err;
+    });
+    return loadP;
+  }
+
+  function ready() {
+    return !!(WOW.assetsReady && WOW.images && WOW.images.player);
+  }
 
   function stage() {
     return document.getElementById("stage");
@@ -80,6 +95,21 @@
     };
   }
 
+  function resetRuntime() {
+    running = false;
+    hideCanvas();
+    clearInput();
+    silence();
+    try {
+      if (game && typeof game.resetWorld === "function") game.resetWorld();
+    } catch (err) { /* keep the host alive */ }
+  }
+
+  function unload() {
+    left = true;
+    resetRuntime();
+  }
+
   function leave(fn) {
     if (left) return;
     left = true;
@@ -87,8 +117,12 @@
     hideCanvas();
     clearInput();
     silence();
+    const info = outcome();
     try {
-      fn(outcome());
+      if (game && typeof game.resetWorld === "function") game.resetWorld();
+    } catch (err) { /* keep the host alive */ }
+    try {
+      fn(info);
     } catch (err) {
       left = false;
       throw err;
@@ -221,17 +255,22 @@
     clearInput();
     const save = { levelId: "white-cliffs" };
     if (pending.lives != null) save.lives = pending.lives;
-    game.startLevel(save);
-    bindPilot();
-    if (typeof onLife === "function" && game.player) onLife(game.player.lives);
-    syncMute(!!pending.muted);
-    if (!running) {
-      running = true;
-      lastT = performance.now();
-      requestAnimationFrame(loop);
-    } else {
-      lastT = performance.now();
-    }
+    const boot = function () {
+      if (left) return;
+      game.startLevel(save);
+      bindPilot();
+      if (typeof onLife === "function" && game.player) onLife(game.player.lives);
+      syncMute(!!pending.muted);
+      if (!running) {
+        running = true;
+        lastT = performance.now();
+        requestAnimationFrame(loop);
+      } else {
+        lastT = performance.now();
+      }
+    };
+    if (ready()) boot();
+    else preload().then(boot);
   }
 
   function state() {
@@ -254,6 +293,9 @@
 
   window.ROHCliffs = {
     start: start,
+    preload: preload,
+    unload: unload,
+    ready: ready,
     handoff: toDesert,
     title: toRippleTitle,
     syncMute: syncMute,

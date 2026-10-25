@@ -500,6 +500,13 @@ html.force-land #stage {
   animation: riftPulse 1.6s ease-in-out infinite;
 }
 
+.load-sub {
+  margin-top: 14px;
+  letter-spacing: 0.28em;
+  font-size: 9px;
+  color: #8a7340;
+}
+
 #pause-screen,
 #dead-screen,
 #win-screen,

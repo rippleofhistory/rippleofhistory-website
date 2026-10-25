@@ -170,6 +170,16 @@
   let warpTo = 2;
   let skipCliffs = false;
   let cliffsCleared = true;
+  let scene = "ground";
+  let sceneBusy = false;
+  const SWORD_PACK = [
+    "kael-idle", "kael-run", "kael-attack", "kael-heavy", "kael-jump", "kael-block", "kael-hurt", "kael-death",
+    "infantry", "slinger", "elephant", "boss", "bg1",
+    "kael2-idle", "kael2-run", "kael2-attack", "kael2-heavy", "kael2-jump", "kael2-block", "kael2-hurt", "kael2-death",
+    "legionary", "archer", "horse", "centurion", "road", "brick", "bg2",
+    "kael3-idle", "kael3-run", "kael3-attack", "kael3-heavy", "kael3-jump", "kael3-block", "kael3-hurt", "kael3-death",
+    "manatarms", "crossbow", "knight", "baron", "horse3", "gate", "mud", "palisade", "keep", "bg3",
+  ];
   let horse = null;
   let jurassic = false;
   let ledges = [];
@@ -420,87 +430,94 @@
     return c;
   }
 
-  async function loadAll() {
-    const entries = Object.entries(FILES);
+  function cookSprite(name, img) {
+    const isBg = name.indexOf("bg") === 0;
+    const isTile = isBg || name === "ground" || name === "road" || name === "brick" || name === "mud" || name === "palisade" || name === "keep" || name === "snow" || name === "cobble" || name === "concrete";
+    let spr = keyGreen(img, isTile);
+    if (isBg) {
+      const c = document.createElement("canvas");
+      c.width = 640;
+      c.height = 360;
+      const gx = c.getContext("2d");
+      gx.imageSmoothingEnabled = true;
+      gx.drawImage(spr.canvas, 0, 0, 640, 360);
+      spr = { canvas: c, w: 640, h: 360 };
+    } else if (name.indexOf("kael") === 0) {
+      spr = outlineSprite(boostKaelScarf(spr), [10, 2, 8]);
+      spr = downscale(spr, 128);
+    } else if (name === "infantry" || name === "slinger" || name === "legionary" || name === "archer") {
+      spr = saturateSprite(spr, 1.55);
+      spr = outlineSprite(spr, [28, 24, 36]);
+      spr = downscale(spr, 120);
+    } else if (name === "manatarms" || name === "crossbow") {
+      spr = saturateSprite(spr, 1.6);
+      spr = outlineSprite(spr, [18, 16, 22]);
+      spr = downscale(spr, 120);
+    } else if (name === "knight") {
+      spr = outlineSprite(spr, [12, 10, 16]);
+      spr = downscale(spr, 140);
+    } else if (name === "elephant") {
+      spr = downscale(spr, 160);
+    } else if (name === "boss" || name === "centurion" || name === "baron" || name === "powder" || name === "colonel" || name === "fracture") {
+      spr = downscale(spr, 168);
+    } else if (name === "modinf") {
+      spr = saturateSprite(spr, 1.65);
+      spr = outlineSprite(spr, [14, 12, 18]);
+      spr = downscale(spr, 120);
+    } else if (name === "ifv" || name === "tank" || name === "wreck") {
+      spr = downscale(spr, name === "tank" ? 160 : 140);
+    } else if (name === "rifleinf") {
+      spr = saturateSprite(spr, 1.65);
+      spr = outlineSprite(spr, [16, 14, 20]);
+      spr = downscale(spr, 120);
+    } else if (name === "mgnest") {
+      spr = downscale(spr, 140);
+    } else if (name === "armorcar" || name === "staffcar") {
+      spr = downscale(spr, 150);
+    } else if (name === "jeep") {
+      spr = outlineSprite(spr, [14, 12, 16]);
+      spr = downscale(spr, 130);
+    } else if (name === "lineinf") {
+      spr = saturateSprite(spr, 1.45);
+      spr = outlineSprite(spr, [16, 14, 20]);
+      spr = downscale(spr, 120);
+    } else if (name === "lancer") {
+      spr = outlineSprite(spr, [16, 14, 20]);
+      spr = downscale(spr, 150);
+    } else if (name === "horse" || name === "horse3" || name === "cart") {
+      spr = outlineSprite(spr, [18, 14, 22]);
+      spr = downscale(spr, name === "cart" ? 140 : 110);
+    } else if (name === "cannon") {
+      spr = downscale(spr, 90);
+    } else if (name === "gate") {
+      spr = downscale(spr, 180);
+    } else if (name === "flag" || name === "door") {
+      spr = downscale(spr, 140);
+    } else if (name === "hourglass" || name === "plus") {
+      spr = downscale(spr, 64);
+    } else if (isTile) {
+      spr = downscale(spr, 128);
+    }
+    return spr;
+  }
+
+  async function loadNames(names) {
     const failed = [];
-    await Promise.all(entries.map(async ([name, src]) => {
-      let img;
+    await Promise.all(names.map(async (name) => {
+      if (SPR[name] || !FILES[name]) return;
       try {
-        img = await loadImage(src);
+        const img = await loadImage(FILES[name]);
+        SPR[name] = cookSprite(name, img);
       } catch (err) {
-        failed.push(src);
+        failed.push(FILES[name]);
         console.error(err);
-        return;
       }
-      const isBg = name.indexOf("bg") === 0;
-      const isTile = isBg || name === "ground" || name === "road" || name === "brick" || name === "mud" || name === "palisade" || name === "keep" || name === "snow" || name === "cobble" || name === "concrete";
-      let spr = keyGreen(img, isTile);
-      if (isBg) {
-        const c = document.createElement("canvas");
-        c.width = 640;
-        c.height = 360;
-        const gx = c.getContext("2d");
-        gx.imageSmoothingEnabled = true;
-        gx.drawImage(spr.canvas, 0, 0, 640, 360);
-        spr = { canvas: c, w: 640, h: 360 };
-      } else if (name.indexOf("kael") === 0) {
-        spr = outlineSprite(boostKaelScarf(spr), [10, 2, 8]);
-        spr = downscale(spr, 128);
-      } else if (name === "infantry" || name === "slinger" || name === "legionary" || name === "archer") {
-        spr = saturateSprite(spr, 1.55);
-        spr = outlineSprite(spr, [28, 24, 36]);
-        spr = downscale(spr, 120);
-      } else if (name === "manatarms" || name === "crossbow") {
-        spr = saturateSprite(spr, 1.6);
-        spr = outlineSprite(spr, [18, 16, 22]);
-        spr = downscale(spr, 120);
-      } else if (name === "knight") {
-        spr = outlineSprite(spr, [12, 10, 16]);
-        spr = downscale(spr, 140);
-      } else if (name === "elephant") {
-        spr = downscale(spr, 160);
-      } else if (name === "boss" || name === "centurion" || name === "baron" || name === "powder" || name === "colonel" || name === "fracture") {
-        spr = downscale(spr, 168);
-      } else if (name === "modinf") {
-        spr = saturateSprite(spr, 1.65);
-        spr = outlineSprite(spr, [14, 12, 18]);
-        spr = downscale(spr, 120);
-      } else if (name === "ifv" || name === "tank" || name === "wreck") {
-        spr = downscale(spr, name === "tank" ? 160 : 140);
-      } else if (name === "rifleinf") {
-        spr = saturateSprite(spr, 1.65);
-        spr = outlineSprite(spr, [16, 14, 20]);
-        spr = downscale(spr, 120);
-      } else if (name === "mgnest") {
-        spr = downscale(spr, 140);
-      } else if (name === "armorcar" || name === "staffcar") {
-        spr = downscale(spr, 150);
-      } else if (name === "jeep") {
-        spr = outlineSprite(spr, [14, 12, 16]);
-        spr = downscale(spr, 130);
-      } else if (name === "lineinf") {
-        spr = saturateSprite(spr, 1.45);
-        spr = outlineSprite(spr, [16, 14, 20]);
-        spr = downscale(spr, 120);
-      } else if (name === "lancer") {
-        spr = outlineSprite(spr, [16, 14, 20]);
-        spr = downscale(spr, 150);
-      } else if (name === "horse" || name === "horse3" || name === "cart") {
-        spr = outlineSprite(spr, [18, 14, 22]);
-        spr = downscale(spr, name === "cart" ? 140 : 110);
-      } else if (name === "cannon") {
-        spr = downscale(spr, 90);
-      } else if (name === "gate") {
-        spr = downscale(spr, 180);
-      } else if (name === "flag" || name === "door") {
-        spr = downscale(spr, 140);
-      } else if (name === "hourglass" || name === "plus") {
-        spr = downscale(spr, 64);
-      } else if (isTile) {
-        spr = downscale(spr, 128);
-      }
-      SPR[name] = spr;
     }));
+    return failed;
+  }
+
+  async function loadAll() {
+    const failed = await loadNames(Object.keys(FILES));
     SPR.crackStamp = makeCrackStamp();
     if (!SPR["kael-idle"]) {
       throw new Error(failed.length ? "missing " + failed.join(", ") : "kael-idle missing");
@@ -1113,6 +1130,7 @@
     era = opts.era || 1;
     clearWorld();
     ROH.applyEra(era, eraBag());
+    if (era === 4) warmFlight();
     for (const c of cannons) {
       if (c.hp == null) c.hp = 36;
       c.dead = false;
@@ -2363,6 +2381,10 @@
       if (!e.repeat && e.code === "KeyM") toggleMute();
       return;
     }
+    if (mode === "bind") {
+      e.preventDefault();
+      return;
+    }
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
     if (e.repeat) return;
     if (mode === "intro") {
@@ -2523,7 +2545,7 @@
 
   function togglePause() {
     if (mode === "intro") { skipIntro(); return; }
-    if (mode === "warp") return;
+    if (mode === "warp" || mode === "bind" || mode === "cliffs") return;
     if (mode === "play") {
       mode = "pause";
       show(screens.pause);
@@ -2555,6 +2577,78 @@
     landEra();
   }
 
+  function dropSprite(name) {
+    const spr = SPR[name];
+    if (!spr) return;
+    if (spr.canvas) {
+      spr.canvas.width = 1;
+      spr.canvas.height = 1;
+    }
+    delete SPR[name];
+  }
+
+  function drainFx() {
+    sparks.length = 0;
+    sparkPool.length = 0;
+    bits.length = 0;
+    bitPool.length = 0;
+    floats.length = 0;
+    stains.length = 0;
+  }
+
+  function unloadSwordCombat() {
+    clearWorld();
+    drainFx();
+    player.attacking = false;
+    player.rolling = false;
+    player.ducking = false;
+    player.blocking = false;
+    player.phase = null;
+    player.kind = null;
+    player.buffer = false;
+    player.combo = 0;
+    for (let i = 0; i < SWORD_PACK.length; i++) dropSprite(SWORD_PACK[i]);
+  }
+
+  function swordLoaded() {
+    return !!SPR.infantry && !!SPR["kael-idle"] && !!SPR.knight;
+  }
+
+  function missingSword() {
+    const out = [];
+    for (let i = 0; i < SWORD_PACK.length; i++) {
+      if (!SPR[SWORD_PACK[i]]) out.push(SWORD_PACK[i]);
+    }
+    return out;
+  }
+
+  function showBind(sub) {
+    const txt = screens.load && screens.load.querySelector(".load-txt");
+    if (txt) txt.textContent = "BINDING THE TETHER…";
+    const subEl = document.getElementById("load-sub");
+    if (subEl) subEl.textContent = sub || "";
+    show(screens.load);
+  }
+
+  function hideBind() {
+    hide(screens.load);
+    const subEl = document.getElementById("load-sub");
+    if (subEl) subEl.textContent = "";
+  }
+
+  function warmFlight() {
+    if (window.ROHCliffs && typeof window.ROHCliffs.preload === "function") {
+      window.ROHCliffs.preload();
+    }
+  }
+
+  function leaveFlight() {
+    if (window.ROHCliffs && typeof window.ROHCliffs.unload === "function") {
+      window.ROHCliffs.unload();
+    }
+    scene = "ground";
+  }
+
   function openCliffs(opts) {
     opts = opts || {};
     layoutStage();
@@ -2572,6 +2666,7 @@
     hideAllPlay();
     cliffsCleared = false;
     era = 5;
+    scene = "flight";
     if (!opts.keepLives) {
       const d = diffCfg();
       maxLives = d.cap;
@@ -2592,8 +2687,33 @@
     if (window.ROHCliffs) window.ROHCliffs.start({ lives: player.lives, muted: muted });
   }
 
+  function gotoFlight(opts) {
+    if (sceneBusy) return;
+    if (!window.ROHCliffs) {
+      cliffsCleared = true;
+      begin(false, 5);
+      return;
+    }
+    sceneBusy = true;
+    mode = "bind";
+    showBind("1940  ·  WASD FLY  ·  X BOMB");
+    if (ROH.musicStop) ROH.musicStop();
+    unloadSwordCombat();
+    const hold = new Promise((resolve) => setTimeout(resolve, 480));
+    const warm = window.ROHCliffs.preload ? window.ROHCliffs.preload() : Promise.resolve();
+    Promise.all([warm, hold]).then(() => {
+      hideBind();
+      openCliffs(opts);
+    }).catch((err) => {
+      console.error(err);
+      const txt = screens.load && screens.load.querySelector(".load-txt");
+      if (txt) txt.textContent = "TETHER FAILED — reload";
+    }).then(() => { sceneBusy = false; });
+  }
+
   function landFromCliffs(opts) {
     opts = opts || {};
+    leaveFlight();
     cliffsCleared = true;
     const lives = opts.lives > 0 ? opts.lives : player.lives;
     resetLevel({ era: 5, keepLives: true });
@@ -2608,6 +2728,7 @@
 
   function downFromCliffs(opts) {
     opts = opts || {};
+    leaveFlight();
     cliffsCleared = false;
     era = 5;
     if (opts.airScore) addScore(opts.airScore);
@@ -2633,6 +2754,7 @@
     hide(screens.title);
     hide(screens.how);
     hideAllPlay();
+    if (scene === "flight") leaveFlight();
     score = 0;
     scoreSaved = false;
     runStartedAt = Date.now();
@@ -2640,18 +2762,35 @@
     maxLives = d.cap;
     player.lives = d.lives;
     const n = startEra || (playIntro ? 1 : (era || 1));
-    if (n === 5) cliffsCleared = true;
-    resetLevel({ era: n });
-    if (playIntro && n === 1) {
-      mode = "intro";
-      introT = 0;
-      banner.t = 0;
-      sfx("intro");
-    } else {
-      mode = "play";
-      announce(eraBanner(n), 140);
-      if (ROH.musicStart && actx) ROH.musicStart(actx, master, n);
+    const land = () => {
+      if (n === 5) cliffsCleared = true;
+      resetLevel({ era: n });
+      if (playIntro && n === 1) {
+        mode = "intro";
+        introT = 0;
+        banner.t = 0;
+        sfx("intro");
+      } else {
+        mode = "play";
+        announce(eraBanner(n), 140);
+        if (ROH.musicStart && actx) ROH.musicStart(actx, master, n);
+      }
+    };
+    const need = n <= 3 ? missingSword() : [];
+    if (need.length) {
+      mode = "bind";
+      showBind(ERA_LABEL[n] || "");
+      loadNames(need).then(() => {
+        hideBind();
+        land();
+      }).catch((err) => {
+        console.error(err);
+        const txt = screens.load && screens.load.querySelector(".load-txt");
+        if (txt) txt.textContent = "TETHER FAILED — reload";
+      });
+      return;
     }
+    land();
   }
 
   function setWinCopy(n) {
@@ -2681,15 +2820,20 @@
 
   function startWarp(toEra) {
     addScore(1500);
+    warpTo = toEra || 2;
+    if (warpTo === 5 && window.ROHCliffs && !skipCliffs) {
+      gotoFlight({ keepLives: true });
+      return;
+    }
     mode = "warp";
     warpT = 0;
-    warpTo = toEra || 2;
     banner = { text: ERA_LABEL[warpTo] || "THE PALETTE TEARS", t: 130 };
     sfx("intro");
   }
 
   function toTitle() {
     persistSave();
+    if (scene === "flight") leaveFlight();
     hideAllPlay();
     show(screens.title);
     mode = "title";
@@ -2706,6 +2850,7 @@
     if (screens.board && screens.board.classList.contains("active")) { hide(screens.board); return true; }
     if (mode === "pause") { mode = "play"; hide(screens.pause); refreshKeys(); return true; }
     if (mode === "dead" || mode === "win") { toTitle(); return true; }
+    if (mode === "bind") return true;
     if (mode === "intro") { skipIntro(); return true; }
     if (mode === "play" || mode === "warp") { togglePause(); return true; }
     return false;
@@ -2770,7 +2915,7 @@
       if (i > eraCap()) return;
       hide(screens.eras);
       if (i === 5 && window.ROHCliffs) {
-        openCliffs({});
+        gotoFlight({});
         return;
       }
       begin(i === 1, i);
@@ -2794,7 +2939,7 @@
     player.lives = maxLives;
     persistSave();
     if (era === 5 && !cliffsCleared && window.ROHCliffs) {
-      openCliffs({ keepLives: true, freshScore: true });
+      gotoFlight({ keepLives: true, freshScore: true });
       return;
     }
     begin(false);
@@ -4453,7 +4598,7 @@
         const lives = player.lives;
         const next = warpTo || 2;
         if (next === 5 && window.ROHCliffs && !skipCliffs) {
-          openCliffs({ keepLives: true });
+          gotoFlight({ keepLives: true });
           return;
         }
         if (next === 5) cliffsCleared = true;
@@ -6592,7 +6737,7 @@
     if (mode === "intro") drawIntro();
     else if (mode === "warp") drawWarp();
     else if (mode === "play" || mode === "pause" || mode === "dead" || mode === "win") draw();
-    else if (mode === "cliffs") {
+    else if (mode === "cliffs" || mode === "bind") {
       ctx.fillStyle = "#061018";
       ctx.fillRect(0, 0, VW, VH);
     } else if (mode === "title") {
@@ -6639,6 +6784,9 @@
       difficulty,
       localPreview: isLocalPreview(),
       jurassic,
+      scene,
+      swordLoaded: swordLoaded(),
+      flightReady: !!(window.ROHCliffs && window.ROHCliffs.ready && window.ROHCliffs.ready()),
       covers: covers.length,
       shots: shots.filter((s) => !s.dead).map((s) => ({ type: s.type, x: s.x | 0, y: s.y | 0, vx: +(s.vx || 0).toFixed(1), friendly: !!s.friendly, life: s.life | 0, duck: s.duck || null })),
       nestCleared,
@@ -6658,6 +6806,7 @@
     skipIntro,
     begin,
     skipCliffs: () => { skipCliffs = true; },
+    scene: () => scene,
     title: () => toTitle(),
     dumpHorse: () => dumpHorse(),
     die: () => { player.hp = 0; loseLife(); },
