@@ -220,6 +220,10 @@
   const shots = [];
   const sparks = [];
   const sparkPool = [];
+  const bits = [];
+  const bitPool = [];
+  const HIT_PAUSE_FRAMES = 3;
+  const FEEL = { shakeX: 0, shakeY: 0, decay: 0.82 };
   const floats = [];
   const pickups = [];
   const flags = [];
@@ -947,6 +951,7 @@
     enemies.length = 0;
     shots.length = 0;
     sparks.length = 0;
+    while (bits.length) bitPool.push(bits.pop());
     floats.length = 0;
     pickups.length = 0;
     flags.length = 0;
@@ -962,6 +967,9 @@
     checkpoint = 80;
     shake = 0;
     shakeDecay = 0.82;
+    FEEL.shakeX = 0;
+    FEEL.shakeY = 0;
+    FEEL.decay = 0.82;
     hitstop = 0;
     time = 0;
     introT = 0;
@@ -1039,11 +1047,88 @@
     banner = { text, t: t || 110 };
   }
 
-  function bumpShake(n) {
-    if (n >= shake) {
-      shake = n;
-      shakeDecay = n >= 18 ? 0.91 : n >= 12 ? 0.88 : 0.82;
+  function bumpShake(n, dir) {
+    if (n < shake) return;
+    shake = n;
+    const d = dir == null ? (player.facing || 1) : (dir < 0 ? -1 : 1);
+    FEEL.shakeX = d * n * 0.55;
+    FEEL.shakeY = -n * 0.22;
+    FEEL.decay = n >= 18 ? 0.91 : n >= 12 ? 0.88 : 0.82;
+    shakeDecay = FEEL.decay;
+  }
+
+  function spawnBit(x, y, opts) {
+    const cap = perfLow ? 48 : 110;
+    if (bits.length >= cap) return;
+    const p = bitPool.pop() || {};
+    p.x = x;
+    p.y = y;
+    p.vx = opts.vx || 0;
+    p.vy = opts.vy || 0;
+    p.life = opts.life || 16;
+    p.max = opts.max || p.life;
+    p.s = opts.s || 2;
+    p.kind = opts.kind || "dust";
+    p.col = opts.col || "#c48a3c";
+    p.grav = opts.grav == null ? 0.12 : opts.grav;
+    p.rot = opts.rot || 0;
+    p.spin = opts.spin || 0;
+    p.w = opts.w || 0;
+    p.h = opts.h || 0;
+    bits.push(p);
+  }
+
+  function eraStrikeBurst(x, y, dir, heavy) {
+    if (perfLow || era !== 1) return;
+    const n = heavy ? 8 : 5;
+    for (let i = 0; i < n; i++) {
+      spawnBit(x + rand(-6, 6), y + rand(-4, 4), {
+        vx: dir * rand(0.2, 1.6) + rand(-0.8, 0.8),
+        vy: rand(-2.4, -0.2),
+        life: rand(12, 22),
+        s: rand(1.6, 3.4),
+        kind: "dust",
+        col: Math.random() < 0.5 ? "#c48a3c" : "#e0b060",
+        grav: 0.09,
+      });
     }
+  }
+
+  function coverBurst(x, y, vx, cover) {
+    const dir = vx >= 0 ? 1 : -1;
+    const bags = era === 4 || (cover && cover.kind === "bags");
+    if (!bags) {
+      spawnDust(x, y, 6);
+      return;
+    }
+    const n = perfLow ? 4 : 10;
+    for (let i = 0; i < n; i++) {
+      spawnBit(x + rand(-8, 8), y + rand(-6, 4), {
+        vx: dir * rand(0.4, 2.4) + rand(-0.6, 0.6),
+        vy: rand(-3.2, -0.4),
+        life: rand(14, 26),
+        s: rand(1.8, 3.6),
+        kind: "dust",
+        col: Math.random() < 0.5 ? "#c4a070" : "#8a6a40",
+        grav: 0.14,
+      });
+    }
+    const ns = perfLow ? 3 : 8;
+    for (let i = 0; i < ns; i++) {
+      spawnBit(x + rand(-4, 4), y + rand(-4, 2), {
+        vx: dir * rand(0.8, 3.2) + rand(-0.5, 0.5),
+        vy: rand(-3.6, -0.6),
+        life: rand(16, 28),
+        kind: "splinter",
+        col: Math.random() < 0.5 ? "#6a4424" : "#8a5a30",
+        grav: 0.16,
+        rot: rand(0, Math.PI),
+        spin: rand(-0.35, 0.35),
+        w: rand(4, 8),
+        h: rand(1.2, 2.2),
+      });
+    }
+    bumpShake(8, dir);
   }
 
   function sparkBurst(x, y, n, gold) {
@@ -1583,9 +1668,11 @@
       if (fromFront && player.blockT > 0 && player.blockT <= d.parry) {
         sfx("block");
         sparkBurst(player.x + player.facing * 12, player.y - 22, 10, true);
+        eraStrikeBurst(player.x + player.facing * 12, player.y - 22, player.facing, true);
         floatText(player.x, player.y - 52, "PARRY", "#ffe27a");
         player.invuln = 18;
-        bumpShake(5);
+        bumpShake(14, player.facing);
+        hitstop = Math.max(hitstop, HIT_PAUSE_FRAMES);
         let best = null;
         let bestD = 80;
         for (const e of enemies) {
@@ -2882,13 +2969,16 @@
         e.facing = -dir;
         sparkBurst(e.x, e.y - e.h * 0.5, power || player.combo === 3 ? 18 : 10, true);
         bloodBurst(e.x, e.y - e.h * 0.45, dir, power || player.combo === 3 ? 16 : 8, e.hp <= 0);
+        eraStrikeBurst(e.x, e.y - e.h * 0.5, dir, power || player.combo === 3);
         floatText(e.x + dir * 6, e.y - e.h - 6, "-" + spec.dmg, "#d23a3a");
         sfx("hit");
-        hitstop = mega ? 10 : player.kind === "heavy" ? 8 : player.combo === 3 ? 7 : 4;
-        if (mega) bumpShake(20);
-        else if (player.kind === "heavy") bumpShake(16);
-        else if (player.combo === 3) bumpShake(12);
-        else bumpShake(6);
+        hitstop = mega ? Math.max(10, HIT_PAUSE_FRAMES) : player.kind === "heavy" ? 8 : player.combo === 3 ? 7 : 4;
+        if (mega) {
+          bumpShake(20, dir);
+          hitstop = Math.max(hitstop, HIT_PAUSE_FRAMES);
+        } else if (player.kind === "heavy") bumpShake(16, dir);
+        else if (player.combo === 3) bumpShake(12, dir);
+        else bumpShake(6, dir);
         if (e.hp <= 0) killEnemy(e);
       }
     }
@@ -3861,9 +3951,11 @@
           continue;
         }
         if (s.type !== "arty" && s.type !== "bomb" && s.type !== "dronestrike" && s.type !== "divedrone" && s.type !== "ghosthorse" && s.type !== "chandelier") {
-          if (shotHitsCover(prevX, s.x, s.y)) {
-            sparkBurst(s.x, s.y, s.type === "rocket" || s.type === "shell" ? 14 : 6, true);
-            if (s.type === "rocket" || s.type === "shell") bumpShake(6);
+          const cover = shotHitsCover(prevX, s.x, s.y);
+          if (cover) {
+            sparkBurst(s.x, s.y, s.type === "rocket" || s.type === "shell" || s.type === "laneshot" || s.type === "ball" ? 14 : 6, true);
+            coverBurst(s.x, s.y, s.vx || 0, cover);
+            if (s.type === "rocket" || s.type === "shell") bumpShake(6, s.vx >= 0 ? 1 : -1);
             s.dead = true;
             continue;
           }
@@ -4040,8 +4132,21 @@
     for (const f of floats) { f.y -= 0.45; f.life--; }
     for (let i = floats.length - 1; i >= 0; i--) if (floats[i].life <= 0) floats.splice(i, 1);
     if (banner.t > 0) banner.t--;
-    if (shake > 0.15) shake *= shakeDecay;
-    else shake = 0;
+    FEEL.shakeX *= FEEL.decay;
+    FEEL.shakeY *= FEEL.decay;
+    if (Math.abs(FEEL.shakeX) < 0.12) FEEL.shakeX = 0;
+    if (Math.abs(FEEL.shakeY) < 0.12) FEEL.shakeY = 0;
+    shake = Math.hypot(FEEL.shakeX, FEEL.shakeY);
+    for (const b of bits) {
+      b.x += b.vx;
+      b.y += b.vy;
+      b.vy += b.grav;
+      b.rot += b.spin || 0;
+      b.life--;
+    }
+    for (let i = bits.length - 1; i >= 0; i--) {
+      if (bits[i].life <= 0) bitPool.push(bits.splice(i, 1)[0]);
+    }
     if (era === 4 && mode === "play") {
       const n = perfLow ? 1 : 2;
       for (let i = 0; i < n; i++) {
@@ -5748,9 +5853,7 @@
 
   function draw() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    const sx = shake > 0.4 ? (Math.random() - 0.5) * shake : 0;
-    const sy = shake > 0.4 ? (Math.random() - 0.5) * shake : 0;
-    ctx.translate(sx, sy);
+    ctx.translate(FEEL.shakeX, FEEL.shakeY);
 
     drawSky();
     if (era === 6) drawPresent();
@@ -6179,6 +6282,25 @@
       ctx.beginPath();
       ctx.arc(d.x - camX, d.y, d.s, 0, Math.PI * 2);
       ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    for (const b of bits) {
+      const a = Math.max(0, b.life / (b.max || 1));
+      ctx.globalAlpha = a;
+      const px = b.x - camX;
+      if (b.kind === "splinter") {
+        ctx.save();
+        ctx.translate(px, b.y);
+        ctx.rotate(b.rot);
+        ctx.fillStyle = b.col;
+        ctx.fillRect(-b.w * 0.5, -b.h * 0.5, b.w, b.h);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = b.col;
+        ctx.beginPath();
+        ctx.arc(px, b.y, b.s, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.globalAlpha = 1;
     }
     if (!perfLow) {

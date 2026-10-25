@@ -200,7 +200,7 @@
       W.pickups.push({ type: "hourglass", x: 3340, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3880, y: G - 18, taken: false });
       W.cannons.push({ x: 980, facing: -1, t: 20 }, { x: 1480, facing: 1, t: 70 }, { x: 2480, facing: -1, t: 40 }, { x: 3480, facing: 1, t: 10 });
-      placeCover(W, [700, 1180, 1760, 2320, 3080, 3680, 4080], "crate");
+      placeCover(W, [700, 1180, 1760, 2320, 3080, 3680, 4080], "bags");
       W.horse = { x: 0, y: G, hp: 0, maxHp: 120, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 4 };
       hops(W, 1336, 1, 60, 0);
       crossing(W, 2050, 140, [
