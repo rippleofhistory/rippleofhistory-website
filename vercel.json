@@ -8,8 +8,10 @@
   "rewrites": [
     { "source": "/api/latest-videos.json", "destination": "/api/latest-videos" },
     { "source": "/api/on-this-day-shorts.json", "destination": "/api/on-this-day-shorts" },
+    { "source": "/api/shop-unboxings.json", "destination": "/api/shop-unboxings" },
     { "source": "/api/shop-products.json", "destination": "/api/shop-products" },
-    { "source": "/api/leaderboard.json", "destination": "/api/leaderboard" }
+    { "source": "/api/leaderboard.json", "destination": "/api/leaderboard" },
+    { "source": "/api/tether.json", "destination": "/api/tether" }
   ],
   "headers": [
     {
@@ -23,6 +25,24 @@
     },
     {
       "source": "/api/leaderboard.json",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+      ]
+    },
+    {
+      "source": "/api/tether",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+      ]
+    },
+    {
+      "source": "/api/tether.json",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" },
         { "key": "Access-Control-Allow-Origin", "value": "*" },

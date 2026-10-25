@@ -11,6 +11,7 @@
   const LIVES_FLOOR = 3;
   const SAVE_KEY = "roh.save";
   const BOARD_KEY = "roh.board";
+  const TETHER_KEY = "roh.tether";
   const DIFF = {
     easy: { id: "easy", hp: 0.62, dmgIn: 0.5, dmgOut: 1.28, lives: 5, cap: 5, spd: 0.82, charge: 1.7, iFrames: 1.5, parry: 16, chip: 0.06, cd: 0.75, foes: 5 },
     medium: { id: "medium", hp: 1, dmgIn: 1, dmgOut: 1, lives: 3, cap: 5, spd: 1, charge: 1, iFrames: 1, parry: 10, chip: 0.12, cd: 1, foes: 6 },
@@ -674,7 +675,7 @@
     const lv = s.lives != null ? s.lives : d.lives;
     return clamp(lv, 1, maxLives);
   }
-  function persistSave() {
+  function persistSave(opts) {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({
         unlocked,
@@ -687,9 +688,12 @@
       }));
       localStorage.setItem("roh.unlocked", String(unlocked));
     } catch (err) { /* ignore quota */ }
+    queueTether(opts && opts.flush);
   }
   let score = 0;
   let scoreSaved = false;
+  let runStartedAt = 0;
+  let tetherTimer = 0;
 
   function addScore(n, label, x, y) {
     if (!n) return;
@@ -717,15 +721,89 @@
     return location.protocol === "file:";
   }
 
-  function boardApi() {
-    if (isNativeApp()) return "https://www.rippleofhistory.com/api/leaderboard";
+  function liveApi(path) {
+    if (isNativeApp()) return "https://www.rippleofhistory.com" + path;
     const host = location.hostname;
     const port = location.port;
-    if (location.protocol === "file:") return "https://www.rippleofhistory.com/api/leaderboard";
+    if (location.protocol === "file:") return "https://www.rippleofhistory.com" + path;
     if ((host === "localhost" || host === "127.0.0.1") && (port === "4173" || !port)) {
-      return "https://www.rippleofhistory.com/api/leaderboard";
+      return "https://www.rippleofhistory.com" + path;
     }
-    return "/api/leaderboard";
+    return path;
+  }
+  function boardApi() { return liveApi("/api/leaderboard"); }
+  function tetherApi() { return liveApi("/api/tether"); }
+
+  function newDeviceId() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (ch) => {
+      const n = Math.random() * 16 | 0;
+      return (ch === "x" ? n : (n & 3 | 8)).toString(16);
+    });
+  }
+  function deviceId() {
+    try {
+      let id = localStorage.getItem(TETHER_KEY) || "";
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return id;
+      id = newDeviceId();
+      localStorage.setItem(TETHER_KEY, id);
+      return id;
+    } catch (err) {
+      return "";
+    }
+  }
+  function queueTether(flush) {
+    if (isLocalPreview()) return;
+    if (flush) {
+      if (tetherTimer) { clearTimeout(tetherTimer); tetherTimer = 0; }
+      pushTether();
+      return;
+    }
+    if (tetherTimer) clearTimeout(tetherTimer);
+    tetherTimer = setTimeout(() => { tetherTimer = 0; pushTether(); }, 800);
+  }
+  function pushTether() {
+    if (isLocalPreview()) return;
+    const id = deviceId();
+    if (!id) return;
+    const livesNow = player.lives > 0 ? clamp(player.lives, 1, maxLives) : maxLives;
+    fetch(tetherApi(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        device_id: id,
+        unlocked,
+        lives: livesNow,
+        max_lives: maxLives,
+        insane_unlocked: insaneUnlocked,
+        difficulty,
+      }),
+    }).catch(() => {});
+  }
+  function pullTether() {
+    if (isLocalPreview()) return Promise.resolve();
+    const id = deviceId();
+    if (!id) return Promise.resolve();
+    return fetch(tetherApi() + "?device_id=" + encodeURIComponent(id), { cache: "no-store" }).then((res) => {
+      if (!res.ok) throw new Error("tether");
+      return res.json();
+    }).then((data) => {
+      const cloud = data && data.save;
+      if (!cloud) return;
+      const u = clamp(cloud.unlocked || 1, 1, 6);
+      if (u > unlocked) {
+        unlocked = u;
+        maxLives = Math.max(maxLives, clamp(cloud.max_lives || maxLives, 1, MAX_LIVES));
+        if (cloud.lives != null) player.lives = clamp(cloud.lives, 1, maxLives);
+      } else if (u === unlocked && cloud.lives > player.lives) {
+        player.lives = clamp(cloud.lives, 1, maxLives);
+      }
+      if (cloud.insane_unlocked) insaneUnlocked = true;
+      persistSave();
+      refreshEraSelect();
+      refreshTitleEra();
+      refreshDiff();
+    }).catch(() => {});
   }
 
   function loadBoard() {
@@ -788,7 +866,14 @@
     return fetch(boardApi(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, score, era }),
+      body: JSON.stringify({
+        name,
+        score,
+        era,
+        era_reached: era,
+        difficulty,
+        duration_ms: runStartedAt ? Math.max(0, Date.now() - runStartedAt) : null,
+      }),
     }).then((res) => {
       if (!res.ok) throw new Error("board");
       return res.json();
@@ -852,7 +937,7 @@
   function saveUnlock(n) {
     if (n > unlocked) {
       unlocked = n;
-      persistSave();
+      persistSave({ flush: true });
       refreshEraSelect();
       refreshTitleEra();
     }
@@ -2451,6 +2536,7 @@
     hideAllPlay();
     score = 0;
     scoreSaved = false;
+    runStartedAt = Date.now();
     const d = diffCfg();
     maxLives = d.cap;
     player.lives = d.lives;
@@ -4100,8 +4186,10 @@
         saveUnlock(6);
         if ((difficulty === "hard" || difficulty === "insane") && !insaneUnlocked) {
           insaneUnlocked = true;
-          persistSave();
+          persistSave({ flush: true });
           refreshDiff();
+        } else {
+          persistSave({ flush: true });
         }
         addScore(2500);
         ending = true;
@@ -6519,6 +6607,7 @@
       refreshMuteButtons();
       refreshDiff();
       refreshKeys();
+      pullTether();
       hide(screens.load);
       bindTouch();
       layoutStage();
