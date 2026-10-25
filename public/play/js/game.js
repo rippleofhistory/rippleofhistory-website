@@ -12,6 +12,9 @@
   const WIND_UP = 30;
   const MOUNT_UP = 10;
   const WRECK_T = 28;
+  const CANNON_BREAK = 32;
+  const CANNON_CYCLE = 90;
+  const CANNON_FIRE_AT = 56;
   const SAVE_KEY = "roh.save";
   const BOARD_KEY = "roh.board";
   const TETHER_KEY = "roh.tether";
@@ -1134,6 +1137,7 @@
     for (const c of cannons) {
       if (c.hp == null) c.hp = 36;
       c.dead = false;
+      c.breakT = 0;
     }
     resetPlayer(80);
     if (horse) {
@@ -1241,6 +1245,47 @@
       });
     }
     bumpShake(8, dir);
+  }
+
+  function breakCannon(c) {
+    if (!c || c.dead) return;
+    c.dead = true;
+    c.hp = 0;
+    c.breakT = CANNON_BREAK;
+    bumpShake(12);
+    floatText(c.x, GROUND - 36, "SPIKED", "#e6c35c");
+    sparkBurst(c.x, GROUND - 18, 18, true);
+    const n = perfLow ? 8 : 16;
+    for (let i = 0; i < n; i++) {
+      spawnBit(c.x + rand(-18, 18), GROUND - rand(6, 24), {
+        vx: rand(-3.2, 3.2),
+        vy: rand(-4.6, -0.9),
+        life: rand(22, 40),
+        kind: "splinter",
+        col: Math.random() < 0.4 ? "#3a3a38" : (Math.random() < 0.5 ? "#6a4424" : "#8a7a58"),
+        grav: 0.22,
+        rot: rand(0, Math.PI),
+        spin: rand(-0.42, 0.42),
+        w: rand(5, 13),
+        h: rand(1.6, 3.6),
+      });
+    }
+    const wheels = perfLow ? 2 : 4;
+    for (let i = 0; i < wheels; i++) {
+      spawnBit(c.x + rand(-12, 12), GROUND - 12, {
+        vx: rand(-2.6, 2.6),
+        vy: rand(-3.8, -1.1),
+        life: rand(26, 44),
+        kind: "splinter",
+        col: "#2a2620",
+        grav: 0.2,
+        rot: rand(0, Math.PI),
+        spin: rand(-0.55, 0.55),
+        w: rand(7, 12),
+        h: rand(6, 11),
+      });
+    }
+    spawnDust(c.x, GROUND - 2, 8);
   }
 
   function sparkBurst(x, y, n, gold) {
@@ -3484,6 +3529,7 @@
   }
 
   function holdAndThrow(e, adx, opts) {
+    if (e.stunT > 0) { e.stunT--; e.vx *= 0.85; return; }
     if (e.state === "flash") {
       e.flashT--;
       e.vx = 0;
@@ -3848,31 +3894,7 @@
         if (e.cd === 0) { e.state = "flash"; e.flashT = e.guarded ? 26 : 16; e.vx = 0; }
       }
     } else if (e.type === "lineinf") {
-      if (e.stunT > 0) { e.stunT--; e.vx *= 0.85; }
-      else if (e.state === "flash") {
-        e.flashT--;
-        e.vx = 0;
-        e.aim = "red";
-        if (e.flashT <= 0) {
-          e.state = "attack";
-          e.atkT = 18;
-          e.aim = null;
-          leadShot(e, 2.6, 13, "musket", "roll");
-        }
-      } else if (e.state === "attack") {
-        e.atkT--;
-        if (e.atkT <= 0) { e.state = "idle"; e.cd = 88; }
-      } else if (adx > 150) {
-        e.vx = e.facing * 0.7;
-        e.state = "walk";
-      } else if (adx < 70) {
-        e.vx = -e.facing * 0.55;
-        e.state = "walk";
-      } else {
-        e.vx = 0;
-        e.state = "idle";
-        if (e.cd === 0) beginWind(e, "red");
-      }
+      holdAndThrow(e, adx, { near: 50, far: 320, back: 0.4, chase: 0.75, wind: WIND_UP, cd: 48, atk: 14, aim: "red", fire: (en) => leadShot(en, 2.8, 13, "musket", "roll") });
     } else if (e.type === "lancer") {
       if (e.stunT > 0) { e.stunT--; e.vx *= 0.8; }
       else if (e.state === "flash") {
@@ -4173,7 +4195,7 @@
     } else if (e.type === "arbalist") {
       holdAndThrow(e, adx, { near: 110, far: 280, back: 0.6, chase: 0.5, wind: WIND_UP, cd: 92, aim: "gold", fire: (en) => leadShot(en, 4.4, 16, "bolt", "jump") });
     } else if (e.type === "voltigeur") {
-      holdAndThrow(e, adx, { near: 120, far: 300, back: 0.7, chase: 0.6, wind: WIND_UP, cd: 80, aim: "red", fire: (en) => leadShot(en, 4.6, 14, "musket", "roll") });
+      holdAndThrow(e, adx, { near: 70, far: 360, back: 0.5, chase: 0.65, wind: WIND_UP, cd: 42, aim: "red", fire: (en) => leadShot(en, 4.8, 14, "musket", "roll") });
     } else if (e.type === "sniper") {
       holdAndThrow(e, adx, { near: 180, far: 420, back: 0.55, chase: 0.45, wind: WIND_UP, cd: 100, aim: "red", fire: (en) => leadShot(en, 6.2, 18, "rifle", "roll") });
     } else if (e.type === "marksman") {
@@ -4355,12 +4377,7 @@
             sparkBurst(s.x, s.y, boom ? 16 : 8, true);
             sfx("hit");
             hit = true;
-            if (c.hp <= 0) {
-              c.dead = true;
-              c.hp = 0;
-              bumpShake(8);
-              floatText(c.x, GROUND - 36, "SPIKED", "#e6c35c");
-            }
+            if (c.hp <= 0) breakCannon(c);
             if (!boom) break;
           }
         }
@@ -4650,9 +4667,10 @@
     updateShots();
     if (era === 4) {
       for (const c of cannons) {
+        if (c.breakT > 0) c.breakT--;
         if (c.dead) continue;
         c.t++;
-        if (c.t % 150 === 96) {
+        if (c.t % CANNON_CYCLE === CANNON_FIRE_AT) {
           shots.push({
             type: "laneshot",
             x: c.x + c.facing * 20,
@@ -6255,13 +6273,20 @@
 
     for (const c of cannons) {
       if (c.dead) {
+        const p = Math.max(0, (c.breakT || 0) / CANNON_BREAK);
+        if (p <= 0 || !SPR.cannon) continue;
         ctx.save();
-        ctx.globalAlpha = 0.55;
-        blit(SPR.cannon, c.x, GROUND + 6, c.facing, 36, false, 0);
+        ctx.globalAlpha = p;
+        const dx = Math.round(c.x - camX);
+        ctx.translate(dx, GROUND + 4);
+        ctx.rotate((1 - p) * 0.95 * (c.facing || 1));
+        ctx.translate(-dx, -(GROUND + 4));
+        blit(SPR.cannon, c.x, GROUND + (1 - p) * 12, c.facing, 24 + p * 18, false, 0);
         ctx.restore();
         continue;
       }
-      const warn = (c.t % 150) > 60 && (c.t % 150) < 96;
+      const beat = c.t % CANNON_CYCLE;
+      const warn = beat > CANNON_FIRE_AT - 28 && beat < CANNON_FIRE_AT;
       blit(SPR.cannon, c.x, GROUND, c.facing, 42, warn && time % 6 < 3, 0);
       if (warn) {
         ctx.save();
@@ -6788,6 +6813,7 @@
       lifeDamaged,
       gateCleared,
       cannons: cannons.length,
+      cannonState: cannons.map((c) => ({ x: c.x | 0, hp: c.hp | 0, dead: !!c.dead, breakT: c.breakT | 0 })),
       rolling: !!player.rolling,
       ducking: !!player.ducking,
       invuln: player.invuln | 0,
@@ -6867,6 +6893,10 @@
     },
     unlock: (n) => saveUnlock(n),
     poke: (s) => shots.push(s),
+    spikeCannon: () => {
+      const c = cannons.find((n) => !n.dead);
+      if (c) breakCannon(c);
+    },
     smashGate: () => {
       const e = enemies.find((n) => n.type === "gate");
       if (e) killEnemy(e);
