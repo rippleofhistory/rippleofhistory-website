@@ -2,8 +2,8 @@
   "use strict";
   const R = (window.ROH = window.ROH || {});
 
-  R.BOSS_TYPES = ["boss", "centurion", "baron", "powder", "colonel", "rex", "fracture"];
-  R.SPECIAL_TYPES = ["elephant", "boss", "centurion", "baron", "gate", "powder", "mgnest", "armorcar", "colonel", "rex", "ifv", "fracture"];
+  R.BOSS_TYPES = ["boss", "centurion", "baron", "powder", "colonel", "rex", "cadre", "fracture"];
+  R.SPECIAL_TYPES = ["elephant", "boss", "centurion", "baron", "gate", "powder", "mgnest", "armorcar", "colonel", "rex", "cadre", "ifv", "fracture"];
 
   R.ENEMY_STATS = {
     spear: { hp: 34, w: 18, h: 38, dw: 50, dh: 52 },
@@ -34,6 +34,9 @@
     mgnest: { hp: 90, w: 52, h: 48, dw: 96, dh: 70, facing: 1 },
     armorcar: { hp: 110, w: 58, h: 42, dw: 100, dh: 56, guarded: true },
     colonel: { hp: 230, w: 50, h: 62, dw: 108, dh: 88, intro: 90, guarded: true },
+    nva: { hp: 36, w: 18, h: 40, dw: 50, dh: 54 },
+    vc: { hp: 32, w: 18, h: 40, dw: 50, dh: 54 },
+    cadre: { hp: 250, w: 50, h: 64, dw: 108, dh: 90, intro: 90, guarded: true },
     modinf: { hp: 38, w: 18, h: 40, dw: 52, dh: 54 },
     marksman: { hp: 28, w: 16, h: 40, dw: 52, dh: 54 },
     ifv: { hp: 140, w: 64, h: 44, dw: 110, dh: 58, guarded: true },

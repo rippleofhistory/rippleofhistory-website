@@ -149,6 +149,17 @@
     "kael6-block": "assets/kael6-block.jpg",
     "kael6-hurt": "assets/kael6-hurt.jpg",
     "kael6-death": "assets/kael6-death.jpg",
+    nva: "assets/nva.jpg",
+    vc: "assets/vc.jpg",
+    cadre: "assets/cadre.jpg",
+    "kael7-idle": "assets/kael7-idle.jpg",
+    "kael7-run": "assets/kael7-run.jpg",
+    "kael7-attack": "assets/kael7-attack.jpg",
+    "kael7-heavy": "assets/kael7-heavy.jpg",
+    "kael7-jump": "assets/kael7-jump.jpg",
+    "kael7-block": "assets/kael7-block.jpg",
+    "kael7-hurt": "assets/kael7-hurt.jpg",
+    "kael7-death": "assets/kael7-death.jpg",
     modinf: "assets/modinf.jpg",
     ifv: "assets/ifv.jpg",
     tank: "assets/tank.jpg",
@@ -161,6 +172,7 @@
     bg4: "assets/bg4.jpg",
     bg5: "assets/bg5.jpg",
     bg6: "assets/bg6.jpg",
+    bg7: "assets/bg7.jpg",
   };
 
   const keys = new Set();
@@ -201,6 +213,8 @@
   let droneT = 0;
   let ending = false;
   let pits = [];
+  let mines = [];
+  let trees = [];
   let slopes = [];
   let stains = [];
   let hurtFlash = 0;
@@ -469,10 +483,12 @@
       spr = downscale(spr, 120);
     } else if (name === "ifv" || name === "tank" || name === "wreck") {
       spr = downscale(spr, name === "tank" ? 160 : 140);
-    } else if (name === "rifleinf") {
+    } else if (name === "rifleinf" || name === "nva" || name === "vc") {
       spr = saturateSprite(spr, 1.65);
       spr = outlineSprite(spr, [16, 14, 20]);
       spr = downscale(spr, 120);
+    } else if (name === "cadre") {
+      spr = downscale(spr, 168);
     } else if (name === "mgnest") {
       spr = downscale(spr, 140);
     } else if (name === "armorcar" || name === "staffcar") {
@@ -681,13 +697,13 @@
 
   function loadUnlock() {
     const n = parseInt(localStorage.getItem("roh.unlocked") || "1", 10);
-    return n >= 1 && n <= 6 ? n : 1;
+    return n >= 1 && n <= 7 ? n : 1;
   }
   function loadSave() {
     let s = {};
     try { s = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}") || {}; } catch (err) { s = {}; }
     const legacy = loadUnlock();
-    unlocked = clamp(s.unlocked != null ? s.unlocked : legacy, 1, 6);
+    unlocked = clamp(s.unlocked != null ? s.unlocked : legacy, 1, 7);
     muted = !!s.muted;
     insaneUnlocked = !!s.insaneUnlocked;
     keysOn = s.keysOn !== false;
@@ -813,7 +829,7 @@
     }).then((data) => {
       const cloud = data && data.save;
       if (!cloud) return;
-      const u = clamp(cloud.unlocked || 1, 1, 6);
+      const u = clamp(cloud.unlocked || 1, 1, 7);
       if (u > unlocked) {
         unlocked = u;
         maxLives = Math.max(maxLives, clamp(cloud.max_lives || maxLives, 1, MAX_LIVES));
@@ -998,7 +1014,7 @@
     persistSave();
   }
   function eraCap() {
-    return isLocalPreview() ? 6 : unlocked;
+    return isLocalPreview() ? 7 : unlocked;
   }
   function refreshEraSelect() {
     const cap = eraCap();
@@ -1008,7 +1024,7 @@
         ? "Local preview — every era is open. The live game keeps them locked until you walk each rift door."
         : "Beaten eras stay bound. Locked eras wait on the rift door.";
     }
-    for (let i = 1; i <= 6; i++) {
+    for (let i = 1; i <= 7; i++) {
       const btn = document.getElementById("era-btn-" + i);
       if (!btn) continue;
       const open = i <= cap;
@@ -1098,6 +1114,8 @@
     jurassic = false;
     ending = false;
     pits.length = 0;
+    mines.length = 0;
+    trees.length = 0;
     slopes.length = 0;
     stains.length = 0;
     hurtFlash = 0;
@@ -1111,6 +1129,8 @@
       spawns,
       ledges,
       pits,
+      mines,
+      trees,
       slopes,
       cannons,
       searchlights,
@@ -1310,9 +1330,14 @@
     }
   }
 
+  function kaelPrefix() {
+    return era >= 7 ? "kael7-" : era === 6 ? "kael6-" : era === 5 ? "kael5-" : era === 4 ? "kael4-" : era === 3 ? "kael3-" : era === 2 ? "kael2-" : "kael-";
+  }
+
   function dustColor() {
     if (era === 4) return "rgba(232,240,248,0.7)";
-    if (era === 6) return "rgba(90,88,82,0.55)";
+    if (era === 7) return "rgba(90,88,82,0.55)";
+    if (era === 6) return "rgba(46,72,32,0.6)";
     if (era === 5 && jurassic) return "rgba(40,80,36,0.55)";
     if (era === 3) return "rgba(74,48,20,0.7)";
     if (era === 2) return "rgba(90,82,70,0.55)";
@@ -1548,8 +1573,8 @@
   function riderSeat() {
     const kind = (horse && horse.kind) || era;
     const facing = player.facing;
-    if (kind >= 6) return { sitH: 20, lift: 26, saddle: facing * 2, srcFrac: 0.48, squash: 0.92, baseLean: 0.04, vehicle: true };
-    if (kind === 5) return { sitH: 24, lift: 22, saddle: facing * 2, srcFrac: 0.48, squash: 0.9, baseLean: 0.05, vehicle: true };
+    if (kind >= 7) return { sitH: 20, lift: 26, saddle: facing * 2, srcFrac: 0.48, squash: 0.92, baseLean: 0.04, vehicle: true };
+    if (kind === 6 || kind === 5) return { sitH: 24, lift: 22, saddle: facing * 2, srcFrac: 0.48, squash: 0.9, baseLean: 0.05, vehicle: true };
     if (kind === 4) return { sitH: 26, lift: 30, saddle: facing * 28, srcFrac: 0.46, squash: 0.88, baseLean: 0.08, vehicle: true };
     return { sitH: 32, lift: 36, saddle: facing * 4, srcFrac: 0.46, squash: 0.86, baseLean: 0.1, vehicle: false };
   }
@@ -1671,7 +1696,7 @@
 
   function footGunSprite() {
     const heavy = player.kind === "heavy" || player.kind === "mega";
-    const p = era === 6 ? "kael6-" : era === 5 ? "kael5-" : era === 4 ? "kael4-" : "kael-";
+    const p = kaelPrefix();
     return SPR[p + (heavy ? "heavy" : "attack")] || SPR["kael-attack"];
   }
 
@@ -1712,8 +1737,8 @@
   }
 
   function gunMuzzles() {
-    if (isMounted() && horse.kind === 5) return jeepGunTips();
-    if (isMounted() && horse.kind === 6 && SPR.tank) {
+    if (isMounted() && (horse.kind === 5 || horse.kind === 6)) return jeepGunTips();
+    if (isMounted() && horse.kind === 7 && SPR.tank) {
       const m = spriteMuzzle(SPR.tank, 0.46);
       return [mountPoint(SPR.tank, 48, m.u, m.v)];
     }
@@ -1741,9 +1766,9 @@
 
   function firePistol() {
     const spec = currentSpec() || {};
-    const jeep = isMounted() && horse.kind === 5;
+    const jeep = isMounted() && (horse.kind === 5 || horse.kind === 6);
     const cart = isMounted() && horse.kind === 4;
-    const tank = isMounted() && horse.kind === 6;
+    const tank = isMounted() && horse.kind === 7;
     const dir = player.facing;
     const mouths = gunMuzzles();
     const muzzle = mouths[0];
@@ -1813,11 +1838,11 @@
       sfx("swing");
       return;
     }
-    const speed = era === 5 ? 11 : era === 6 ? 10 : 9;
+    const speed = era === 5 || era === 6 ? 11 : era === 7 ? 10 : 9;
     const count = spec.burst ? 3 : 1;
     for (let i = 0; i < count; i++) {
       pushRound({
-        type: era === 5 ? "rifle" : era === 6 ? "burst" : "musket",
+        type: era === 5 || era === 6 ? "rifle" : era === 7 ? "burst" : "musket",
         x: muzzle.x,
         y: muzzle.y,
         vx: dir * speed,
@@ -2017,7 +2042,7 @@
     player.attacking = false;
     player.phase = null;
     sfx("checkpoint");
-    announce(era === 6 ? "HULL DOWN" : era === 5 ? "VICKERS UP" : era === 4 ? "LIMBER UP" : era === 3 ? "THE IRON ROAD" : era === 2 ? "THE WHITE ROAD" : "THE STEED", 70);
+    announce(era === 7 ? "HULL DOWN" : era === 6 ? "GUNTRUCK UP" : era === 5 ? "VICKERS UP" : era === 4 ? "LIMBER UP" : era === 3 ? "THE IRON ROAD" : era === 2 ? "THE WHITE ROAD" : "THE STEED", 70);
     return true;
   }
 
@@ -2055,7 +2080,7 @@
     sparkBurst(player.x, player.y - 18, 22, true);
     coverBurst(player.x, player.y - 10, 1);
     bumpShake(16);
-    announce(era === 6 ? "HULL LOST" : era === 5 ? "THE JEEP BURNS" : era === 4 ? "THE LIMBER SPLITS" : "THE STEED FALLS", 80);
+    announce(era === 7 ? "HULL LOST" : era === 6 ? "THE TRUCK BURNS" : era === 5 ? "THE JEEP BURNS" : era === 4 ? "THE LIMBER SPLITS" : "THE STEED FALLS", 80);
     floatText(player.x, player.y - 56, "ON FOOT", "#ffe27a");
   }
 
@@ -2247,7 +2272,7 @@
   }
 
   function steerAwayFromHoles(e) {
-    if (e.ledge || e.type === "gate" || e.type === "mgnest" || e.type === "archer" || e.type === "colonel") return;
+    if (e.ledge || e.type === "gate" || e.type === "mgnest" || e.type === "archer" || e.type === "colonel" || e.type === "cadre") return;
     if (!onFloor(e)) return;
     snapOffHole(e);
     const lookDir = e.vx > 0.04 ? 1 : e.vx < -0.04 ? -1 : 0;
@@ -2399,7 +2424,7 @@
     const hb = { x: player.x - 28, y: player.y - 28, w: 56, h: 28 };
     for (const e of enemies) {
       if (e.hp <= 0 || e.deadT > 0) continue;
-      if (e.type !== "legionary" && e.type !== "archer" && e.type !== "manatarms" && e.type !== "crossbow" && e.type !== "knight" && e.type !== "lineinf" && e.type !== "lancer" && e.type !== "rifleinf" && e.type !== "duneinf" && e.type !== "raptor" && e.type !== "modinf" && e.type !== "javelin" && e.type !== "pilum" && e.type !== "arbalist" && e.type !== "voltigeur" && e.type !== "sniper" && e.type !== "marksman") continue;
+      if (e.type !== "legionary" && e.type !== "archer" && e.type !== "manatarms" && e.type !== "crossbow" && e.type !== "knight" && e.type !== "lineinf" && e.type !== "lancer" && e.type !== "rifleinf" && e.type !== "duneinf" && e.type !== "raptor" && e.type !== "modinf" && e.type !== "javelin" && e.type !== "pilum" && e.type !== "arbalist" && e.type !== "voltigeur" && e.type !== "sniper" && e.type !== "marksman" && e.type !== "nva" && e.type !== "vc") continue;
       if (e.trampleCd > 0) { e.trampleCd--; continue; }
       const box = bodyBox(e);
       if (!aabb(hb.x, hb.y, hb.w, hb.h, box.x, box.y, box.w, box.h)) continue;
@@ -2842,9 +2867,12 @@
     const h2 = document.querySelector("#win-screen h2");
     const hint = document.querySelector("#win-screen .hint");
     if (!h2 || !hint) return;
-    if (n === 6) {
+    if (n === 7) {
       h2.textContent = "THE LINE HOLDS";
       hint.innerHTML = "The crack is zipped shut.<br />Dawn on the street.";
+    } else if (n === 6) {
+      h2.textContent = "SEAL VI";
+      hint.innerHTML = "Era VI — Vietnam — is bound.<br />Walk the gold door to the next era.";
     } else if (n === 5) {
       h2.textContent = "SEAL V";
       hint.innerHTML = "Era V — World War II — is bound.<br />Walk the gold door to the next era.";
@@ -2953,7 +2981,7 @@
   }
   document.getElementById("btn-eras").addEventListener("click", () => { refreshEraSelect(); show(screens.eras); });
   document.getElementById("btn-era-close").addEventListener("click", () => hide(screens.eras));
-  for (let i = 1; i <= 6; i++) {
+  for (let i = 1; i <= 7; i++) {
     const btn = document.getElementById("era-btn-" + i);
     if (!btn) continue;
     btn.addEventListener("click", () => {
@@ -3123,7 +3151,7 @@
       moving = true;
     } else if (!player.blocking && !attackingLocked && player.hurtT === 0) {
       const spd = (mounted
-        ? (player.attacking ? 1.05 : (era === 6 ? 1.35 : era === 5 ? 4.15 : era === 4 ? 2.2 : era === 3 ? 2.45 : 3.55))
+        ? (player.attacking ? 1.05 : (era === 7 ? 1.35 : era === 6 ? 3.6 : era === 5 ? 4.15 : era === 4 ? 2.2 : era === 3 ? 2.45 : 3.55))
         : (player.attacking ? 0.7 : 2.15)) * (player.ducking ? 0.42 : 1);
       if (wantLeft()) { player.vx = -spd; player.facing = -1; moving = true; }
       else if (wantRight()) { player.vx = spd; player.facing = 1; moving = true; }
@@ -3133,7 +3161,7 @@
     }
 
     if (canAct && player.onGround && !player.blocking && !player.attacking && !player.rolling && (consumeTap("jump") || (wantJump() && tap.jump))) {
-      player.vy = era === 2 ? -7.2 : (era === 3 || era === 5 || era === 6) ? -6.8 : -6.35;
+      player.vy = era === 2 ? -7.2 : (era === 3 || era === 5 || era === 6 || era === 7) ? -6.8 : -6.35;
       player.onGround = false;
       sfx("jump");
     }
@@ -3161,7 +3189,7 @@
     if ((player.landT || 0) > 0) player.landT--;
 
     if (player.deadT === 0 && player.y > GROUND + 28) {
-      announce(era === 6 ? "THE CELLAR TAKES YOU" : era === 5 ? (jurassic ? "THE FERN TAKES YOU" : "THE DUNES TAKE YOU") : era === 4 ? "THE ICE TAKES YOU" : era === 3 ? "THE MOAT TAKES YOU" : era === 2 ? "THE CISTERN TAKES YOU" : "THE EARTH TAKES YOU", 80);
+      announce(era === 7 ? "THE CELLAR TAKES YOU" : era === 6 ? "THE PIT TAKES YOU" : era === 5 ? (jurassic ? "THE FERN TAKES YOU" : "THE DUNES TAKE YOU") : era === 4 ? "THE ICE TAKES YOU" : era === 3 ? "THE MOAT TAKES YOU" : era === 2 ? "THE CISTERN TAKES YOU" : "THE EARTH TAKES YOU", 80);
       player.hp = 0;
       loseLife();
       player.y = Math.min(player.y, GROUND + 46);
@@ -3172,7 +3200,7 @@
       horse.y = player.y;
       horse.facing = player.facing;
       trampleEnemies();
-      if (era === 6 && horse.kind === 6) {
+      if (era === 7 && horse.kind === 7) {
         for (const w of wrecks) {
           if (!w.alive) continue;
           if (Math.abs(player.x - w.x) < 42) {
@@ -3395,7 +3423,7 @@
       lock = null;
       doorOpen = true;
       placeExitDoor(Math.max(e.x + 140, player.x + 170));
-      announce(e.type === "fracture" ? "THE RIFT STILLS" : (e.type === "colonel" || e.type === "rex") ? "SEAL V" : e.type === "powder" ? "SEAL IV" : e.type === "baron" ? "SEAL III" : e.type === "centurion" ? "SEAL II" : "STONE REMEMBERS", 130);
+      announce(e.type === "fracture" ? "THE RIFT STILLS" : e.type === "cadre" ? "SEAL VI" : (e.type === "colonel" || e.type === "rex") ? "SEAL V" : e.type === "powder" ? "SEAL IV" : e.type === "baron" ? "SEAL III" : e.type === "centurion" ? "SEAL II" : "STONE REMEMBERS", 130);
       sfx("win");
       if (!lifeDamaged) {
         const d = diffCfg();
@@ -3415,7 +3443,8 @@
       if (e.type === "baron") saveUnlock(4);
       if (e.type === "powder") saveUnlock(5);
       if (e.type === "colonel" || e.type === "rex") saveUnlock(6);
-      if (e.type === "fracture") saveUnlock(6);
+      if (e.type === "cadre") saveUnlock(7);
+      if (e.type === "fracture") saveUnlock(7);
     }
     if (e.type === "mgnest") {
       nestCleared = true;
@@ -4200,6 +4229,47 @@
       holdAndThrow(e, adx, { near: 180, far: 420, back: 0.55, chase: 0.45, wind: WIND_UP, cd: 100, aim: "red", fire: (en) => leadShot(en, 6.2, 18, "rifle", "roll") });
     } else if (e.type === "marksman") {
       holdAndThrow(e, adx, { near: 150, far: 380, back: 0.7, chase: 0.55, wind: WIND_UP, cd: 84, aim: "red", fire: (en) => leadShot(en, 6.8, 16, "rifle", "roll") });
+    } else if (e.type === "nva" || e.type === "vc") {
+      if ((e.dropT || 0) > 0) {
+        e.dropT--;
+        e.vx = 0;
+      } else {
+        holdAndThrow(e, adx, { near: 70, far: 340, back: 0.55, chase: 0.7, wind: WIND_UP, cd: e.type === "vc" ? 40 : 46, atk: 12, aim: "red", fire: (en) => leadShot(en, 4.4, 12, "rifle", "roll") });
+      }
+    } else if (e.type === "cadre") {
+      if (e.stunT > 0) e.stunT--;
+      if (e.hp <= 125 && e.phase === 1) {
+        e.phase = 2;
+        announce("THE CADRE CALLS", 110);
+        brassSting();
+      }
+      if (e.stunT > 0) {
+        e.vx *= 0.8;
+      } else if (e.state === "flash") {
+        e.flashT--;
+        e.aim = "red";
+        e.vx = 0;
+        if (e.flashT <= 0) {
+          e.state = "attack";
+          e.atkT = 16;
+          e.aim = null;
+          leadShot(e, 5.2, 14, "rifle", "roll");
+          if (e.phase === 2) {
+            leadShot(e, 4.4, 12, "rifle", "roll");
+            shots.push({ type: "arty", x: player.x + rand(-24, 24), y: GROUND, warn: 42, r: 22, dmg: 16, life: 42 });
+          }
+        }
+      } else if (e.state === "attack") {
+        e.atkT--;
+        if (e.atkT <= 0) { e.state = "idle"; e.cd = e.phase === 2 ? 36 : 48; }
+      } else if (adx > 70) {
+        e.vx = e.facing * (e.phase === 2 ? 1.05 : 0.65);
+        e.state = "walk";
+        if (e.cd === 0) { e.state = "flash"; e.flashT = WIND_UP; e.vx = 0; }
+      } else {
+        e.vx = e.facing * 0.2;
+        if (e.cd === 0) { e.state = "flash"; e.flashT = WIND_UP; e.vx = 0; }
+      }
     }
 
     if (e.ledge) {
@@ -4444,8 +4514,11 @@
       } else if (era === 5) {
         saveUnlock(6);
         startWarp(6);
+      } else if (era === 6) {
+        saveUnlock(7);
+        startWarp(7);
       } else {
-        saveUnlock(6);
+        saveUnlock(7);
         if ((difficulty === "hard" || difficulty === "insane") && !insaneUnlocked) {
           insaneUnlocked = true;
           persistSave({ flush: true });
@@ -4455,7 +4528,7 @@
         }
         addScore(2500);
         ending = true;
-        setWinCopy(6);
+        setWinCopy(7);
         mode = "win";
         fillScoreScreens();
         show(screens.win);
@@ -4657,11 +4730,44 @@
         }
       }
     }
-    if (era === 6 && mode === "play") {
+    if (era === 7 && mode === "play") {
       droneT--;
       if (droneT <= 0) {
         droneT = 720;
         shots.push({ type: "divedrone", x: player.x + rand(-36, 36), y: -8, vx: 0, vy: 0, warn: 40, dmg: 16, life: 80 });
+      }
+    }
+    if (era === 6 && mode === "play") {
+      for (const m of mines) {
+        if (m.dead) {
+          if (m.boomT > 0) m.boomT--;
+          continue;
+        }
+        m.flash++;
+        if (player.deadT === 0 && player.onGround && Math.abs(player.x - m.x) < 14 && Math.abs(player.y - GROUND) < 10) {
+          m.dead = true;
+          m.boomT = 20;
+          sparkBurst(m.x, GROUND - 8, 22, true);
+          coverBurst(m.x, GROUND - 8, 1);
+          bumpShake(14);
+          hurtPlayer(26, 3.4, m.x);
+          announce("MINE", 40);
+          sfx("swing");
+        }
+      }
+      for (const t of trees) {
+        if (t.sprung) continue;
+        if (player.x > t.x - 72 && player.x < t.x + 86) {
+          t.sprung = true;
+          const e = makeEnemy(t.drop || "vc", t.x);
+          e.y = GROUND - 92;
+          e.vy = 1.6;
+          e.dropT = 22;
+          e.facing = player.x < t.x ? -1 : 1;
+          enemies.push(e);
+          announce("FROM THE TREES", 50);
+          sfx("checkpoint");
+        }
       }
     }
     updateShots();
@@ -4852,7 +4958,7 @@
     for (const p of pits) {
       const x = p.x - camX;
       if (x + p.w < -8 || x > VW + 8) continue;
-      ctx.fillStyle = era === 4 ? "#8aa0b0" : era === 6 ? "#2a2c30" : era === 5 ? "#0c0c0a" : era === 3 ? "#0a0806" : era === 2 ? "#1a1814" : "#4a3014";
+      ctx.fillStyle = era === 4 ? "#8aa0b0" : era === 7 ? "#2a2c30" : era === 6 ? "#0c1810" : era === 5 ? "#0c0c0a" : era === 3 ? "#0a0806" : era === 2 ? "#1a1814" : "#4a3014";
       ctx.fillRect(x, GROUND - 4, p.w, VH - GROUND + 10);
       ctx.fillStyle = "#060402";
       ctx.fillRect(x + 3, GROUND + 6, p.w - 6, 48);
@@ -4976,8 +5082,8 @@
     const kind = horse && horse.kind ? horse.kind : era;
     let ox = player.x - camX + dir * (riding ? 14 : 8) + (seat ? seat.saddle : 0);
     let oy = player.y - (riding ? seat.lift + 6 : 22);
-    if (riding && kind >= 6) { ox += dir * 26; oy = player.y - 22; }
-    else if (riding && kind === 5) { ox += dir * 16; oy = player.y - 18; }
+    if (riding && kind >= 7) { ox += dir * 26; oy = player.y - 22; }
+    else if (riding && (kind === 6 || kind === 5)) { ox += dir * 16; oy = player.y - 18; }
     else if (riding && kind === 4) { ox += dir * 10; oy = player.y - 28; }
     const gun = isGunSpec(spec);
     const t = player.phase === "wu" ? player.phaseT / Math.max(1, spec.wu) : player.phase === "active" ? 1 : 0.35;
@@ -5280,16 +5386,21 @@
 
   function drawSky() {
     const g = ctx.createLinearGradient(0, 0, 0, GROUND);
-    if (ending || (era === 6 && mode === "win")) {
+    if (ending || (era === 7 && mode === "win")) {
       g.addColorStop(0, "#6a88b0");
       g.addColorStop(0.4, "#c8a070");
       g.addColorStop(0.72, "#e8c090");
       g.addColorStop(1, "#f0d8b0");
-    } else if (era === 6) {
+    } else if (era === 7) {
       g.addColorStop(0, "#4a5460");
       g.addColorStop(0.4, "#6a7078");
       g.addColorStop(0.75, "#8a8884");
       g.addColorStop(1, "#9a9488");
+    } else if (era === 6) {
+      g.addColorStop(0, "#1a2438");
+      g.addColorStop(0.35, "#3a2848");
+      g.addColorStop(0.7, "#6a4830");
+      g.addColorStop(1, "#2a3a22");
     } else if (era === 5 && jurassic) {
       g.addColorStop(0, "#1a3a28");
       g.addColorStop(0.45, "#3a6a3a");
@@ -5359,7 +5470,7 @@
     ctx.restore();
 
     if (!SPR["bg" + era]) {
-      if (era === 6 && (ending || mode === "win")) {
+      if (era === 7 && (ending || mode === "win")) {
         const sun = ctx.createRadialGradient(400, 58, 4, 400, 58, 46);
         sun.addColorStop(0, "#ffd27a");
         sun.addColorStop(1, "rgba(255,140,60,0)");
@@ -5604,6 +5715,73 @@
     }
     const col = enemies.find((n) => n.type === "colonel" && n.hp > 0);
     if (col && SPR.staffcar) blit(SPR.staffcar, col.x - 56, GROUND, 1, 48, false, 0);
+  }
+
+  function drawJungle() {
+    if (!SPR["bg" + era]) {
+      ctx.fillStyle = "#16301c";
+      ctx.fillRect(0, 90, VW, GROUND - 90);
+      for (let i = 0; i < 8; i++) {
+        const x = ((i * 92 - camX * 0.28) % (VW + 70)) - 20;
+        ctx.fillStyle = i % 2 ? "#1a3a22" : "#142c1a";
+        ctx.fillRect(x + 10, 70, 10, GROUND - 70);
+        ctx.fillStyle = "#1e4a28";
+        ctx.beginPath();
+        ctx.ellipse(x + 15, 78, 28, 22, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  function drawNamHazards() {
+    if (era !== 6) return;
+    for (const t of trees) {
+      const x = t.x - camX;
+      if (x < -40 || x > VW + 40) continue;
+      ctx.fillStyle = "#3a2414";
+      ctx.fillRect(x - 5, GROUND - 78, 10, 78);
+      ctx.fillStyle = t.sprung ? "#2a5c32" : "#1e4a28";
+      ctx.beginPath();
+      ctx.ellipse(x, GROUND - 86, 22, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#163820";
+      ctx.beginPath();
+      ctx.ellipse(x - 10, GROUND - 74, 14, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (!t.sprung && time % 24 < 12) {
+        ctx.fillStyle = "rgba(230,195,92,0.45)";
+        ctx.fillRect(x - 2, GROUND - 96, 4, 4);
+      }
+    }
+    for (const m of mines) {
+      const x = m.x - camX;
+      if (x < -16 || x > VW + 16) continue;
+      if (m.dead) {
+        if (m.boomT > 0) {
+          const a = m.boomT / 20;
+          ctx.globalAlpha = a;
+          ctx.fillStyle = "#e6c35c";
+          ctx.beginPath();
+          ctx.arc(x, GROUND - 8, 10 + (20 - m.boomT), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#d23a3a";
+          ctx.beginPath();
+          ctx.arc(x, GROUND - 8, 6 + (20 - m.boomT) * 0.6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        continue;
+      }
+      const lit = (m.flash % 20) < 10;
+      ctx.fillStyle = "#2a2a22";
+      ctx.beginPath();
+      ctx.ellipse(x, GROUND - 3, 8, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = lit ? "#e6c35c" : "#d23a3a";
+      ctx.beginPath();
+      ctx.arc(x, GROUND - 6, lit ? 4 : 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   function drawPresent() {
@@ -5914,9 +6092,9 @@
 
   function drawSlopes() {
     if (!slopes.length) return;
-    const lip = era === 4 ? "#f7fbff" : era === 6 ? "#d0cec8" : era === 5 && jurassic ? "#8ed082" : era === 5 ? "#f6d48a" : era === 3 ? "#8a6840" : era === 2 ? "#c4b49a" : "#f6d090";
-    const fill = era === 4 ? "#d5e0ea" : era === 6 ? "#7a7874" : era === 5 && jurassic ? "#2a5c32" : era === 5 ? "#d09848" : era === 3 ? "#3a3020" : era === 2 ? "#6e6658" : "#d09848";
-    const shade = era === 4 ? "#8ea0b0" : era === 6 ? "#3a3836" : era === 5 && jurassic ? "#0c2412" : era === 5 ? "#7a4818" : era === 3 ? "#120e0a" : era === 2 ? "#2a2622" : "#7a4818";
+    const lip = era === 4 ? "#f7fbff" : era === 7 ? "#d0cec8" : era === 6 ? "#8ed082" : era === 5 && jurassic ? "#8ed082" : era === 5 ? "#f6d48a" : era === 3 ? "#8a6840" : era === 2 ? "#c4b49a" : "#f6d090";
+    const fill = era === 4 ? "#d5e0ea" : era === 7 ? "#7a7874" : era === 6 ? "#2a5c32" : era === 5 && jurassic ? "#2a5c32" : era === 5 ? "#d09848" : era === 3 ? "#3a3020" : era === 2 ? "#6e6658" : "#d09848";
+    const shade = era === 4 ? "#8ea0b0" : era === 7 ? "#3a3836" : era === 6 ? "#0c2412" : era === 5 && jurassic ? "#0c2412" : era === 5 ? "#7a4818" : era === 3 ? "#120e0a" : era === 2 ? "#2a2622" : "#7a4818";
     for (const s of slopes) {
       const x0 = s.x - camX;
       const x1 = s.x + s.w - camX;
@@ -5953,13 +6131,29 @@
   }
 
   function drawGround() {
-    if (era === 6) {
+    if (era === 7) {
       ctx.fillStyle = "#6a6864";
       ctx.fillRect(0, GROUND - 4, VW, VH - (GROUND - 4));
       const tile = SPR.concrete || SPR.cobble;
       if (tile) {
         ctx.save();
         ctx.globalAlpha = 0.82;
+        const tw = 128;
+        const start = -((camX) % tw);
+        for (let x = start; x < VW + tw; x += tw) {
+          ctx.drawImage(tile.canvas, x, GROUND - 2, tw, VH - GROUND + 4);
+        }
+        ctx.restore();
+      }
+      return;
+    }
+    if (era === 6) {
+      ctx.fillStyle = "#1c3a22";
+      ctx.fillRect(0, GROUND - 4, VW, VH - (GROUND - 4));
+      const tile = SPR.mud || SPR.ground;
+      if (tile) {
+        ctx.save();
+        ctx.globalAlpha = 0.78;
         const tw = 128;
         const start = -((camX) % tw);
         for (let x = start; x < VW + tw; x += tw) {
@@ -6081,7 +6275,7 @@
   }
 
   function kaelSprite() {
-    const p = era === 6 ? "kael6-" : era === 5 ? "kael5-" : era === 4 ? "kael4-" : era === 3 ? "kael3-" : era === 2 ? "kael2-" : "kael-";
+    const p = kaelPrefix();
     switch (player.anim) {
       case "run": {
         const g = gaitFrom(player.gait || player.runT || 0);
@@ -6132,13 +6326,13 @@
     ctx.fillText(String(score), VW / 2, 16);
     const touchHud = !!(document.getElementById("stage") && document.getElementById("stage").classList.contains("play-touch"));
     ctx.textAlign = "right";
-    ctx.fillText(era === 6 ? "ERA VI  TODAY" : era === 5 ? (jurassic ? "ERA V  JURASSIC" : "ERA V  1942") : era === 4 ? "ERA IV  NAPOLEON" : era === 3 ? "ERA III  KNIGHTS" : era === 2 ? "ERA II  ROME" : "ERA I  ALEXANDER", VW - 10, touchHud ? 44 : 16);
+    ctx.fillText(era === 7 ? "ERA VII  TODAY" : era === 6 ? "ERA VI  1969" : era === 5 ? (jurassic ? "ERA V  JURASSIC" : "ERA V  1942") : era === 4 ? "ERA IV  NAPOLEON" : era === 3 ? "ERA III  KNIGHTS" : era === 2 ? "ERA II  ROME" : "ERA I  ALEXANDER", VW - 10, touchHud ? 44 : 16);
 
     ctx.textAlign = "left";
     ctx.fillStyle = player.heavyCd > 0 ? "#5a4a28" : "#e6c35c";
     const vickers = era === 5 && isMounted();
-    const ready = vickers ? "VICKERS READY" : era === 6 ? "DRONE READY" : era === 5 ? "RIFLE READY" : era === 4 ? "PISTOL READY" : era === 3 ? "CLEAVE READY" : era === 2 ? "BASH READY" : "SPEAR READY";
-    const wait = vickers ? "VICKERS" : era === 6 ? "DRONE" : era === 5 ? "RIFLE" : era === 4 ? "PISTOL" : era === 3 ? "CLEAVE" : era === 2 ? "BASH" : "SPEAR";
+    const ready = vickers ? "VICKERS READY" : era === 7 ? "DRONE READY" : era === 6 ? "M16 READY" : era === 5 ? "RIFLE READY" : era === 4 ? "PISTOL READY" : era === 3 ? "CLEAVE READY" : era === 2 ? "BASH READY" : "SPEAR READY";
+    const wait = vickers ? "VICKERS" : era === 7 ? "DRONE" : era === 6 ? "LAW" : era === 5 ? "RIFLE" : era === 4 ? "PISTOL" : era === 3 ? "CLEAVE" : era === 2 ? "BASH" : "SPEAR";
     const showSteed = !!horse;
     if (showSteed) {
       const filled = (horse.hp || 0) / Math.max(1, horse.maxHp);
@@ -6147,7 +6341,7 @@
       ctx.fillStyle = callReady ? "#ffe27a" : "#8a7340";
       ctx.font = "6px Cinzel, serif";
       ctx.fillText(mountedNow
-        ? (era === 6 ? "TANK" : era === 5 ? "VICKERS" : era === 4 ? "CART" : "STEED")
+        ? (era === 7 ? "TANK" : era === 6 ? "GUNTRUCK" : era === 5 ? "VICKERS" : era === 4 ? "CART" : "STEED")
         : (callReady ? "MOUNT READY" : "MOUNT"), 8, 41);
       ctx.fillStyle = "#1a120c";
       ctx.fillRect(8, 43, 104, 7);
@@ -6166,7 +6360,7 @@
       ctx.fillText(player.heavyCd > 0 ? wait : ready, 8, 42);
     }
 
-    const boss = enemies.find((e) => (e.type === "boss" || e.type === "centurion" || e.type === "baron" || e.type === "powder" || e.type === "colonel" || e.type === "rex" || e.type === "fracture") && (e.hp > 0 || e.deadT > 0));
+    const boss = enemies.find((e) => (e.type === "boss" || e.type === "centurion" || e.type === "baron" || e.type === "powder" || e.type === "colonel" || e.type === "rex" || e.type === "cadre" || e.type === "fracture") && (e.hp > 0 || e.deadT > 0));
     if (boss && boss.hp > 0) {
       ctx.fillStyle = "rgba(0,0,0,0.45)";
       ctx.fillRect(VW / 2 - 80, 22, 160, 12);
@@ -6177,7 +6371,7 @@
       ctx.fillStyle = "#f3e2a0";
       ctx.font = "7px Cinzel, serif";
       ctx.textAlign = "center";
-      const name = boss.type === "fracture" ? "THE FRACTURE" : boss.type === "rex" ? "THE KING" : boss.type === "colonel" ? "RADIO COLONEL" : boss.type === "powder" ? "POWDER GENERAL" : boss.type === "baron" ? "CLOCKWORK BARON" : boss.type === "centurion" ? "CENTURION OF HOURS" : "MARBLE HETAIROI";
+      const name = boss.type === "fracture" ? "THE FRACTURE" : boss.type === "cadre" ? "THE CADRE" : boss.type === "rex" ? "THE KING" : boss.type === "colonel" ? "RADIO COLONEL" : boss.type === "powder" ? "POWDER GENERAL" : boss.type === "baron" ? "CLOCKWORK BARON" : boss.type === "centurion" ? "CENTURION OF HOURS" : "MARBLE HETAIROI";
       ctx.fillText(name + "  ·  PH " + boss.phase, VW / 2, 20);
     }
 
@@ -6223,7 +6417,8 @@
     ctx.translate(FEEL.shakeX, FEEL.shakeY);
 
     drawSky();
-    if (era === 6) drawPresent();
+    if (era === 7) drawPresent();
+    else if (era === 6) drawJungle();
     else if (era === 5) {
       if (jurassic) drawFern();
       else drawDunes();
@@ -6239,6 +6434,7 @@
     if (era === 2) drawAqueduct();
     drawLedges();
     drawCovers();
+    drawNamHazards();
 
     for (const st of stains) {
       ctx.globalAlpha = Math.min(1, Math.max(0, st.a * Math.min(1, st.life / 400)));
@@ -6345,6 +6541,9 @@
       if (e.type === "mgnest") { spr = SPR.mgnest; dh = 70; }
       if (e.type === "armorcar") { spr = SPR.armorcar; dh = 56; }
       if (e.type === "colonel") { spr = SPR.colonel; dh = 88; }
+      if (e.type === "nva") { spr = SPR.nva || SPR.rifleinf; dh = 54; }
+      if (e.type === "vc") { spr = SPR.vc || SPR.rifleinf; dh = 54; }
+      if (e.type === "cadre") { spr = SPR.cadre || SPR.colonel; dh = 90; }
       if (e.type === "modinf") { spr = SPR.modinf; dh = 54; }
       if (e.type === "marksman") { spr = SPR.modinf; dh = 54; }
       if (e.type === "ifv") { spr = SPR.ifv; dh = 58; }
@@ -6429,16 +6628,16 @@
     if (isMounted() || isMounting() || isWrecking()) {
       const hx = isMounted() || isMounting() ? player.x : horse.x;
       const hy = isMounted() || isMounting() ? player.y : horse.y;
-      const hs = (era === 6 || horse.kind === 6) ? (SPR.tank || SPR.horse)
-        : (era === 5 || horse.kind === 5) ? (SPR.jeep || SPR.horse)
+      const hs = (era === 7 || horse.kind === 7) ? (SPR.tank || SPR.horse)
+        : (era === 6 || horse.kind === 6 || era === 5 || horse.kind === 5) ? (SPR.jeep || SPR.horse)
         : (era === 4 || horse.kind === 4) ? (SPR.cart || SPR.horse)
         : (era === 3 || horse.kind === 3) ? (SPR.horse3 || SPR.horse) : SPR.horse;
       ctx.save();
       if (isMounting()) ctx.globalAlpha = 1 - horse.mountT / MOUNT_UP;
       if (isWrecking()) ctx.globalAlpha = Math.max(0.15, horse.wreckT / WRECK_T);
-      drawBlobShadow(hx, hy + 2, horse.kind >= 6 ? 22 : horse.kind === 5 ? 18 : horse.kind === 4 ? 20 : 16);
-      blitMount(hs, hx, hy + 2, horse.facing || player.facing, (era === 6 || horse.kind === 6) ? 48 : (era === 5 || horse.kind === 5) ? 42 : (era === 4 || horse.kind === 4) ? 64 : 58);
-      if (horse.kind === 5 && isMounted()) drawJeepGuns();
+      drawBlobShadow(hx, hy + 2, horse.kind >= 7 ? 22 : horse.kind >= 5 ? 18 : horse.kind === 4 ? 20 : 16);
+      blitMount(hs, hx, hy + 2, horse.facing || player.facing, (era === 7 || horse.kind === 7) ? 48 : (era === 6 || horse.kind === 6 || era === 5 || horse.kind === 5) ? 42 : (era === 4 || horse.kind === 4) ? 64 : 58);
+      if ((horse.kind === 5 || horse.kind === 6) && isMounted()) drawJeepGuns();
       ctx.restore();
     }
 
@@ -6477,8 +6676,8 @@
         ctx.restore();
       }
       drawSwing();
-      if (era === 6 && player.attacking && (player.kind === "heavy" || player.kind === "mega") && player.phase === "wu") {
-        const tankAim = !!(horse && horse.mounted && horse.kind === 6);
+      if ((era === 6 || era === 7) && player.attacking && (player.kind === "heavy" || player.kind === "mega") && player.phase === "wu") {
+        const tankAim = !!(horse && horse.mounted && horse.kind === 7);
         const aim = gunMuzzles()[0];
         ctx.save();
         ctx.strokeStyle = tankAim ? "rgba(230,195,92,0.8)" : "rgba(243,226,160,0.55)";
@@ -6699,7 +6898,7 @@
       ctx.globalCompositeOperation = "lighter";
       for (const m of motes) {
         ctx.globalAlpha = Math.max(0, m.life / (m.max || 140)) * 0.35;
-        ctx.fillStyle = era === 4 ? "#e8f0f8" : era === 3 ? "#9ab0c8" : era === 6 ? "#e6c35c" : "#ffe27a";
+        ctx.fillStyle = era === 4 ? "#e8f0f8" : era === 3 ? "#9ab0c8" : era === 7 ? "#e6c35c" : era === 6 ? "#9ed082" : "#ffe27a";
         ctx.fillRect(m.x - camX, m.y, m.s, m.s);
       }
       ctx.restore();
@@ -6749,7 +6948,7 @@
     if (!perfLow) {
       const vg = ctx.createRadialGradient(VW * 0.5, VH * 0.52, 70, VW * 0.5, VH * 0.52, 280);
       vg.addColorStop(0, "rgba(0,0,0,0)");
-      vg.addColorStop(1, era === 3 ? "rgba(0,0,4,0.38)" : era === 6 ? "rgba(4,0,10,0.32)" : "rgba(0,0,0,0.26)");
+      vg.addColorStop(1, era === 3 ? "rgba(0,0,4,0.38)" : era === 7 ? "rgba(4,0,10,0.32)" : era === 6 ? "rgba(0,8,4,0.3)" : "rgba(0,0,0,0.26)");
       ctx.fillStyle = vg;
       ctx.fillRect(0, 0, VW, VH);
     }
@@ -6832,6 +7031,8 @@
       shots: shots.filter((s) => !s.dead).map((s) => ({ type: s.type, x: s.x | 0, y: s.y | 0, vx: +(s.vx || 0).toFixed(1), friendly: !!s.friendly, life: s.life | 0, duck: s.duck || null })),
       nestCleared,
       pits: pits.length,
+      mines: mines.map((m) => ({ x: m.x | 0, dead: !!m.dead, boomT: m.boomT | 0 })),
+      trees: trees.map((t) => ({ x: t.x | 0, sprung: !!t.sprung, drop: t.drop })),
       slopes: slopes.length,
       floor: floorY(player.x) | 0,
     }),
@@ -6885,6 +7086,12 @@
       hide(screens.title);
       hideAllPlay();
       resetLevel({ era: 6, keepLives: true });
+      mode = "play";
+    },
+    era7: () => {
+      hide(screens.title);
+      hideAllPlay();
+      resetLevel({ era: 7, keepLives: true });
       mode = "play";
     },
     smashNest: () => {

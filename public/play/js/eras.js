@@ -2,7 +2,7 @@
   "use strict";
   const R = (window.ROH = window.ROH || {});
 
-  R.ERA_LABEL = ["", "ERA I  ·  ALEXANDER", "ERA II  ·  ROME", "ERA III  ·  KNIGHTS", "ERA IV  ·  NAPOLEON", "ERA V  ·  WORLD WAR II", "ERA VI  ·  TODAY"];
+  R.ERA_LABEL = ["", "ERA I  ·  ALEXANDER", "ERA II  ·  ROME", "ERA III  ·  KNIGHTS", "ERA IV  ·  NAPOLEON", "ERA V  ·  WORLD WAR II", "ERA VI  ·  VIETNAM", "ERA VII  ·  TODAY"];
 
   R.WEAPONS = {
     light: {
@@ -32,6 +32,11 @@
         { wu: 6, act: 4, rec: 12, dmg: 20, kb: 2.8, range: 480, lift: 0, shot: true },
       ],
       6: [
+        { wu: 5, act: 4, rec: 9, dmg: 15, kb: 2.3, range: 480, lift: 0, shot: true },
+        { wu: 4, act: 4, rec: 8, dmg: 17, kb: 2.5, range: 480, lift: 0, shot: true },
+        { wu: 5, act: 4, rec: 10, dmg: 19, kb: 2.7, range: 480, lift: 0, shot: true, burst: true },
+      ],
+      7: [
         { wu: 4, act: 4, rec: 8, dmg: 12, kb: 2.0, range: 480, lift: 0, shot: true },
         { wu: 3, act: 4, rec: 7, dmg: 13, kb: 2.1, range: 480, lift: 0, shot: true },
         { wu: 4, act: 5, rec: 8, dmg: 15, kb: 2.4, range: 480, lift: 0, shot: true, burst: true },
@@ -43,7 +48,8 @@
       3: { wu: 8, act: 12, rec: 18, dmg: 24, kb: 6.2, range: 62, lift: -1.2, cd: 84, tall: 36 },
       4: { wu: 10, act: 6, rec: 18, dmg: 8, kb: 3.2, range: 220, lift: 0, cd: 72, shot: true, shotgun: true, pellets: 6 },
       5: { wu: 14, act: 8, rec: 20, dmg: 42, kb: 5.2, range: 480, lift: 0, cd: 86, shot: true, bazooka: true },
-      6: { wu: 8, act: 6, rec: 16, dmg: 9, kb: 3.4, range: 200, lift: 0, cd: 68, shot: true, shotgun: true, pellets: 6 },
+      6: { wu: 13, act: 8, rec: 18, dmg: 40, kb: 5.0, range: 480, lift: 0, cd: 82, shot: true, bazooka: true },
+      7: { wu: 8, act: 6, rec: 16, dmg: 9, kb: 3.4, range: 200, lift: 0, cd: 68, shot: true, shotgun: true, pellets: 6 },
     },
     mega: {
       1: { wu: 10, act: 14, rec: 22, dmg: 42, kb: 8.2, range: 62, lift: -3.6, tall: 52, overhead: true, mega: true, cd: 96 },
@@ -51,7 +57,8 @@
       3: { wu: 10, act: 16, rec: 22, dmg: 46, kb: 8.6, range: 72, lift: -3.2, tall: 48, overhead: true, mega: true, cd: 100 },
       4: { wu: 12, act: 8, rec: 22, dmg: 46, kb: 6.0, range: 480, lift: 0, shot: true, bazooka: true, mega: true, cd: 100 },
       5: { wu: 16, act: 8, rec: 22, dmg: 58, kb: 6.4, range: 480, lift: 0, shot: true, bazooka: true, mega: true, cd: 110 },
-      6: { wu: 12, act: 8, rec: 20, dmg: 54, kb: 6.2, range: 480, lift: 0, shot: true, bazooka: true, mega: true, cd: 104 },
+      6: { wu: 14, act: 8, rec: 20, dmg: 52, kb: 6.0, range: 480, lift: 0, shot: true, bazooka: true, mega: true, cd: 104 },
+      7: { wu: 12, act: 8, rec: 20, dmg: 54, kb: 6.2, range: 480, lift: 0, shot: true, bazooka: true, mega: true, cd: 104 },
     },
   };
 
@@ -263,14 +270,55 @@
       return;
     }
     if (n === 6) {
-      W.banner = { text: "ERA VI  TODAY", t: 160 };
+      W.banner = { text: "1969  THE JUNGLE", t: 160 };
+      W.flags.push({ x: 360, y: G, on: false }, { x: 2860, y: G, on: false });
+      W.pickups.push({ type: "plus", x: 880, y: G - 18, taken: false });
+      W.pickups.push({ type: "plus", x: 2280, y: G - 18, taken: false });
+      W.pickups.push({ type: "hourglass", x: 3460, y: G - 20, taken: false });
+      W.pickups.push({ type: "plus", x: 3920, y: G - 18, taken: false });
+      W.horse = { x: 0, y: G, hp: 0, maxHp: 140, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 6 };
+      placeCover(W, [700, 1760, 2320, 3080, 3720], "frond");
+      hops(W, 1080, 2, 48, 36);
+      crossing(W, 1680, 180, [
+        { x: 1692, w: 46, y: 192, kind: "wood" },
+        { x: 1750, w: 40, y: 166, kind: "wood", fragile: true },
+        { x: 1808, w: 44, y: 188, kind: "wood" },
+      ]);
+      hops(W, 2480, 1, 56, 0);
+      crossing(W, 3180, 160, [
+        { x: 3192, w: 46, y: 190, kind: "wood" },
+        { x: 3252, w: 40, y: 164, kind: "wood", moveAmp: 16, moveSpd: 0.03 },
+        { x: 3310, w: 44, y: 188, kind: "wood", fragile: true },
+      ]);
+      hops(W, 4220, 1, 80, 0);
+      ledge(W, { x: 2388, w: 58, y: 178, kind: "wood" });
+      hill(W, 500, 160, 24);
+      hill(W, 1340, 180, 26);
+      hill(W, 2140, 200, 28);
+      hill(W, 4000, 180, 26);
+      [760, 1400, 2060, 2740, 3640].forEach((x) => W.mines.push({ x, flash: 0, dead: false, boomT: 0 }));
+      [
+        [640, "vc"], [960, "nva"], [1540, "vc"], [1900, "nva"],
+        [2320, "vc"], [2940, "nva"], [3500, "vc"], [3980, "nva"],
+      ].forEach(([x, drop]) => W.trees.push({ x, sprung: false, drop }));
+      spawn(W, [
+        [520, "nva"], [800, "vc"], [1280, "nva"],
+        [1480, "vc"], [1880, "nva"], [2200, "vc"],
+        [2640, "nva"], [3000, "vc"],
+        [3400, "nva"], [3760, "vc"], [4080, "nva"],
+        [4560, "cadre"],
+      ]);
+      return;
+    }
+    if (n === 7) {
+      W.banner = { text: "ERA VII  TODAY", t: 160 };
       W.flags.push({ x: 360, y: G, on: false }, { x: 2860, y: G, on: false });
       W.pickups.push({ type: "plus", x: 880, y: G - 18, taken: false });
       W.pickups.push({ type: "plus", x: 2280, y: G - 18, taken: false });
       W.pickups.push({ type: "hourglass", x: 3340, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3920, y: G - 18, taken: false });
       [640, 980, 1320, 2360, 2680, 3480, 3820].forEach((x) => W.wrecks.push({ x, alive: true }));
-      W.horse = { x: 0, y: G, hp: 0, maxHp: 200, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 6 };
+      W.horse = { x: 0, y: G, hp: 0, maxHp: 200, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 7 };
       W.droneT = 720;
       hops(W, 2088, 1, 64, 0);
       crossing(W, 1560, 200, [
