@@ -276,7 +276,7 @@
       W.pickups.push({ type: "plus", x: 2280, y: G - 18, taken: false });
       W.pickups.push({ type: "hourglass", x: 3460, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3920, y: G - 18, taken: false });
-      W.horse = { x: 0, y: G, hp: 0, maxHp: 140, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 6 };
+      W.horse = { x: 0, y: G, hp: 0, maxHp: 160, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 6 };
       placeCover(W, [700, 1760, 2320, 3080, 3720], "frond");
       hops(W, 1080, 2, 48, 36);
       crossing(W, 1680, 180, [

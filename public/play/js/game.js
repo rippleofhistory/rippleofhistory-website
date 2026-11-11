@@ -12,6 +12,9 @@
   const WIND_UP = 30;
   const MOUNT_UP = 10;
   const WRECK_T = 28;
+  const HUEY_HOVER = 112;
+  const HUEY_MOUNT_UP = 26;
+  const HUEY_WRECK = 72;
   const CANNON_BREAK = 32;
   const CANNON_CYCLE = 90;
   const CANNON_FIRE_AT = 56;
@@ -138,6 +141,7 @@
     mgnest: "assets/mgnest.jpg",
     armorcar: "assets/armorcar.jpg",
     jeep: "assets/jeep.jpg",
+    huey: "assets/huey.jpg",
     colonel: "assets/colonel.jpg",
     cobble: "assets/cobble.jpg",
     staffcar: "assets/staffcar.jpg",
@@ -196,6 +200,7 @@
     "manatarms", "crossbow", "knight", "baron", "horse3", "gate", "mud", "palisade", "keep", "bg3",
   ];
   let horse = null;
+  let bailT = 0;
   let jurassic = false;
   let ledges = [];
   let villaX = 0;
@@ -496,6 +501,9 @@
     } else if (name === "jeep") {
       spr = outlineSprite(spr, [14, 12, 16]);
       spr = downscale(spr, 130);
+    } else if (name === "huey") {
+      spr = outlineSprite(spr, [16, 14, 18]);
+      spr = downscale(spr, 168);
     } else if (name === "lineinf") {
       spr = saturateSprite(spr, 1.45);
       spr = outlineSprite(spr, [16, 14, 20]);
@@ -1098,6 +1106,7 @@
     time = 0;
     introT = 0;
     horse = null;
+    bailT = 0;
     villaX = 0;
     gateCleared = false;
     rain.length = 0;
@@ -1503,6 +1512,9 @@
   }
 
   function bodyBox(e) {
+    if (e === player && isHueyAir() && !isMounting()) {
+      return { x: player.x - 40, y: player.y - 36, w: 80, h: 40 };
+    }
     return { x: e.x - e.w / 2, y: e.y - e.h, w: e.w, h: e.h };
   }
 
@@ -1523,6 +1535,12 @@
   }
   function isWrecking() {
     return !!(horse && (horse.wreckT || 0) > 0);
+  }
+  function isHuey() {
+    return !!(horse && horse.kind === 6);
+  }
+  function isHueyAir() {
+    return isHuey() && (isMounted() || isMounting());
   }
   function isGoldAim(aim) {
     return aim === "gold" || aim === "low" || aim === "jump";
@@ -1574,7 +1592,8 @@
     const kind = (horse && horse.kind) || era;
     const facing = player.facing;
     if (kind >= 7) return { sitH: 20, lift: 26, saddle: facing * 2, srcFrac: 0.48, squash: 0.92, baseLean: 0.04, vehicle: true };
-    if (kind === 6 || kind === 5) return { sitH: 24, lift: 22, saddle: facing * 2, srcFrac: 0.48, squash: 0.9, baseLean: 0.05, vehicle: true };
+    if (kind === 6) return { sitH: 20, lift: 18, saddle: facing * 8, srcFrac: 0.48, squash: 0.9, baseLean: 0.03, vehicle: true };
+    if (kind === 5) return { sitH: 24, lift: 22, saddle: facing * 2, srcFrac: 0.48, squash: 0.9, baseLean: 0.05, vehicle: true };
     if (kind === 4) return { sitH: 26, lift: 30, saddle: facing * 28, srcFrac: 0.46, squash: 0.88, baseLean: 0.08, vehicle: true };
     return { sitH: 32, lift: 36, saddle: facing * 4, srcFrac: 0.46, squash: 0.86, baseLean: 0.1, vehicle: false };
   }
@@ -1627,8 +1646,14 @@
 
   function mountPose(dh) {
     const kind = (horse && horse.kind) || era;
-    const vehicle = kind >= 4;
     const facing = (horse && horse.facing) || player.facing;
+    if (kind === 6) {
+      const wreck = isWrecking() ? 1 - Math.min(1, horse.wreckT / HUEY_WRECK) : 0;
+      const bob = isWrecking() ? 0 : Math.sin(time * 0.22) * 1.5;
+      const pitch = isWrecking() ? wreck * 0.55 * (facing < 0 ? -1 : 1) : Math.sin(time * 0.1) * 0.025 * (facing < 0 ? -1 : 1);
+      return { facing, bob, pitch, squash: 1, h: dh || 56 };
+    }
+    const vehicle = kind >= 4;
     const gallop = Math.abs(player.vx) > 0.45;
     const gait = time * (gallop ? 0.5 : 0.14);
     const bob = Math.sin(gait) * (gallop ? (vehicle ? 1.6 : 3.6) : (vehicle ? 0.5 : 1.15));
@@ -1712,6 +1737,12 @@
     return [mountPoint(spr, 42, 0.99, 0.38), mountPoint(spr, 42, 0.99, 0.47)];
   }
 
+  function hueyGunTips() {
+    const spr = SPR.huey;
+    if (!spr) return [{ x: player.x + player.facing * 16, y: player.y - 12 }];
+    return [mountPoint(spr, 56, 0.74, 0.58)];
+  }
+
   function riderPoint(spr, u, v) {
     const seat = riderSeat();
     const pose = mountPose(58);
@@ -1737,7 +1768,8 @@
   }
 
   function gunMuzzles() {
-    if (isMounted() && (horse.kind === 5 || horse.kind === 6)) return jeepGunTips();
+    if (isMounted() && horse.kind === 6) return hueyGunTips();
+    if (isMounted() && horse.kind === 5) return jeepGunTips();
     if (isMounted() && horse.kind === 7 && SPR.tank) {
       const m = spriteMuzzle(SPR.tank, 0.46);
       return [mountPoint(SPR.tank, 48, m.u, m.v)];
@@ -1766,12 +1798,48 @@
 
   function firePistol() {
     const spec = currentSpec() || {};
-    const jeep = isMounted() && (horse.kind === 5 || horse.kind === 6);
+    const huey = isMounted() && horse.kind === 6;
+    const jeep = isMounted() && horse.kind === 5;
     const cart = isMounted() && horse.kind === 4;
     const tank = isMounted() && horse.kind === 7;
     const dir = player.facing;
     const mouths = gunMuzzles();
     const muzzle = mouths[0];
+    if (huey) {
+      if (spec.bazooka || player.kind === "heavy" || player.kind === "mega") {
+        const n = spec.mega ? 2 : 1;
+        for (let i = 0; i < n; i++) {
+          pushRound({
+            type: "rocket",
+            x: muzzle.x + dir * i * 8,
+            y: muzzle.y,
+            vx: dir * (2.2 + i * 0.45),
+            vy: 5.1 + i * 0.35,
+            dmg: spec.mega ? spec.dmg : 44,
+            boom: spec.mega ? 36 : 30,
+            facing: dir,
+          });
+        }
+        sparkBurst(muzzle.x, muzzle.y, 14, true);
+        spawnDust(muzzle.x, muzzle.y, 5);
+        sfx("swing");
+        return;
+      }
+      for (let i = 0; i < 6; i++) {
+        pushRound({
+          type: "mg",
+          x: muzzle.x + dir * (i % 2) * 2,
+          y: muzzle.y,
+          vx: dir * (1.05 + (i % 3) * 0.6),
+          vy: 5.7 + (i % 4) * 0.38,
+          dmg: 8,
+        });
+      }
+      sparkBurst(muzzle.x, muzzle.y, 10, true);
+      spawnDust(muzzle.x, muzzle.y, 3);
+      sfx("swing");
+      return;
+    }
     if (tank || spec.bazooka) {
       const speed = tank ? 7.2 : 6.4;
       pushRound({
@@ -2017,12 +2085,18 @@
     horse.mountT = 0;
     horse.wreckT = 0;
     horse.x = player.x;
-    horse.y = player.y;
+    horse.y = horse.kind === 6 ? HUEY_HOVER : player.y;
     horse.facing = player.facing;
     player.blocking = false;
     player.rolling = false;
     player.ducking = false;
     player.rollT = 0;
+    if (horse.kind === 6) {
+      player.y = HUEY_HOVER;
+      player.vy = 0;
+      player.onGround = false;
+      bailT = 0;
+    }
   }
 
   function mountHorse() {
@@ -2042,12 +2116,36 @@
     player.attacking = false;
     player.phase = null;
     sfx("checkpoint");
-    announce(era === 7 ? "HULL DOWN" : era === 6 ? "GUNTRUCK UP" : era === 5 ? "VICKERS UP" : era === 4 ? "LIMBER UP" : era === 3 ? "THE IRON ROAD" : era === 2 ? "THE WHITE ROAD" : "THE STEED", 70);
+    if (horse.kind === 6) {
+      horse.mountT = HUEY_MOUNT_UP;
+      horse.mountMax = HUEY_MOUNT_UP;
+      horse.y = HUEY_HOVER - 80;
+    }
+    announce(era === 7 ? "HULL DOWN" : era === 6 ? "HUEY UP" : era === 5 ? "VICKERS UP" : era === 4 ? "LIMBER UP" : era === 3 ? "THE IRON ROAD" : era === 2 ? "THE WHITE ROAD" : "THE STEED", 70);
     return true;
+  }
+
+  function nearestSolidX(px) {
+    const p = overPit(px) || holeAt(px);
+    if (!p) return px;
+    const right = p.x + p.w + 22;
+    if (right < LEVEL_W - 40 && !overPit(right) && !holeAt(right)) return right;
+    return Math.max(40, p.x - 22);
+  }
+
+  function bailFromHuey() {
+    bailT = 48;
+    player.vy = -2.2;
+    player.onGround = false;
+    player.anim = "jump";
+    player.invuln = Math.max(player.invuln, 56);
+    player.x = nearestSolidX(player.x);
+    floatText(player.x, player.y - 40, "BAIL OUT", "#ffe27a");
   }
 
   function dismountHorse() {
     if (!horse || !isMounted()) return;
+    if (horse.kind === 6) bailFromHuey();
     horse.mounted = false;
     horse.alive = false;
     horse.mountT = 0;
@@ -2075,12 +2173,24 @@
       return;
     }
     horse.alive = true;
+    if (horse.kind === 6) {
+      bailFromHuey();
+      horse.wreckT = HUEY_WRECK;
+      horse.vy = 1.15;
+      horse.boom = false;
+      horse.y = Math.min(player.y, HUEY_HOVER);
+      player.invuln = Math.max(player.invuln, 56);
+      sparkBurst(horse.x, horse.y - 12, 16, true);
+      bumpShake(12);
+      announce("BAIL OUT", 70);
+      return;
+    }
     horse.wreckT = WRECK_T;
     player.invuln = Math.max(player.invuln, 48);
     sparkBurst(player.x, player.y - 18, 22, true);
     coverBurst(player.x, player.y - 10, 1);
     bumpShake(16);
-    announce(era === 7 ? "HULL LOST" : era === 6 ? "THE TRUCK BURNS" : era === 5 ? "THE JEEP BURNS" : era === 4 ? "THE LIMBER SPLITS" : "THE STEED FALLS", 80);
+    announce(era === 7 ? "HULL LOST" : era === 5 ? "THE JEEP BURNS" : era === 4 ? "THE LIMBER SPLITS" : "THE STEED FALLS", 80);
     floatText(player.x, player.y - 56, "ON FOOT", "#ffe27a");
   }
 
@@ -2088,14 +2198,44 @@
     if (!horse) return;
     if (horse.mountT > 0) {
       horse.mountT--;
-      horse.x = player.x;
-      horse.y = player.y;
       horse.facing = player.facing;
+      if (horse.kind === 6) {
+        const max = horse.mountMax || HUEY_MOUNT_UP;
+        const t = 1 - horse.mountT / max;
+        horse.x = player.x;
+        horse.y = HUEY_HOVER - (1 - t) * 80;
+        player.y = GROUND + (HUEY_HOVER - GROUND) * Math.min(1, t);
+        player.vy = 0;
+        player.onGround = false;
+      } else {
+        horse.x = player.x;
+        horse.y = player.y;
+      }
       if (horse.mountT === 0) seatMount();
     }
     if (horse.wreckT > 0) {
       horse.wreckT--;
-      if (time % 2 === 0) sparkBurst(horse.x + rand(-10, 10), horse.y - rand(6, 22), 4, true);
+      if (horse.kind === 6) {
+        horse.vy = (horse.vy || 0.8) + GRAVITY * 0.9;
+        horse.x += (horse.facing || 1) * 0.85;
+        horse.y += horse.vy;
+        if (horse.y >= GROUND) {
+          horse.y = GROUND;
+          horse.vy = 0;
+          if (!horse.boom) {
+            horse.boom = true;
+            sparkBurst(horse.x, GROUND - 10, 28, true);
+            coverBurst(horse.x, GROUND - 8, 1);
+            bumpShake(20);
+            sfx("hit");
+            announce("THE HUEY BURNS", 70);
+          }
+        } else if (time % 2 === 0) {
+          sparkBurst(horse.x + rand(-12, 12), horse.y - rand(4, 18), 5, true);
+        }
+      } else if (time % 2 === 0) {
+        sparkBurst(horse.x + rand(-10, 10), horse.y - rand(6, 22), 4, true);
+      }
       if (horse.wreckT === 0) {
         horse.alive = false;
         horse.mounted = false;
@@ -3037,6 +3177,7 @@
     if (player.heavyCd > 0) player.heavyCd--;
     if (player.invuln > 0) player.invuln--;
     if (player.hurtT > 0) player.hurtT--;
+    if (bailT > 0) bailT--;
     if ((player.struckT || 0) > 0) player.struckT--;
 
     const canAct = player.hurtT === 0;
@@ -3151,7 +3292,7 @@
       moving = true;
     } else if (!player.blocking && !attackingLocked && player.hurtT === 0) {
       const spd = (mounted
-        ? (player.attacking ? 1.05 : (era === 7 ? 1.35 : era === 6 ? 3.6 : era === 5 ? 4.15 : era === 4 ? 2.2 : era === 3 ? 2.45 : 3.55))
+        ? (player.attacking ? 1.05 : (era === 7 ? 1.35 : era === 6 ? 2.85 : era === 5 ? 4.15 : era === 4 ? 2.2 : era === 3 ? 2.45 : 3.55))
         : (player.attacking ? 0.7 : 2.15)) * (player.ducking ? 0.42 : 1);
       if (wantLeft()) { player.vx = -spd; player.facing = -1; moving = true; }
       else if (wantRight()) { player.vx = spd; player.facing = 1; moving = true; }
@@ -3171,16 +3312,24 @@
     const wasAir = !player.onGround;
     const prevX = player.x;
     const wasGround = player.onGround;
-    player.vy += GRAVITY;
+    const flying = mounted && isHuey();
+    const lifting = isMounting() && isHuey();
+    if (flying || lifting) {
+      player.vy = 0;
+      if (flying) player.y += (HUEY_HOVER - player.y) * 0.22;
+    } else {
+      player.vy += GRAVITY;
+    }
     player.x += player.vx;
-    if (wasGround) {
+    if (wasGround && !flying && !lifting) {
       stopOnFoes(prevX);
       holdAtPit(prevX);
     }
-    player.y += player.vy;
+    if (!flying && !lifting) player.y += player.vy;
 
     const floor = standY(player.x, player.y, player.vy);
-    player.onGround = landed(player, floor);
+    if (flying || lifting) player.onGround = false;
+    else player.onGround = landed(player, floor);
     if (wasAir && player.onGround) {
       player.landT = 9;
       spawnDust(player.x, player.y - 2, 7);
@@ -3189,17 +3338,24 @@
     if ((player.landT || 0) > 0) player.landT--;
 
     if (player.deadT === 0 && player.y > GROUND + 28) {
-      announce(era === 7 ? "THE CELLAR TAKES YOU" : era === 6 ? "THE PIT TAKES YOU" : era === 5 ? (jurassic ? "THE FERN TAKES YOU" : "THE DUNES TAKE YOU") : era === 4 ? "THE ICE TAKES YOU" : era === 3 ? "THE MOAT TAKES YOU" : era === 2 ? "THE CISTERN TAKES YOU" : "THE EARTH TAKES YOU", 80);
-      player.hp = 0;
-      loseLife();
-      player.y = Math.min(player.y, GROUND + 46);
+      if (bailT > 0 || flying || lifting) {
+        player.x = nearestSolidX(player.x);
+        player.y = floorY(player.x);
+        player.vy = 0;
+        player.onGround = true;
+      } else {
+        announce(era === 7 ? "THE CELLAR TAKES YOU" : era === 6 ? "THE PIT TAKES YOU" : era === 5 ? (jurassic ? "THE FERN TAKES YOU" : "THE DUNES TAKE YOU") : era === 4 ? "THE ICE TAKES YOU" : era === 3 ? "THE MOAT TAKES YOU" : era === 2 ? "THE CISTERN TAKES YOU" : "THE EARTH TAKES YOU", 80);
+        player.hp = 0;
+        loseLife();
+        player.y = Math.min(player.y, GROUND + 46);
+      }
     }
 
     if (mounted) {
       horse.x = player.x;
       horse.y = player.y;
       horse.facing = player.facing;
-      trampleEnemies();
+      if (!flying) trampleEnemies();
       if (era === 7 && horse.kind === 7) {
         for (const w of wrecks) {
           if (!w.alive) continue;
@@ -3511,7 +3667,8 @@
   }
 
   function leadShot(e, speed, dmg, type, duck) {
-    const low = duck === "jump";
+    const flying = isHueyAir() && !isMounting();
+    const low = duck === "jump" && !flying;
     const sx = e.x + e.facing * 16;
     const sy = low ? floorY(e.x) - 12 : e.y - 26;
     let vx;
@@ -3521,7 +3678,7 @@
       vy = 0.05;
     } else {
       const tx = player.x + (player.vx || 0) * 3;
-      const ty = floorY(player.x) - 22;
+      const ty = flying ? player.y - 14 : floorY(player.x) - 22;
       const dx = tx - sx;
       const dy = ty - sy;
       const dist = Math.max(1, Math.hypot(dx, dy));
@@ -4233,6 +4390,22 @@
       if ((e.dropT || 0) > 0) {
         e.dropT--;
         e.vx = 0;
+      } else if (isHueyAir() && !isMounting()) {
+        holdAndThrow(e, adx, {
+          near: 80,
+          far: 380,
+          back: 0.4,
+          chase: 0.55,
+          wind: WIND_UP,
+          cd: e.type === "vc" ? 36 : 42,
+          atk: 12,
+          aim: "red",
+          fire: (en) => {
+            en.aaN = (en.aaN || 0) + 1;
+            const rocket = en.aaN % 3 === 0;
+            leadShot(en, rocket ? 3.1 : 4.6, rocket ? 18 : 9, rocket ? "rocket" : "mg", null);
+          },
+        });
       } else {
         holdAndThrow(e, adx, { near: 70, far: 340, back: 0.55, chase: 0.7, wind: WIND_UP, cd: e.type === "vc" ? 40 : 46, atk: 12, aim: "red", fire: (en) => leadShot(en, 4.4, 12, "rifle", "roll") });
       }
@@ -4253,10 +4426,15 @@
           e.state = "attack";
           e.atkT = 16;
           e.aim = null;
-          leadShot(e, 5.2, 14, "rifle", "roll");
-          if (e.phase === 2) {
-            leadShot(e, 4.4, 12, "rifle", "roll");
-            shots.push({ type: "arty", x: player.x + rand(-24, 24), y: GROUND, warn: 42, r: 22, dmg: 16, life: 42 });
+          if (isHueyAir() && !isMounting()) {
+            leadShot(e, 3.2, 20, "rocket", null);
+            if (e.phase === 2) leadShot(e, 4.8, 10, "mg", null);
+          } else {
+            leadShot(e, 5.2, 14, "rifle", "roll");
+            if (e.phase === 2) {
+              leadShot(e, 4.4, 12, "rifle", "roll");
+              shots.push({ type: "arty", x: player.x + rand(-24, 24), y: GROUND, warn: 42, r: 22, dmg: 16, life: 42 });
+            }
           }
         }
       } else if (e.state === "attack") {
@@ -4373,6 +4551,29 @@
         s.x += s.vx || 0;
         s.y += s.vy || 0;
         if (s.vx && ((s.vx > 0 && s.x > camX + VW + 16) || (s.vx < 0 && s.x < camX - 16))) {
+          s.dead = true;
+          continue;
+        }
+        if (s.y < -28 || s.y > VH + 24) {
+          s.dead = true;
+          continue;
+        }
+        if (s.friendly && s.type === "rocket" && s.vy > 1.4 && s.y >= floorY(s.x) - 6) {
+          s.y = floorY(s.x) - 6;
+          const boom = s.boom || 28;
+          sparkBurst(s.x, s.y, 16, true);
+          bumpShake(8, s.vx >= 0 ? 1 : -1);
+          sfx("hit");
+          for (const e of enemies) {
+            if (e.hp <= 0 || e.deadT > 0) continue;
+            if (Math.abs(e.x - s.x) >= boom || Math.abs(e.y - e.h * 0.45 - s.y) >= boom * 0.8) continue;
+            const dmg = Math.ceil(s.dmg * 0.55);
+            e.hp -= dmg;
+            e.hurtT = 12;
+            e.vx = (s.vx > 0 ? 1 : -1) * 3.6;
+            floatText(e.x, e.y - e.h - 4, "-" + dmg, "#d23a3a");
+            if (e.hp <= 0) killEnemy(e);
+          }
           s.dead = true;
           continue;
         }
@@ -4829,6 +5030,28 @@
     ctx.restore();
   }
 
+  function drawHueyRotors(wx, wy, facing, dh) {
+    const mx = wx - camX + facing * 8;
+    const my = wy - dh * 0.88;
+    const spin = isWrecking() ? 0.35 : 1;
+    ctx.save();
+    ctx.translate(mx, my);
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.28 * spin;
+    ctx.fillStyle = "#d8c48a";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, dh * 0.95, 3.2, time * 0.9 * spin, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.55 * spin;
+    ctx.strokeStyle = "#c4b070";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-dh * 0.92, 0);
+    ctx.lineTo(dh * 0.92, 0);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function blitRider(spr, x, y, facing) {
     if (!spr || !horse) return;
     const seat = riderSeat();
@@ -5083,7 +5306,8 @@
     let ox = player.x - camX + dir * (riding ? 14 : 8) + (seat ? seat.saddle : 0);
     let oy = player.y - (riding ? seat.lift + 6 : 22);
     if (riding && kind >= 7) { ox += dir * 26; oy = player.y - 22; }
-    else if (riding && (kind === 6 || kind === 5)) { ox += dir * 16; oy = player.y - 18; }
+    else if (riding && kind === 6) { ox += dir * 10; oy = player.y - 10; }
+    else if (riding && kind === 5) { ox += dir * 16; oy = player.y - 18; }
     else if (riding && kind === 4) { ox += dir * 10; oy = player.y - 28; }
     const gun = isGunSpec(spec);
     const t = player.phase === "wu" ? player.phaseT / Math.max(1, spec.wu) : player.phase === "active" ? 1 : 0.35;
@@ -6331,8 +6555,9 @@
     ctx.textAlign = "left";
     ctx.fillStyle = player.heavyCd > 0 ? "#5a4a28" : "#e6c35c";
     const vickers = era === 5 && isMounted();
-    const ready = vickers ? "VICKERS READY" : era === 7 ? "DRONE READY" : era === 6 ? "M16 READY" : era === 5 ? "RIFLE READY" : era === 4 ? "PISTOL READY" : era === 3 ? "CLEAVE READY" : era === 2 ? "BASH READY" : "SPEAR READY";
-    const wait = vickers ? "VICKERS" : era === 7 ? "DRONE" : era === 6 ? "LAW" : era === 5 ? "RIFLE" : era === 4 ? "PISTOL" : era === 3 ? "CLEAVE" : era === 2 ? "BASH" : "SPEAR";
+    const hueyGun = era === 6 && isMounted();
+    const ready = vickers ? "VICKERS READY" : hueyGun ? "MINIGUN READY" : era === 7 ? "DRONE READY" : era === 6 ? "M16 READY" : era === 5 ? "RIFLE READY" : era === 4 ? "PISTOL READY" : era === 3 ? "CLEAVE READY" : era === 2 ? "BASH READY" : "SPEAR READY";
+    const wait = vickers ? "VICKERS" : hueyGun ? "ROCKETS" : era === 7 ? "DRONE" : era === 6 ? "LAW" : era === 5 ? "RIFLE" : era === 4 ? "PISTOL" : era === 3 ? "CLEAVE" : era === 2 ? "BASH" : "SPEAR";
     const showSteed = !!horse;
     if (showSteed) {
       const filled = (horse.hp || 0) / Math.max(1, horse.maxHp);
@@ -6341,7 +6566,7 @@
       ctx.fillStyle = callReady ? "#ffe27a" : "#8a7340";
       ctx.font = "6px Cinzel, serif";
       ctx.fillText(mountedNow
-        ? (era === 7 ? "TANK" : era === 6 ? "GUNTRUCK" : era === 5 ? "VICKERS" : era === 4 ? "CART" : "STEED")
+        ? (era === 7 ? "TANK" : era === 6 ? "HUEY" : era === 5 ? "VICKERS" : era === 4 ? "CART" : "STEED")
         : (callReady ? "MOUNT READY" : "MOUNT"), 8, 41);
       ctx.fillStyle = "#1a120c";
       ctx.fillRect(8, 43, 104, 7);
@@ -6584,10 +6809,11 @@
       }
       if (e.aim && e.state === "flash" && e.deadT === 0) {
         const gold = isGoldAim(e.aim);
+        const flying = isHueyAir() && !isMounting();
         const sx = e.x + e.facing * 14;
-        const sy = gold ? floorY(e.x) - 12 : e.y - 26;
+        const sy = gold && !flying ? floorY(e.x) - 12 : e.y - 26;
         const tx = player.x;
-        const ty = floorY(player.x) - (gold ? 8 : 22);
+        const ty = flying ? player.y - 16 : floorY(player.x) - (gold ? 8 : 22);
         const max = Math.max(1, e.windMax || WIND_UP);
         const p = 1 - clamp(e.flashT / max, 0, 1);
         ctx.save();
@@ -6626,18 +6852,22 @@
     }
 
     if (isMounted() || isMounting() || isWrecking()) {
-      const hx = isMounted() || isMounting() ? player.x : horse.x;
-      const hy = isMounted() || isMounting() ? player.y : horse.y;
+      const huey = horse.kind === 6;
+      const hx = huey && (isMounting() || isWrecking()) ? horse.x : ((isMounted() || isMounting()) ? player.x : horse.x);
+      const hy = huey && (isMounting() || isWrecking()) ? horse.y : ((isMounted() || isMounting()) ? player.y : horse.y);
       const hs = (era === 7 || horse.kind === 7) ? (SPR.tank || SPR.horse)
-        : (era === 6 || horse.kind === 6 || era === 5 || horse.kind === 5) ? (SPR.jeep || SPR.horse)
+        : huey ? (SPR.huey || SPR.jeep || SPR.horse)
+        : (era === 5 || horse.kind === 5) ? (SPR.jeep || SPR.horse)
         : (era === 4 || horse.kind === 4) ? (SPR.cart || SPR.horse)
         : (era === 3 || horse.kind === 3) ? (SPR.horse3 || SPR.horse) : SPR.horse;
+      const dh = (era === 7 || horse.kind === 7) ? 48 : huey ? 56 : (era === 5 || horse.kind === 5) ? 42 : (era === 4 || horse.kind === 4) ? 64 : 58;
       ctx.save();
-      if (isMounting()) ctx.globalAlpha = 1 - horse.mountT / MOUNT_UP;
-      if (isWrecking()) ctx.globalAlpha = Math.max(0.15, horse.wreckT / WRECK_T);
-      drawBlobShadow(hx, hy + 2, horse.kind >= 7 ? 22 : horse.kind >= 5 ? 18 : horse.kind === 4 ? 20 : 16);
-      blitMount(hs, hx, hy + 2, horse.facing || player.facing, (era === 7 || horse.kind === 7) ? 48 : (era === 6 || horse.kind === 6 || era === 5 || horse.kind === 5) ? 42 : (era === 4 || horse.kind === 4) ? 64 : 58);
-      if ((horse.kind === 5 || horse.kind === 6) && isMounted()) drawJeepGuns();
+      if (isMounting()) ctx.globalAlpha = 1 - horse.mountT / (horse.mountMax || MOUNT_UP);
+      if (isWrecking()) ctx.globalAlpha = Math.max(0.18, horse.wreckT / (huey ? HUEY_WRECK : WRECK_T));
+      drawBlobShadow(hx, huey ? GROUND : hy + 2, huey ? 22 : horse.kind >= 7 ? 22 : horse.kind >= 5 ? 18 : horse.kind === 4 ? 20 : 16);
+      blitMount(hs, hx, hy + 2, horse.facing || player.facing, dh);
+      if (horse.kind === 5 && isMounted()) drawJeepGuns();
+      if (huey) drawHueyRotors(hx, hy + 2, horse.facing || player.facing, dh);
       ctx.restore();
     }
 
@@ -6678,13 +6908,15 @@
       drawSwing();
       if ((era === 6 || era === 7) && player.attacking && (player.kind === "heavy" || player.kind === "mega") && player.phase === "wu") {
         const tankAim = !!(horse && horse.mounted && horse.kind === 7);
+        const hueyAim = !!(horse && horse.mounted && horse.kind === 6);
         const aim = gunMuzzles()[0];
         ctx.save();
-        ctx.strokeStyle = tankAim ? "rgba(230,195,92,0.8)" : "rgba(243,226,160,0.55)";
-        ctx.lineWidth = tankAim ? 2 : 1;
+        ctx.strokeStyle = tankAim || hueyAim ? "rgba(230,195,92,0.8)" : "rgba(243,226,160,0.55)";
+        ctx.lineWidth = tankAim || hueyAim ? 2 : 1;
         ctx.beginPath();
         ctx.moveTo(aim.x - camX, aim.y);
-        ctx.lineTo(aim.x - camX + player.facing * (tankAim ? 140 : 110), aim.y);
+        if (hueyAim) ctx.lineTo(aim.x - camX + player.facing * 36, aim.y + 90);
+        else ctx.lineTo(aim.x - camX + player.facing * (tankAim ? 140 : 110), aim.y);
         ctx.stroke();
         ctx.restore();
       }
@@ -7028,7 +7260,7 @@
       swordLoaded: swordLoaded(),
       flightReady: !!(window.ROHCliffs && window.ROHCliffs.ready && window.ROHCliffs.ready()),
       covers: covers.length,
-      shots: shots.filter((s) => !s.dead).map((s) => ({ type: s.type, x: s.x | 0, y: s.y | 0, vx: +(s.vx || 0).toFixed(1), friendly: !!s.friendly, life: s.life | 0, duck: s.duck || null })),
+      shots: shots.filter((s) => !s.dead).map((s) => ({ type: s.type, x: s.x | 0, y: s.y | 0, vx: +(s.vx || 0).toFixed(1), vy: +(s.vy || 0).toFixed(1), friendly: !!s.friendly, life: s.life | 0, duck: s.duck || null })),
       nestCleared,
       pits: pits.length,
       mines: mines.map((m) => ({ x: m.x | 0, dead: !!m.dead, boomT: m.boomT | 0 })),
