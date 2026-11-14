@@ -1,12 +1,13 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 import { latestVideosPlugin } from "./scripts/latest-videos-plugin.js";
 import { leaderboardPlugin } from "./scripts/leaderboard-plugin.js";
 import { shopPlugin } from "./scripts/shop-plugin.js";
 
 export default defineConfig({
   appType: "mpa",
-  plugins: [latestVideosPlugin(), shopPlugin(), leaderboardPlugin()],
+  plugins: [tailwindcss(), latestVideosPlugin(), shopPlugin(), leaderboardPlugin()],
   build: {
     rollupOptions: {
       input: {

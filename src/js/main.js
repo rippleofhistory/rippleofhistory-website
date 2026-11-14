@@ -2,6 +2,7 @@ import {
   LINKS,
   FEATURED_LONGFORM,
   DEEP_DIVES,
+  VIDEOS,
   AIRSHOWS,
   LATEST_VIDEOS,
   youtubeThumb,
@@ -40,6 +41,7 @@ window.addEventListener("scroll", onScroll, { passive: true });
 toggle?.addEventListener("click", () => {
   const open = document.body.classList.toggle("nav-open");
   toggle.setAttribute("aria-expanded", String(open));
+  toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
 });
 
 function pathKey(pathname) {
@@ -47,15 +49,39 @@ function pathKey(pathname) {
   return clean === "" ? "/" : clean;
 }
 
-document.querySelectorAll("[data-nav]").forEach((link) => {
-  if (pathKey(link.pathname) === pathKey(location.pathname)) {
-    link.classList.add("is-active");
-  }
-});
+function markNav() {
+  const here = pathKey(location.pathname);
+  const hash = location.hash.replace(/^#/, "");
+  document.querySelectorAll("a[data-nav]").forEach((link) => {
+    const section = link.dataset.section || "";
+    const same = pathKey(link.pathname) === here;
+    const active = section
+      ? same && hash === section
+      : same && !link.hash && hash !== "airshows" && hash !== "deep-dives";
+    link.classList.toggle("is-active", active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+}
+
+markNav();
+window.addEventListener("hashchange", markNav);
+
+function closeNav() {
+  if (!document.body.classList.contains("nav-open")) return;
+  document.body.classList.remove("nav-open");
+  toggle?.setAttribute("aria-expanded", "false");
+  toggle?.setAttribute("aria-label", "Open menu");
+}
 
 document.addEventListener("click", (event) => {
   const link = event.target.closest("a[data-nav]");
-  if (!link || prefersReducedMotion() || event.metaKey || event.ctrlKey) return;
+  if (!link) return;
+  closeNav();
+  if (prefersReducedMotion() || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+  if (link.target === "_blank") return;
+  const samePage = pathKey(link.pathname) === pathKey(location.pathname);
+  if (samePage && link.hash) return;
   event.preventDefault();
   document.body.classList.add("is-leaving");
   window.setTimeout(() => {
@@ -191,16 +217,79 @@ function fillRail(selector, list) {
   root.innerHTML = list.map((video) => videoCard(video)).join("");
 }
 
+function withBlurb(video) {
+  if (!video) return video;
+  const longer = VIDEOS.find((item) => item.id === video.id);
+  if (!longer?.blurb) return video;
+  return { ...video, blurb: longer.blurb };
+}
+
+function spotMark(compact) {
+  const size = compact ? 8 : 11;
+  return `<span class="spot-mark${compact ? " is-compact" : ""}" aria-hidden="true"><svg width="${size}" height="${size}" viewBox="0 0 12 12" fill="currentColor"><path d="M2.2 1.1v9.8L10.6 6 2.2 1.1z"/></svg></span>`;
+}
+
+function spotStill(video, large) {
+  const src = youtubeThumb(video.id, large);
+  const fallback = youtubeThumb(video.id, false);
+  return `
+    <span class="spot-still">
+      <img src="${src}" alt="" width="${large ? 1280 : 480}" height="${large ? 720 : 270}" onerror="this.onerror=null;this.src='${fallback}'">
+      ${spotMark(!large)}
+    </span>
+  `;
+}
+
+function spotMeta(video) {
+  return escapeHtml([video.tag, video.length].filter(Boolean).join(" · "));
+}
+
+function renderSpotlight(selector, lead, related) {
+  const root = document.querySelector(selector);
+  if (!root || !lead) return;
+  const title = escapeHtml(lead.title);
+  const blurb = escapeHtml(lead.blurb || "");
+  const rows = related.filter(Boolean).map((video) => {
+    const label = escapeHtml(video.title);
+    return `
+      <li>
+        <button class="spot-hit" type="button" data-play="${video.id}" aria-label="Play ${label}">
+          ${spotStill(video, false)}
+          <span class="spot-row-copy">
+            <span class="spot-meta">${spotMeta(video)}</span>
+            <span class="spot-row-title">${label}</span>
+          </span>
+        </button>
+      </li>
+    `;
+  }).join("");
+  root.innerHTML = `
+    <div class="spotlight">
+      <article class="spotlight-lead">
+        <button class="spot-hit" type="button" data-play="${lead.id}" aria-label="Play ${title}">
+          ${spotStill(lead, true)}
+        </button>
+        <p class="spot-kicker">${spotMeta(lead)}</p>
+        <h3>${title}</h3>
+        ${blurb ? `<p class="spot-blurb">${blurb}</p>` : ""}
+      </article>
+      <ul class="spotlight-list">${rows}</ul>
+    </div>
+  `;
+}
+
 function renderVideos() {
-  const featuredRoot = document.querySelector("[data-featured]");
-  const gridRoot = document.querySelector("[data-videos]");
-  if (featuredRoot && FEATURED_LONGFORM[0]) {
-    featuredRoot.innerHTML = videoCard(FEATURED_LONGFORM[0], true);
-  }
-  if (gridRoot) {
-    gridRoot.innerHTML = FEATURED_LONGFORM.slice(1).map((video) => videoCard(video)).join("");
-  }
-  fillRail("[data-deep-dives]", DEEP_DIVES);
+  const longLead = withBlurb(FEATURED_LONGFORM.find((video) => video.id === "BcU5deW_Nys"));
+  const longRelated = ["KtxDaEX3-Sc", "NZzgGn0Icx8", "4H6sNVihsQw"].map((id) =>
+    FEATURED_LONGFORM.find((video) => video.id === id),
+  );
+  renderSpotlight("[data-long-films]", longLead, longRelated);
+
+  const voiceLead = withBlurb(DEEP_DIVES.find((video) => video.id === "K-Y2gQodq6I"));
+  const voiceRelated = ["3Cd0_aBSK8w", "QVxGPC4LUT8", "O7klZ8fY2MA"].map((id) =>
+    DEEP_DIVES.find((video) => video.id === id),
+  );
+  renderSpotlight("[data-voices]", voiceLead, voiceRelated);
   const airshowFeatured = document.querySelector("[data-airshow-featured]");
   if (airshowFeatured && AIRSHOWS[0]) {
     airshowFeatured.innerHTML = videoCard(AIRSHOWS[0], true);

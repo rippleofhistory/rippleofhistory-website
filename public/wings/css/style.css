@@ -1,0 +1,46 @@
+:root {
+  --navy: #071018;
+  --gold: #d4af37;
+  --ivory: #f3ead2;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background:
+    radial-gradient(ellipse at 50% 42%, #163044 0%, #0b1824 46%, #05080e 100%);
+  color: var(--ivory);
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+canvas {
+  height: min(96vh, 980px);
+  width: auto;
+  max-width: 96vw;
+  background: #082033;
+  border: 1px solid rgba(230, 195, 92, 0.88);
+  box-shadow:
+    0 0 0 1px #1c1408,
+    0 0 0 7px #0c1824,
+    0 0 0 8px rgba(212, 175, 55, 0.38),
+    0 28px 70px rgba(0, 0, 0, 0.58);
+  touch-action: none;
+  outline: none;
+  display: block;
+}
+
+canvas:focus {
+  border-color: rgba(230, 195, 92, 0.95);
+}
+
+canvas.side {
+  width: min(96vw, 1100px);
+  height: auto;
+  max-height: 96vh;
+}

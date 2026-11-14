@@ -102,12 +102,22 @@
   </url>
   <url>
     <loc>https://rippleofhistory.com/play/</loc>
-    <lastmod>2026-09-17</lastmod>
+    <lastmod>2026-11-14</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
       <image:loc>https://rippleofhistory.com/images/the-rip-title.png</image:loc>
       <image:title>Play The Rip in History</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://rippleofhistory.com/wings/</loc>
+    <lastmod>2026-11-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://rippleofhistory.com/images/wings-title.png</image:loc>
+      <image:title>Wings of WW2</image:title>
     </image:image>
   </url>
   <url>
