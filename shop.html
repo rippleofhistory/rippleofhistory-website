@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Shop | Ripple of History and WW2Hub merchandise</title>
-    <meta name="description" content="Buy Ripple of History and WW2Hub merchandise. Tees, prints and mugs — checkout through Shopify when the shop is live.">
+    <meta name="description" content="Ripple of History and WW2Hub merch. Shop unboxings of the hoodies, tees, caps and mugs. Pay on Shopify.">
     <meta name="author" content="Daniel Sellings">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="theme-color" content="#050403">
@@ -18,14 +18,14 @@
     <meta property="og:site_name" content="Ripple of History">
     <meta property="og:url" content="https://rippleofhistory.com/shop.html">
     <meta property="og:title" content="Shop | Ripple of History and WW2Hub merchandise">
-    <meta property="og:description" content="Tees, prints and mugs for Ripple of History and WW2Hub. Shopify checkout when the till opens.">
+    <meta property="og:description" content="Shop unboxings of the Ripple of History and WW2Hub hoodies, tees, caps and mugs. Pay on Shopify.">
     <meta property="og:image" content="https://rippleofhistory.com/images/still-crown.jpg">
     <meta property="og:image:width" content="1280">
     <meta property="og:image:height" content="720">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@RippleOfHistory">
     <meta name="twitter:title" content="Shop | Ripple of History and WW2Hub merchandise">
-    <meta name="twitter:description" content="Tees, prints and mugs. Shopify checkout when the till opens.">
+    <meta name="twitter:description" content="Shop unboxings of the hoodies, tees, caps and mugs. Pay on Shopify.">
     <meta name="twitter:image" content="https://rippleofhistory.com/images/still-crown.jpg">
     <script type="module" src="/src/js/main.js"></script>
     <script type="module" src="/src/js/shop.js"></script>
@@ -47,8 +47,9 @@
           <a href="about.html" data-nav>About</a>
           <div class="nav-cta">
             <a class="btn btn-ghost" href="support.html" data-nav>Support</a>
-            <a class="btn btn-gold" href="games.html" data-nav>Play</a>
+            <a class="btn btn-ghost" href="games.html" data-nav>Play</a>
             <a class="btn btn-ghost" href="shop.html" data-nav>Shop</a>
+            <a class="btn btn-ghost" href="https://www.ww2hub.net" target="_blank" rel="noreferrer">WW2 Hub</a>
           </div>
         </div>
       </nav>
@@ -62,6 +63,16 @@
             <p>Ripple of History and WW2Hub merch. Add to the basket here — pay on Shopify.</p>
           </div>
           <button class="btn btn-gold" type="button" data-cart-open>Basket (<span data-cart-count>0</span>)</button>
+        </div>
+      </section>
+
+      <section class="section shop-unboxings" aria-labelledby="unboxings-heading">
+        <div class="wrap">
+          <div class="section-head">
+            <h2 id="unboxings-heading">Shop unboxings</h2>
+            <p>Camo cap, hoodies, the Stringbags tee, Hobart badge, bobble hat and the WW2Hub mug. Opened on the channel.</p>
+          </div>
+          <div class="video-rail is-compact" data-shop-unboxings></div>
         </div>
       </section>
 
@@ -175,5 +186,10 @@
         </nav>
       </div>
     </footer>
+
+    <div class="lightbox" data-lightbox role="dialog" aria-modal="true" aria-label="Video player">
+      <button class="lightbox-close" type="button" data-lightbox-close aria-label="Close video">×</button>
+      <div class="lightbox-frame" data-lightbox-frame></div>
+    </div>
   </body>
 </html>

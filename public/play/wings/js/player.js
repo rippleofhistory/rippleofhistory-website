@@ -319,12 +319,15 @@
     if (this.laser > 0) {
       const flicker = 0.75 + Math.sin(performance.now() / 30) * 0.25;
       ctx.save();
-      ctx.globalAlpha = 0.28 * flicker;
+      ctx.globalAlpha = 0.22 * flicker;
       ctx.fillStyle = '#fff4c8';
-      ctx.fillRect(this.x - 14, 0, 28, this.y - 30);
-      ctx.globalAlpha = 0.85 * flicker;
-      ctx.fillStyle = '#fffdf4';
-      ctx.fillRect(this.x - 3, 0, 6, this.y - 30);
+      ctx.fillRect(this.x - 16, 0, 32, this.y - 30);
+      ctx.globalAlpha = 0.55 * flicker;
+      ctx.fillStyle = '#ffe7a4';
+      ctx.fillRect(this.x - 5, 0, 10, this.y - 30);
+      ctx.globalAlpha = 0.95 * flicker;
+      ctx.fillStyle = '#fffdf6';
+      ctx.fillRect(this.x - 1.4, 0, 2.8, this.y - 30);
       ctx.restore();
     }
   };

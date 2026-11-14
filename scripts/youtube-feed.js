@@ -145,6 +145,41 @@ export async function fetchLatestVideos(channelId, limit = 8) {
   }));
 }
 
+export function isShopUnboxing(title) {
+  return /unboxing/i.test(String(title));
+}
+
+function publishedTime(value) {
+  const time = new Date(value || 0).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+/** Live unboxings win on id. Archive entries stay once they leave the RSS window. Newest first. */
+export function shopUnboxingsFromVideos(videos, archive = []) {
+  const byId = new Map();
+
+  for (const item of archive) {
+    if (item?.id) byId.set(item.id, { ...item });
+  }
+
+  for (const video of Array.isArray(videos) ? videos : []) {
+    if (!video?.id || !isShopUnboxing(video.title)) continue;
+    const existing = byId.get(video.id) || {};
+    byId.set(video.id, {
+      ...existing,
+      id: video.id,
+      title: displayTitle(video.title),
+      tag: "Shop",
+      length: video.length || existing.length || "",
+      kind: video.kind || existing.kind || "video",
+      published: video.published || existing.published || "",
+      blurb: existing.blurb || "",
+    });
+  }
+
+  return [...byId.values()].sort((a, b) => publishedTime(b.published) - publishedTime(a.published));
+}
+
 export function onThisDayMapFromVideos(videos, archive = {}) {
   const map = { ...archive };
   const list = Array.isArray(videos) ? videos : [];

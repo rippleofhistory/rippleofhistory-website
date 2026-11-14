@@ -1,8 +1,10 @@
+import { SHOP_UNBOXINGS } from "../src/js/shop-unboxings.js";
 import { SHORTS } from "../src/js/shorts.js";
 import {
   displayTitle,
   fetchChannelVideos,
   onThisDayMapFromVideos,
+  shopUnboxingsFromVideos,
 } from "./youtube-feed.js";
 
 export const YOUTUBE_CHANNEL_ID = "UClKb54sR_nVBVudB9JoE81g";
@@ -13,6 +15,7 @@ function feedKind(url) {
   const path = url?.split("?")[0];
   if (path === "/api/latest-videos" || path === "/api/latest-videos.json") return "latest";
   if (path === "/api/on-this-day-shorts" || path === "/api/on-this-day-shorts.json") return "shorts";
+  if (path === "/api/shop-unboxings" || path === "/api/shop-unboxings.json") return "unboxings";
   return null;
 }
 
@@ -24,7 +27,7 @@ function json(res, status, body) {
 }
 
 export function latestVideosPlugin() {
-  let cache = { at: 0, latest: null, shorts: null };
+  let cache = { at: 0, latest: null, shorts: null, unboxings: null };
 
   async function load() {
     const now = Date.now();
@@ -35,7 +38,8 @@ export function latestVideosPlugin() {
       title: displayTitle(video.title),
     }));
     const shorts = onThisDayMapFromVideos(videos, SHORTS);
-    cache = { at: now, latest, shorts };
+    const unboxings = shopUnboxingsFromVideos(videos, SHOP_UNBOXINGS);
+    cache = { at: now, latest, shorts, unboxings };
     return cache;
   }
 
@@ -45,10 +49,12 @@ export function latestVideosPlugin() {
       if (!kind) return next();
       try {
         const data = await load();
-        json(res, 200, kind === "shorts" ? data.shorts : data.latest);
+        const body = kind === "shorts" ? data.shorts : kind === "unboxings" ? data.unboxings : data.latest;
+        json(res, 200, body);
       } catch (error) {
         console.warn("[youtube-feed]", error.message);
         if (kind === "shorts") json(res, 200, SHORTS);
+        else if (kind === "unboxings") json(res, 200, SHOP_UNBOXINGS);
         else json(res, 502, []);
       }
     });

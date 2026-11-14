@@ -1,3 +1,4 @@
+import { SHOP_UNBOXINGS } from "./shop-unboxings.js";
 import {
   SITE_URL,
   SITE_NAME,
@@ -25,6 +26,7 @@ function videoObject(video) {
     thumbnailUrl: youtubeThumb(video.id, true),
     embedUrl: `https://www.youtube-nocookie.com/embed/${video.id}`,
     url: youtubeWatch(video.id),
+    ...(video.published ? { uploadDate: video.published } : {}),
     ...(duration ? { duration: `PT${Math.floor(duration / 60)}M${duration % 60}S` } : {}),
     publisher: { "@id": `${SITE_URL}/#organization` },
     isFamilyFriendly: true,
@@ -36,6 +38,29 @@ function inject(data) {
   script.type = "application/ld+json";
   script.textContent = JSON.stringify(data);
   document.head.appendChild(script);
+}
+
+export function applyShopUnboxings(videos = SHOP_UNBOXINGS) {
+  if (!location.pathname.includes("shop")) return;
+  const list = (Array.isArray(videos) ? videos : []).filter((video) => video?.id && video.title);
+  if (!list.length) return;
+  let script = document.getElementById("ld-shop-unboxings");
+  if (!script) {
+    script = document.createElement("script");
+    script.id = "ld-shop-unboxings";
+    script.type = "application/ld+json";
+    document.head.appendChild(script);
+  }
+  script.textContent = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Shop unboxings",
+    itemListElement: list.map((video, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: videoObject(video),
+    })),
+  });
 }
 
 const organization = {
@@ -179,6 +204,7 @@ export function applySeo() {
         { "@type": "OfferCatalog", name: "WW2Hub" },
       ],
     };
+    applyShopUnboxings(SHOP_UNBOXINGS);
   }
 
   if (isHome) {

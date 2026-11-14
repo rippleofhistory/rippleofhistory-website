@@ -1,5 +1,6 @@
 /**
- * Wings of WW2 — five-sortie campaign. Dunkirk opens it.
+ * Wings of WW2 — six-sortie campaign. Dunkirk opens it.
+ * Bismarck is the sideways sortie: Ark Royal, then the torpedo run.
  *
  * Extractable pieces, all on window.WOW:
  *   Player, Projectile, Enemy, PowerUp, WaveManager, Game, WEAPONS, LEVEL
@@ -25,6 +26,23 @@
     ctx.roundRect(x, y, w, h, 10);
     ctx.fill();
     ctx.stroke();
+    ctx.strokeStyle = 'rgba(230, 195, 92, 0.28)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x + 5, y + 5, w - 10, h - 10, 6);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function plate(ctx, x, y, w, h) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(6, 12, 20, 0.82)';
+    ctx.strokeStyle = 'rgba(230, 195, 92, 0.22)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 4);
+    ctx.fill();
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -39,6 +57,9 @@
     ctx.lineTo(-6.5, 5);
     ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle = 'rgba(40, 24, 8, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -50,6 +71,7 @@
     this.onComplete = [];
     this.onOver = [];
     this.mode = 'title';
+    this.side = null;
     this.decorT = 0;
     this.levelIndex = 0;
     this.level = WOW.LEVELS[0];
@@ -139,9 +161,26 @@
       if (save.score != null) this.score = save.score;
     }
     this.player.applyCraft(this.level.craft || 'spitfire');
+    this.side = this.level.side ? new WOW.SideRun(this) : null;
+    this.fitStage();
     this.mode = 'playing';
     this.banner = { text: this.level.name, t: 1.7 };
     WOW.audio.ensure();
+  };
+
+  /* Bismarck uses a wide stage. Every other sortie stays 480×720. */
+  Game.prototype.fitStage = function () {
+    const side = this.mode !== 'title' && this.level && this.level.side;
+    const w = side ? 800 : 480;
+    const h = side ? 450 : 720;
+    if (this.canvas) this.canvas.classList.toggle('side', !!side);
+    if (WOW.W === w && WOW.H === h && this.canvas && this.canvas.width === w * WOW.SCALE) return;
+    WOW.W = w;
+    WOW.H = h;
+    if (!this.canvas) return;
+    this.canvas.width = w * WOW.SCALE;
+    this.canvas.height = h * WOW.SCALE;
+    this.ctx = this.canvas.getContext('2d');
   };
 
   Game.prototype.startLevel = function (save) {
@@ -519,6 +558,16 @@
     if (this.comboT <= 0) this.combo = 0;
     this.shake = Math.max(0, this.shake - dt * 16);
 
+    if (this.side && this.mode === 'playing') {
+      this.side.update(dt);
+      this.fx.update(dt);
+      if (this.pendingVictory > 0) {
+        this.pendingVictory -= dt;
+        if (this.pendingVictory <= 0) this.finishLevel();
+      }
+      return;
+    }
+
     if (this.mode === 'dying') {
       this.deathT -= dt;
       this.stepActors(dt);
@@ -555,6 +604,7 @@
     } else if (this.mode === 'gameover') {
       if (input.pressed('KeyR')) {
         this.mode = 'title';
+        this.side = null;
         this.levelIndex = 0;
         this.level = WOW.LEVELS[0];
         WOW.LEVEL = this.level;
@@ -570,6 +620,7 @@
   };
 
   Game.prototype.frame = function (dt) {
+    this.fitStage();
     if (this.mode !== 'paused') this.decorT += dt;
     if (this.hitStop > 0 && (this.mode === 'playing' || this.mode === 'dying')) {
       this.hitStop -= dt;
@@ -590,22 +641,30 @@
     const ctx = this.ctx;
     ctx.setTransform(WOW.SCALE, 0, 0, WOW.SCALE, 0, 0);
     ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
     ctx.clearRect(0, 0, WOW.W, WOW.H);
     ctx.save();
     if (this.shake > 0) {
       ctx.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake);
     }
-    this.drawSea(ctx);
-    if (this.mode !== 'title') {
-      for (let i = 0; i < this.ground.length; i++) this.ground[i].draw(ctx);
-      for (let i = 0; i < this.powerups.length; i++) this.powerups[i].draw(ctx);
-      for (let i = 0; i < this.enemies.length; i++) this.enemies[i].draw(ctx);
-      this.drawEscorts(ctx);
-      if (this.player.alive) this.player.draw(ctx, this.input.focusHeld());
-      this.drawBursts(ctx);
-      for (let i = 0; i < this.enemyShots.length; i++) this.enemyShots[i].draw(ctx);
-      for (let i = 0; i < this.playerShots.length; i++) this.playerShots[i].draw(ctx);
+    if (this.side && this.mode !== 'title') {
+      this.side.draw(ctx);
       this.fx.draw(ctx);
+    } else {
+      this.drawSea(ctx);
+      if (this.mode !== 'title') {
+        for (let i = 0; i < this.ground.length; i++) this.ground[i].draw(ctx);
+        for (let i = 0; i < this.powerups.length; i++) this.powerups[i].draw(ctx);
+        for (let i = 0; i < this.enemies.length; i++) this.enemies[i].draw(ctx);
+        this.drawEscorts(ctx);
+        if (this.player.alive) this.player.draw(ctx, this.input.focusHeld());
+        this.drawBursts(ctx);
+        for (let i = 0; i < this.enemyShots.length; i++) this.enemyShots[i].draw(ctx);
+        for (let i = 0; i < this.playerShots.length; i++) this.playerShots[i].draw(ctx);
+        this.fx.draw(ctx);
+      }
     }
     ctx.restore();
     this.drawVignette(ctx);
@@ -637,25 +696,32 @@
 
   Game.prototype.drawWater = function (ctx) {
     const g = ctx.createLinearGradient(0, 0, 0, WOW.H);
-    g.addColorStop(0, '#071e33');
-    g.addColorStop(0.45, '#0d5278');
-    g.addColorStop(1, '#082f4a');
+    g.addColorStop(0, '#061624');
+    g.addColorStop(0.38, '#0b4668');
+    g.addColorStop(0.72, '#0a3a58');
+    g.addColorStop(1, '#062433');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, WOW.W, WOW.H);
 
-    const off = (this.decorT * 26) % 90;
-    ctx.fillStyle = 'rgba(186, 226, 245, 0.05)';
-    for (let y = -90 + off; y < WOW.H + 20; y += 90) {
+    const off = (this.decorT * 28) % 52;
+    ctx.lineWidth = 1.15;
+    for (let i = 0; i < 16; i++) {
+      const y = -16 + off + i * 48;
+      ctx.strokeStyle = i % 2 === 0 ? 'rgba(186, 214, 228, 0.2)' : 'rgba(120, 168, 196, 0.16)';
       ctx.beginPath();
-      ctx.ellipse(WOW.W / 2, y, WOW.W * 0.7, 18, 0, 0, Math.PI * 2);
-      ctx.fill();
+      for (let x = 0; x <= WOW.W; x += 16) {
+        const wy = y + Math.sin(x * 0.04 + i * 1.3 + this.decorT * 1.4) * 2.6;
+        if (x === 0) ctx.moveTo(0, wy);
+        else ctx.lineTo(x, wy);
+      }
+      ctx.stroke();
     }
     for (let i = 0; i < this.foam.length; i++) {
       const f = this.foam[i];
       ctx.globalAlpha = f.a;
-      ctx.fillStyle = '#e9f7ff';
+      ctx.fillStyle = '#d5ebf6';
       ctx.beginPath();
-      ctx.ellipse(f.x, f.y, f.r * 3.4, f.r, 0, 0, Math.PI * 2);
+      ctx.ellipse(f.x, f.y, f.r * 3.2, f.r * 0.85, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -668,45 +734,64 @@
 
   Game.prototype.drawForest = function (ctx) {
     const scroll = (this.decorT * 52) % 80;
-    ctx.fillStyle = '#1a3324';
+    const ground = ctx.createLinearGradient(0, 0, 0, WOW.H);
+    ground.addColorStop(0, '#10261c');
+    ground.addColorStop(1, '#183628');
+    ctx.fillStyle = ground;
     ctx.fillRect(0, 0, WOW.W, WOW.H);
-    ctx.fillStyle = '#14281c';
-    for (let i = 0; i < 18; i++) {
-      const y = ((i * 80 - scroll * 2) % (WOW.H + 80)) - 40;
-      const x = 30 + ((i * 97) % (WOW.W - 60));
+    for (let i = 0; i < 26; i++) {
+      const y = ((i * 64 - scroll * 1.7) % (WOW.H + 100)) - 46;
+      const x = 18 + ((i * 89) % (WOW.W - 36));
+      ctx.fillStyle = 'rgba(6, 16, 10, 0.4)';
       ctx.beginPath();
-      ctx.ellipse(x, y, 46, 28, 0, 0, Math.PI * 2);
+      ctx.ellipse(x + 5, y + 7, 36, 16, 0, 0, Math.PI * 2);
       ctx.fill();
-    }
-    ctx.fillStyle = '#2f4e34';
-    for (let i = 0; i < 14; i++) {
-      const y = ((i * 96 + scroll) % (WOW.H + 96)) - 30;
-      const x = 50 + ((i * 131) % (WOW.W - 90));
+      ctx.fillStyle = i % 3 === 0 ? '#1b4a32' : '#246044';
       ctx.beginPath();
       ctx.ellipse(x, y, 34, 20, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = 'rgba(146, 186, 112, 0.38)';
+      ctx.beginPath();
+      ctx.ellipse(x - 8, y - 5, 14, 7, -0.5, 0, Math.PI * 2);
+      ctx.fill();
     }
-    ctx.fillStyle = 'rgba(92, 74, 48, 0.55)';
+    ctx.fillStyle = '#2a261e';
+    ctx.fillRect(WOW.W / 2 - 24, 0, 48, WOW.H);
+    ctx.fillStyle = '#6a5e48';
     ctx.fillRect(WOW.W / 2 - 16, 0, 32, WOW.H);
-    ctx.fillStyle = 'rgba(214, 196, 150, 0.2)';
-    for (let y = -40 + (scroll % 70); y < WOW.H; y += 70) {
-      ctx.fillRect(WOW.W / 2 - 10, y, 20, 16);
+    ctx.fillStyle = 'rgba(214, 196, 150, 0.7)';
+    for (let y = -40 + (scroll % 64); y < WOW.H; y += 64) {
+      ctx.fillRect(WOW.W / 2 - 1.5, y, 3, 14);
     }
+    ctx.fillStyle = 'rgba(86, 110, 58, 0.45)';
+    ctx.fillRect(WOW.W / 2 - 28, 0, 5, WOW.H);
+    ctx.fillRect(WOW.W / 2 + 23, 0, 5, WOW.H);
   };
 
   Game.prototype.drawReich = function (ctx) {
     const scroll = (this.decorT * 46) % 96;
-    const tones = ['#5d6b3a', '#7a6840', '#4a5c34', '#6e5a38'];
-    ctx.fillStyle = '#3e4e32';
+    const tones = ['#6d7c46', '#8d7348', '#56703e', '#7d6842'];
+    const furrows = ['#5e6c3c', '#7a643c', '#4a6234', '#6c5a38'];
+    ctx.fillStyle = '#243222';
     ctx.fillRect(0, 0, WOW.W, WOW.H);
     for (let row = -1; row < 10; row++) {
       for (let col = 0; col < 4; col++) {
-        ctx.fillStyle = tones[(row + col + 4) % tones.length];
-        ctx.fillRect(col * 120, row * 96 + scroll, 116, 90);
+        const x = col * 120 + 3;
+        const y = row * 96 + scroll + 3;
+        const idx = (row + col + 4) % tones.length;
+        ctx.fillStyle = tones[idx];
+        ctx.fillRect(x, y, 110, 84);
+        ctx.fillStyle = furrows[idx];
+        for (let f = 8; f < 76; f += 7) ctx.fillRect(x + 5, y + f, 100, 1.4);
+        ctx.strokeStyle = 'rgba(22, 34, 18, 0.72)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x + 1.5, y + 1.5, 107, 81);
       }
     }
-    ctx.fillStyle = 'rgba(70, 64, 52, 0.72)';
+    ctx.fillStyle = '#3e3a32';
     ctx.fillRect(WOW.W / 2 - 8, 0, 16, WOW.H);
+    ctx.fillStyle = 'rgba(230, 214, 170, 0.45)';
+    for (let y = (scroll % 46) - 16; y < WOW.H; y += 46) ctx.fillRect(WOW.W / 2 - 1, y, 2, 9);
   };
 
   Game.prototype.drawEscorts = function (ctx) {
@@ -766,41 +851,39 @@
     ctx.fill();
 
     trace(0);
-    ctx.fillStyle = '#f4f0e4';
+    ctx.fillStyle = '#f7f4ec';
     ctx.fill();
     ctx.save();
     ctx.clip();
-    ctx.fillStyle = '#2c552c';
-    ctx.fillRect(0, 0, 86, WOW.H);
-    ctx.fillStyle = '#3f6b34';
-    for (let i = 0; i < 8; i++) {
-      const y = ((i * 110 - scroll) % (WOW.H + 80)) - 30;
+    const downs = ctx.createLinearGradient(0, 0, 90, 0);
+    downs.addColorStop(0, '#2a6230');
+    downs.addColorStop(1, '#3a7438');
+    ctx.fillStyle = downs;
+    ctx.fillRect(0, 0, 150, WOW.H);
+    ctx.fillStyle = '#3f7c3c';
+    for (let i = 0; i < 9; i++) {
+      const y = ((i * 100 - scroll) % (WOW.H + 80)) - 30;
       ctx.beginPath();
-      ctx.ellipse(28 + (i % 2) * 18, y, 36, 22, 0, 0, Math.PI * 2);
+      ctx.ellipse(26 + (i % 2) * 16, y, 30, 16, 0, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.fillStyle = '#c5d48a';
-    for (let i = 0; i < 4; i++) {
-      const y = ((i * 180 + scroll * 0.35) % (WOW.H + 60)) - 20;
+    ctx.fillStyle = '#6a9848';
+    for (let i = 0; i < 5; i++) {
+      const y = ((i * 160 + scroll * 0.35) % (WOW.H + 60)) - 20;
       ctx.beginPath();
-      ctx.ellipse(22, y, 16, 10, 0, 0, Math.PI * 2);
+      ctx.ellipse(18, y, 12, 7, 0, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.fillStyle = 'rgba(150, 136, 110, 0.45)';
-    for (let i = 0; i < 16; i++) {
-      const y = ((i * 52 + scroll * 0.25) % (WOW.H + 30)) - 10;
-      const x = 96 + ((i * 23) % 46);
-      ctx.fillRect(x, y, 8 + (i % 4) * 5, 2);
-    }
-    ctx.fillStyle = 'rgba(92, 78, 58, 0.5)';
-    for (let i = 0; i < 10; i++) {
-      const y = ((i * 84 - scroll * 0.4) % (WOW.H + 20));
-      ctx.fillRect(104 + (i % 3) * 16, y, 3, 14 + (i % 3) * 7);
+    ctx.fillStyle = 'rgba(92, 78, 62, 0.55)';
+    for (let i = 0; i <= steps; i += 1) {
+      const y = -40 + (i / steps) * (WOW.H + 80);
+      const x = this.cliffEdge(y, scroll);
+      ctx.fillRect(x - 16, y - 3, 16, 7);
     }
     ctx.restore();
 
-    ctx.strokeStyle = 'rgba(236, 244, 248, 0.7)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255, 252, 246, 0.85)';
+    ctx.lineWidth = 2.25;
     ctx.beginPath();
     for (let i = 0; i <= steps; i++) {
       const y = -40 + (i / steps) * (WOW.H + 80);
@@ -809,11 +892,25 @@
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
+    ctx.strokeStyle = 'rgba(210, 230, 236, 0.35)';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const y = -40 + (i / steps) * (WOW.H + 80);
+      const x = this.cliffEdge(y, scroll) + 5;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
 
     const lightY = ((scroll * 0.72) % (WOW.H + 90)) - 40;
     const lightX = WOW.CLIFF_LANE + 26;
+    ctx.fillStyle = 'rgba(255, 220, 140, 0.18)';
+    ctx.beginPath();
+    ctx.arc(lightX, lightY - 22, 16, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#d7d2c6';
-    ctx.fillRect(lightX - 7, lightY + 10, 14, 4);
+    ctx.fillRect(lightX - 8, lightY + 10, 16, 5);
     ctx.fillStyle = '#f7f4ee';
     ctx.fillRect(lightX - 4, lightY - 18, 8, 28);
     ctx.fillStyle = '#9c2b22';
@@ -821,21 +918,30 @@
     ctx.fillRect(lightX - 4, lightY - 2, 8, 4);
     ctx.fillRect(lightX - 4, lightY + 8, 8, 3);
     ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(lightX - 5, lightY - 26, 10, 8);
+    ctx.fillRect(lightX - 6, lightY - 28, 12, 10);
     ctx.fillStyle = '#ffe9a0';
-    ctx.fillRect(lightX - 3, lightY - 24, 6, 3);
+    ctx.fillRect(lightX - 3, lightY - 25, 6, 4);
 
     for (let i = 0; i < 3; i++) {
       const y = ((i * 250 + scroll * 0.55) % (WOW.H + 100)) - 50;
       const x = 214 + (i % 2) * 64;
+      ctx.fillStyle = 'rgba(8, 20, 32, 0.35)';
+      ctx.beginPath();
+      ctx.ellipse(x + 4, y + 3, 12, 16, 0, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = '#f7f3ea';
       ctx.beginPath();
       ctx.ellipse(x, y, 11, 18, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#5d8a42';
+      ctx.fillStyle = '#4f7a38';
       ctx.beginPath();
-      ctx.ellipse(x, y - 10, 9, 5, 0, 0, Math.PI * 2);
+      ctx.ellipse(x - 1, y - 11, 8, 5, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = 'rgba(220, 236, 242, 0.45)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(x, y + 16, 16, 4, 0, 0, Math.PI * 2);
+      ctx.stroke();
     }
   };
 
@@ -848,40 +954,69 @@
     const troop = function (x, y) {
       const bob = Math.sin(this.decorT * 6 + y * 0.35) * 1.1;
       const px = x + bob;
+      ctx.fillStyle = 'rgba(40, 28, 14, 0.28)';
+      ctx.beginPath();
+      ctx.ellipse(px, y + 5, 3.2, 1.2, 0, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = '#3a3428';
-      ctx.fillRect(px - 2.3, y + 1.6, 1.5, 3.4);
-      ctx.fillRect(px + 0.8, y + 1.6, 1.5, 3.4);
+      ctx.fillRect(px - 2.2, y + 1.4, 1.4, 3.6);
+      ctx.fillRect(px + 0.8, y + 1.4, 1.4, 3.6);
       ctx.fillStyle = '#6b5c38';
-      ctx.fillRect(px - 2.5, y - 3.4, 5, 5.4);
+      ctx.fillRect(px - 2.6, y - 3.2, 5.2, 5.2);
+      ctx.fillStyle = '#8a7044';
+      ctx.fillRect(px - 2.2, y - 2.6, 1.6, 3.4);
       ctx.fillStyle = '#3d4a2c';
       ctx.beginPath();
-      ctx.arc(px, y - 5.2, 2.2, 0, Math.PI * 2);
+      ctx.arc(px, y - 5.1, 2.15, 0, Math.PI * 2);
       ctx.fill();
     }.bind(this);
     const boat = function (x, y) {
-      ctx.fillStyle = 'rgba(220, 236, 242, 0.5)';
+      ctx.fillStyle = 'rgba(220, 236, 242, 0.42)';
       ctx.beginPath();
-      ctx.ellipse(x + 18, y, 12, 3.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(x + 16, y + 1, 18, 4, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#243038';
+      ctx.fillStyle = '#1c282e';
       ctx.beginPath();
       ctx.moveTo(x - 16, y);
-      ctx.lineTo(x - 6, y - 7);
-      ctx.lineTo(x + 14, y - 6);
-      ctx.lineTo(x + 18, y);
-      ctx.lineTo(x + 14, y + 6);
-      ctx.lineTo(x - 6, y + 7);
+      ctx.lineTo(x - 8, y - 8);
+      ctx.lineTo(x + 16, y - 7);
+      ctx.lineTo(x + 22, y);
+      ctx.lineTo(x + 16, y + 7);
+      ctx.lineTo(x - 8, y + 8);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = '#8d6a3a';
-      ctx.fillRect(x - 2, y - 3.5, 9, 7);
+      ctx.fillStyle = '#3a4a52';
+      ctx.beginPath();
+      ctx.moveTo(x - 8, y - 7);
+      ctx.lineTo(x + 14, y - 6);
+      ctx.lineTo(x + 10, y - 1);
+      ctx.lineTo(x - 6, y - 1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#c4a06a';
+      ctx.fillRect(x - 1, y - 4, 8, 6);
+      ctx.fillStyle = '#141a1e';
+      ctx.fillRect(x + 2, y - 11, 2, 7);
     };
 
     const sea = ctx.createLinearGradient(0, 0, 0, WOW.H);
-    sea.addColorStop(0, '#1a3344');
-    sea.addColorStop(1, '#0e2433');
+    sea.addColorStop(0, '#163848');
+    sea.addColorStop(1, '#0c2230');
     ctx.fillStyle = sea;
     ctx.fillRect(0, 0, WOW.W, WOW.H);
+    ctx.strokeStyle = 'rgba(170, 206, 220, 0.16)';
+    ctx.lineWidth = 1;
+    const swell = (this.decorT * 22) % 36;
+    for (let i = 0; i < 18; i++) {
+      const y = -10 + swell + i * 42;
+      ctx.beginPath();
+      for (let x = 260; x <= WOW.W; x += 18) {
+        const wy = y + Math.sin(x * 0.05 + i) * 2;
+        if (x === 260) ctx.moveTo(x, wy);
+        else ctx.lineTo(x, wy);
+      }
+      ctx.stroke();
+    }
 
     ctx.beginPath();
     ctx.moveTo(0, -30);
@@ -892,21 +1027,32 @@
     }
     ctx.lineTo(0, WOW.H + 30);
     ctx.closePath();
-    ctx.fillStyle = '#d7c08a';
+    const sand = ctx.createLinearGradient(0, 0, 280, 0);
+    sand.addColorStop(0, '#c9b07a');
+    sand.addColorStop(0.55, '#e4d2a4');
+    sand.addColorStop(1, '#d2b888');
+    ctx.fillStyle = sand;
     ctx.fill();
     ctx.save();
     ctx.clip();
-    ctx.fillStyle = '#e4d09a';
+    ctx.fillStyle = '#edd9a8';
     for (let i = 0; i < 7; i++) {
       const y = ((i * 120 - scroll) % (WOW.H + 80)) - 20;
       ctx.beginPath();
-      ctx.ellipse(120 + (i % 3) * 40, y, 34, 12, 0, 0, Math.PI * 2);
+      ctx.ellipse(120 + (i % 3) * 40, y, 34, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(120, 96, 58, 0.16)';
+    for (let i = 0; i < 18; i++) {
+      const y = ((i * 46 - scroll * 0.6) % (WOW.H + 40)) - 10;
+      ctx.beginPath();
+      ctx.ellipse(70 + (i * 37) % 160, y, 2.2, 1.2, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
 
-    ctx.strokeStyle = '#c4aa72';
-    ctx.lineWidth = 16;
+    ctx.strokeStyle = '#b89a68';
+    ctx.lineWidth = 14;
     ctx.beginPath();
     for (let i = 0; i <= steps; i++) {
       const y = -30 + (i / steps) * (WOW.H + 60);
@@ -915,18 +1061,28 @@
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(232, 236, 230, 0.8)';
+    ctx.strokeStyle = 'rgba(236, 242, 236, 0.82)';
     ctx.lineWidth = 2;
     ctx.stroke();
 
     for (let i = 0; i < 16; i++) {
       const y = ((i * 48 - scroll) % (WOW.H + 48)) - 24;
       const w = 20 + (i % 4) * 7;
+      const h = 16 + (i % 3) * 6;
       const x = 8 + (i % 2) * 16;
-      ctx.fillStyle = i % 5 === 0 ? '#5c4338' : '#6e6556';
-      ctx.fillRect(x, y, w, 16 + (i % 3) * 6);
-      ctx.fillStyle = '#3e3832';
-      ctx.fillRect(x, y, w, 3);
+      ctx.fillStyle = 'rgba(20, 14, 10, 0.28)';
+      ctx.fillRect(x + 2, y + 3, w, h);
+      ctx.fillStyle = i % 5 === 0 ? '#6a4e40' : '#7a7162';
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = i % 2 === 0 ? '#8d4a3a' : '#4e463c';
+      ctx.beginPath();
+      ctx.moveTo(x - 1, y);
+      ctx.lineTo(x + w / 2, y - 6);
+      ctx.lineTo(x + w + 1, y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(214, 196, 150, 0.55)';
+      ctx.fillRect(x + 3, y + 5, 3, 4);
     }
 
     const gap = 108;
@@ -954,18 +1110,24 @@
     }
 
     const shipY = ((scroll * 0.8) % (WOW.H + 180)) - 70;
-    ctx.fillStyle = '#2c3840';
+    ctx.fillStyle = 'rgba(200, 220, 230, 0.28)';
     ctx.beginPath();
-    ctx.moveTo(424, shipY - 30);
-    ctx.lineTo(458, shipY - 8);
-    ctx.lineTo(448, shipY + 26);
-    ctx.lineTo(412, shipY + 12);
+    ctx.ellipse(400, shipY + 16, 28, 5, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#243038';
+    ctx.beginPath();
+    ctx.moveTo(418, shipY - 28);
+    ctx.lineTo(460, shipY - 6);
+    ctx.lineTo(448, shipY + 28);
+    ctx.lineTo(408, shipY + 10);
     ctx.closePath();
     ctx.fill();
+    ctx.fillStyle = '#3c4c56';
+    ctx.fillRect(424, shipY - 16, 18, 10);
     ctx.fillStyle = '#141c20';
-    ctx.fillRect(432, shipY - 18, 6, 14);
-    ctx.fillStyle = 'rgba(236, 244, 248, 0.4)';
-    ctx.fillRect(392, shipY + 6, 22, 2);
+    ctx.fillRect(430, shipY - 28, 5, 14);
+    ctx.fillStyle = '#9c2b22';
+    ctx.fillRect(426, shipY - 8, 8, 3);
 
     for (let i = 0; i < 4; i++) {
       const y = ((i * 180 - scroll) % (WOW.H + 80)) - 20;
@@ -1001,13 +1163,14 @@
   };
 
   Game.prototype.drawHUD = function (ctx) {
+    plate(ctx, 10, 8, 138, 42);
     ctx.textAlign = 'left';
     ctx.font = '700 11px "Segoe UI", Tahoma, sans-serif';
-    ctx.fillStyle = 'rgba(243,234,210,0.7)';
-    ctx.fillText('SCORE', 16, 22);
+    ctx.fillStyle = 'rgba(243,234,210,0.78)';
+    ctx.fillText('SCORE', 18, 22);
     ctx.font = '700 22px "Segoe UI", Tahoma, sans-serif';
     ctx.fillStyle = '#e6c35c';
-    ctx.fillText(String(this.score).padStart(6, '0'), 16, 44);
+    ctx.fillText(String(this.score).padStart(6, '0'), 18, 44);
     if (this.combo >= 2) {
       ctx.font = '700 13px "Segoe UI", Tahoma, sans-serif';
       ctx.fillStyle = '#fff6d8';
@@ -1036,10 +1199,11 @@
       ctx.fillText(boss.name || 'JU 88', WOW.W / 2, y + 22);
     }
 
+    plate(ctx, 10, WOW.H - 34, 92, 24);
     ctx.textAlign = 'left';
     ctx.font = '700 13px "Segoe UI", Tahoma, sans-serif';
     ctx.fillStyle = '#f3ead2';
-    ctx.fillText('BOMB  ' + this.player.bombs, 16, WOW.H - 18);
+    ctx.fillText('BOMB  ' + this.player.bombs, 18, WOW.H - 17);
     if (this.level && this.level.escort) {
       const charging = this.player.escortLeft > 0;
       const ready = this.player.escort >= 1 && !charging;
@@ -1060,23 +1224,30 @@
       ctx.fillText(this.level.short + '  ' + (this.levelIndex + 1) + '/' + WOW.LEVELS.length, WOW.W - 16, 48);
     }
 
-    const name = WOW.WEAPONS[this.player.tier].name;
     ctx.textAlign = 'right';
     ctx.fillStyle = '#e6c35c';
-    ctx.fillText(name, WOW.W - 16, WOW.H - 18);
-    for (let i = 0; i < WOW.WEAPONS.length; i++) {
-      ctx.fillStyle = i <= this.player.tier ? '#e6c35c' : 'rgba(243,234,210,0.25)';
-      ctx.fillRect(WOW.W - 16 - (WOW.WEAPONS.length - i) * 12, WOW.H - 32, 8, 4);
-    }
-    if (this.player.laser > 0) {
-      const w = 70 * (this.player.laser / 10);
-      ctx.fillStyle = '#fff6d0';
-      ctx.fillRect(WOW.W - 16 - 70, WOW.H - 40, w, 3);
-    }
-    if (!this.player.auto) {
-      ctx.font = '700 11px "Segoe UI", Tahoma, sans-serif';
-      ctx.fillStyle = 'rgba(243,234,210,0.75)';
-      ctx.fillText('MANUAL', WOW.W - 16, WOW.H - 48);
+    if (this.side) {
+      plate(ctx, WOW.W - 248, WOW.H - 34, 236, 24);
+      ctx.font = '700 13px "Segoe UI", Tahoma, sans-serif';
+      ctx.fillText(this.side.hint(), WOW.W - 18, WOW.H - 17);
+    } else {
+      plate(ctx, WOW.W - 156, WOW.H - 40, 144, 30);
+      const name = WOW.WEAPONS[this.player.tier].name;
+      ctx.fillText(name, WOW.W - 16, WOW.H - 18);
+      for (let i = 0; i < WOW.WEAPONS.length; i++) {
+        ctx.fillStyle = i <= this.player.tier ? '#e6c35c' : 'rgba(243,234,210,0.25)';
+        ctx.fillRect(WOW.W - 16 - (WOW.WEAPONS.length - i) * 12, WOW.H - 32, 8, 4);
+      }
+      if (this.player.laser > 0) {
+        const w = 70 * (this.player.laser / 10);
+        ctx.fillStyle = '#fff6d0';
+        ctx.fillRect(WOW.W - 16 - 70, WOW.H - 40, w, 3);
+      }
+      if (!this.player.auto) {
+        ctx.font = '700 11px "Segoe UI", Tahoma, sans-serif';
+        ctx.fillStyle = 'rgba(243,234,210,0.75)';
+        ctx.fillText('MANUAL', WOW.W - 16, WOW.H - 48);
+      }
     }
     if (WOW.audio.muted) {
       ctx.textAlign = 'center';
@@ -1092,6 +1263,8 @@
     ctx.globalAlpha = Math.min(1, this.banner.t * 2);
     ctx.textAlign = 'center';
     ctx.font = '700 26px Georgia, "Palatino Linotype", serif';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+    ctx.shadowBlur = 10;
     ctx.fillStyle = '#e6c35c';
     ctx.fillText(this.banner.text, WOW.W / 2, WOW.H * 0.38);
     ctx.restore();
@@ -1110,7 +1283,10 @@
     ctx.fillText('RIPPLE OF HISTORY PRESENTS', WOW.W / 2, 118);
     ctx.fillStyle = '#f3ead2';
     ctx.font = '700 34px Georgia, "Palatino Linotype", serif';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+    ctx.shadowBlur = 12;
     ctx.fillText('WINGS OF WW2', WOW.W / 2, 162);
+    ctx.shadowBlur = 0;
     ctx.strokeStyle = 'rgba(230, 195, 92, 0.85)';
     ctx.beginPath();
     ctx.moveTo(WOW.W / 2 - 70, 178);
@@ -1121,7 +1297,7 @@
     ctx.fillText('DUNKIRK', WOW.W / 2, 204);
     ctx.fillStyle = 'rgba(243,234,210,0.8)';
     ctx.font = '14px Georgia, "Palatino Linotype", serif';
-    ctx.fillText('CLIFFS · SCHWEINFURT · BULGE · GERMANY', WOW.W / 2, 228);
+    ctx.fillText('CLIFFS · BISMARCK · SCHWEINFURT · BULGE · GERMANY', WOW.W / 2, 228);
 
     ctx.fillStyle = 'rgba(243,234,210,0.88)';
     ctx.font = '13px "Segoe UI", Tahoma, sans-serif';
@@ -1147,44 +1323,49 @@
   };
 
   Game.prototype.drawPause = function (ctx) {
-    panel(ctx, 110, 280, 260, 150);
+    const landscape = WOW.H < 520;
+    const y = landscape ? (WOW.H - 150) / 2 : 280;
+    panel(ctx, landscape ? (WOW.W - 260) / 2 : 110, y, 260, 150);
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e6c35c';
     ctx.font = '700 28px Georgia, "Palatino Linotype", serif';
-    ctx.fillText('PAUSED', WOW.W / 2, 340);
+    ctx.fillText('PAUSED', WOW.W / 2, y + 60);
     ctx.fillStyle = '#f3ead2';
     ctx.font = '14px "Segoe UI", Tahoma, sans-serif';
-    ctx.fillText('ENTER TO RESUME', WOW.W / 2, 384);
+    ctx.fillText('ENTER TO RESUME', WOW.W / 2, y + 104);
   };
 
   Game.prototype.drawEnd = function (ctx, title, hint, sub) {
-    panel(ctx, 70, 230, 340, 250);
+    const landscape = WOW.H < 520;
+    const y = landscape ? (WOW.H - 250) / 2 : 230;
+    const gear = this.mode === 'victory' && this.side ? 'TORPEDOES' : WOW.WEAPONS[this.player.tier].name;
+    panel(ctx, landscape ? (WOW.W - 340) / 2 : 70, y, 340, 250);
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e6c35c';
     ctx.font = '700 28px Georgia, "Palatino Linotype", serif';
-    ctx.fillText(title, WOW.W / 2, 286);
+    ctx.fillText(title, WOW.W / 2, y + 56);
     ctx.fillStyle = '#f3ead2';
     ctx.font = '700 14px "Segoe UI", Tahoma, sans-serif';
-    ctx.fillText('SCORE  ' + String(this.score).padStart(6, '0'), WOW.W / 2, 332);
+    ctx.fillText('SCORE  ' + String(this.score).padStart(6, '0'), WOW.W / 2, y + 102);
     ctx.font = '14px "Segoe UI", Tahoma, sans-serif';
-    ctx.fillText(WOW.WEAPONS[this.player.tier].name, WOW.W / 2, 360);
+    ctx.fillText(gear, WOW.W / 2, y + 130);
     ctx.fillStyle = 'rgba(230, 195, 92, 0.85)';
     ctx.font = '13px Georgia, "Palatino Linotype", serif';
-    ctx.fillText('A RIPPLE OF HISTORY SORTIE', WOW.W / 2, 392);
+    ctx.fillText('A RIPPLE OF HISTORY SORTIE', WOW.W / 2, y + 162);
     if (this.best > 0) {
       ctx.fillStyle = 'rgba(243,234,210,0.7)';
       ctx.font = '12px "Segoe UI", Tahoma, sans-serif';
-      ctx.fillText('BEST  ' + String(this.best).padStart(6, '0'), WOW.W / 2, 416);
+      ctx.fillText('BEST  ' + String(this.best).padStart(6, '0'), WOW.W / 2, y + 186);
     }
     if (Math.floor(this.decorT * 2) % 2 === 0) {
       ctx.fillStyle = '#e6c35c';
       ctx.font = '700 15px Georgia, "Palatino Linotype", serif';
-      ctx.fillText(hint, WOW.W / 2, 444);
+      ctx.fillText(hint, WOW.W / 2, y + 214);
     }
     if (sub) {
       ctx.fillStyle = 'rgba(243,234,210,0.75)';
       ctx.font = '12px "Segoe UI", Tahoma, sans-serif';
-      ctx.fillText(sub, WOW.W / 2, 466);
+      ctx.fillText(sub, WOW.W / 2, y + 236);
     }
   };
 

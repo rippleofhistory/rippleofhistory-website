@@ -51,10 +51,10 @@
       ctx.lineTo(2.6, -8);
       ctx.fill();
     } else if (this.friendly) {
-      ctx.fillStyle = 'rgba(255, 220, 140, 0.35)';
-      ctx.fillRect(-2.5, -12, 5, 16);
-      ctx.fillStyle = '#fff6d2';
-      ctx.fillRect(-1.2, -10, 2.4, 12);
+      ctx.fillStyle = 'rgba(255, 214, 120, 0.28)';
+      ctx.fillRect(-2.2, -14, 4.4, 20);
+      ctx.fillStyle = '#fff8dc';
+      ctx.fillRect(-0.9, -12, 1.8, 14);
     } else {
       ctx.fillStyle = 'rgba(255, 70, 40, 0.4)';
       ctx.beginPath();

@@ -1,5 +1,5 @@
 /**
- * Wings of WW2 — tunables for the five-sortie campaign.
+ * Wings of WW2 — tunables for the six-sortie campaign.
  * Scroll speed, fire rate, drop rate, and the difficulty curve live here
  * so the feel can be locked before a stage is lifted into another game.
  *
@@ -54,6 +54,7 @@
     crate: 50,
     graze: 10,
     tank: 280,
+    torpedo: 1000,
   };
 
   /* Seconds to fill the escort bar, and how long the fighters stay. */
@@ -65,6 +66,7 @@
     spitfire: { id: 'spitfire', sprite: 'player', speed: 280, focus: 118, hitR: 8, drawW: 96, minY: 250, edge: 20 },
     fortress: { id: 'fortress', sprite: 'b17', speed: 164, focus: 86, hitR: 14, drawW: 210, minY: 292, edge: 36 },
     thunderbolt: { id: 'thunderbolt', sprite: 'p47', speed: 248, focus: 108, hitR: 10, drawW: 108, minY: 250, edge: 24 },
+    swordfish: { id: 'swordfish', sprite: 'player', speed: 150, focus: 90, hitR: 12, drawW: 120, minY: 70, edge: 28 },
   };
 
   /* Enemy bodies. drop is the random crate chance. forceDrop on a spawn ignores this. */
@@ -81,8 +83,8 @@
   };
 
   /**
-   * Five sorties, in order: Dunkirk 1940, the White Cliffs 1940,
-   * Schweinfurt 1943, the Bulge 1944, Germany 1945. A clear carries
+   * Six sorties, in order: Dunkirk 1940, the White Cliffs 1940,
+   * Bismarck 1941, Schweinfurt 1943, the Bulge 1944, Germany 1945. A clear carries
    * score, lives, weapon tier, and bombs. WOW.LEVEL is the sortie
    * currently being flown.
    */
@@ -116,7 +118,7 @@
       name: 'THE WHITE CLIFFS',
       short: 'CLIFFS',
       clear: 'COAST CLEAR',
-      nextHint: 'ENTER  SCHWEINFURT',
+      nextHint: 'ENTER  BISMARCK',
       scenery: 'cliffs',
       bossBanner: 'HE 111 INBOUND',
       bossType: 'boss2',
@@ -134,6 +136,18 @@
         { t: 55.0, kind: 'dense' },
         { t: 68.0, kind: 'boss' },
       ],
+    },
+    {
+      id: 'bismarck',
+      name: 'BISMARCK',
+      short: 'SWORD',
+      clear: 'RUDDER JAMMED',
+      nextHint: 'ENTER  SCHWEINFURT',
+      scenery: 'atlantic',
+      side: true,
+      craft: 'swordfish',
+      bossBanner: 'BISMARCK',
+      events: [],
     },
     {
       id: 'schweinfurt',

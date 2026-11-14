@@ -14,7 +14,8 @@ import {
   prefersReducedMotion,
 } from "./site.js";
 import { eventsFor } from "./events.js";
-import { applySeo } from "./seo.js";
+import { SHOP_UNBOXINGS } from "./shop-unboxings.js";
+import { applySeo, applyShopUnboxings } from "./seo.js";
 import { inject } from "@vercel/analytics";
 import "../css/styles.css";
 
@@ -207,6 +208,7 @@ function renderVideos() {
   fillRail("[data-airshows]", AIRSHOWS.slice(1));
   fillRail("[data-latest]", LATEST_VIDEOS);
   loadLatest();
+  loadShopUnboxings();
 }
 renderVideos();
 
@@ -221,6 +223,27 @@ async function loadLatest() {
       const list = await response.json();
       if (Array.isArray(list) && list.length) {
         fillRail("[data-latest]", list);
+        return;
+      }
+    } catch {
+      /* try the next feed */
+    }
+  }
+}
+
+async function loadShopUnboxings() {
+  const root = document.querySelector("[data-shop-unboxings]");
+  if (!root) return;
+  fillRail("[data-shop-unboxings]", SHOP_UNBOXINGS);
+  const urls = ["/api/shop-unboxings", "/api/shop-unboxings.json"];
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      const list = await response.json();
+      if (Array.isArray(list) && list.length) {
+        fillRail("[data-shop-unboxings]", list);
+        applyShopUnboxings(list);
         return;
       }
     } catch {
