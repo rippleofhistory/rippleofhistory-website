@@ -2773,7 +2773,7 @@
       "LV " + progress.level + "   " + xpLine,
       "HP " + player.hp + " / " + progress.maxHealth,
       "ATK " + progress.attackPower.toFixed(3) + "   DR " + (progress.damageReduction * 100).toFixed(1) + "%",
-      "SHOP  HP+" + Math.round(s.bonusMaxHealth || 0) + "  ATK+" + (s.bonusAttack || 0).toFixed(2) + "  XP+" + Math.round((s.bonusXPPercent || 0) * 100) + "%",
+      "SHOP  HP+" + Math.round(s.bonusMaxHealth || 0) + "  ATK+" + (s.bonusAttack || 0).toFixed(2) + "  DR+" + Math.round((s.bonusDamageReduction || 0) * 100) + "%  XP+" + Math.round((s.bonusXPPercent || 0) * 100) + "%",
       "START LV " + (s.bonusStartLevel || 1) + "   DIFF " + difficulty,
     ].join("\n");
     const inp = document.getElementById("rpg-debug-lv");
@@ -7410,6 +7410,27 @@
     applyPermanentUpgrade: (type, value) => {
       const ok = progress.applyPermanentUpgrade(type, value);
       player.hp = progress.currentHealth;
+      persistSave();
+      return ok;
+    },
+    buyHealthUpgrade: (n) => {
+      const ok = progress.buyHealthUpgrade(n);
+      player.hp = progress.currentHealth;
+      persistSave();
+      return ok;
+    },
+    buyAttackUpgrade: (n) => {
+      const ok = progress.buyAttackUpgrade(n);
+      persistSave();
+      return ok;
+    },
+    buyReductionUpgrade: (n) => {
+      const ok = progress.buyReductionUpgrade(n);
+      persistSave();
+      return ok;
+    },
+    buyXPBoost: (n) => {
+      const ok = progress.buyXPBoost(n);
       persistSave();
       return ok;
     },
