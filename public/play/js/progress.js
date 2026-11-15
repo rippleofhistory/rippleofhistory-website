@@ -136,12 +136,12 @@
     return SCALING.drAt100 * (clamp(level, 1, MAX_LEVEL) - 1) / 99;
   }
 
-  // Full XP within farm.grace levels of the foe. Then 6%/level off, cap 95%.
-  // Extra crushMul if Kael is > crushRatio × the content and more than crushGap above it.
+  // Full XP within farm.grace of the foe. Then perLevel off, cap at farm.cap.
+  // L5 vs Alexander (gap 4) = full. L40 vs Alexander ≈ 77% off. L70+ early ≈ nothing.
   function farmMul(playerLevel, foeLevel) {
     if (foeLevel == null) return 1;
     const cfg = (R.ENEMY && R.ENEMY.farm) || {
-      grace: 4, perLevel: 0.06, cap: 0.95, crushMul: 0.6, crushRatio: 2.5, crushGap: 8,
+      grace: 4, perLevel: 0.022, cap: 0.92, crushMul: 0.6, crushRatio: 2.5, crushGap: 50,
     };
     const foe = Math.max(1, foeLevel | 0);
     const over = playerLevel - foe;

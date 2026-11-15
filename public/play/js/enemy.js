@@ -22,15 +22,23 @@
     difficulty: { easy: 0.4, medium: 1, hard: 1.7, insane: 3 },
     farm: {
       grace: 4,
-      perLevel: 0.06,
-      cap: 0.95,
+      perLevel: 0.022,
+      cap: 0.92,
       crushMul: 0.6,
       crushRatio: 2.5,
-      crushGap: 8,
+      crushGap: 50,
     },
-    eraLevel: { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7 },
-    tierBonus: { infantry: 0, spear: 0, sniper: 0, cannon: 1, heavy: 1, miniboss: 1, boss: 2 },
-    maxLevel: 8,
+    eraBand: {
+      1: { min: 1, max: 2 },
+      2: { min: 2, max: 3 },
+      3: { min: 3, max: 4 },
+      4: { min: 4, max: 5 },
+      5: { min: 5, max: 6 },
+      6: { min: 6, max: 8 },
+      7: { min: 7, max: 9 },
+    },
+    bossBonus: 2,
+    maxLevel: 9,
     insane: {
       earlyEra: 3,
       solidMin: 10,
@@ -89,13 +97,19 @@
     return ENEMY.xp[xpTier(type)] || ENEMY.xp.infantry;
   }
 
-  // Era I grunt = 1 … Era VII grunt = 7. Heavies/bosses add a little, cap 8.
+  // Era bands: I 1–2, II 2–3, III 3–4, IV 4–5, V 5–6, VI 6–8, VII 7–9. Bosses = era min + 2.
   function enemyLevel(e, era) {
     const type = e && typeof e === "object" ? e.type : e;
     const n = clamp((era | 0) || 1, 1, 7);
-    const base = ENEMY.eraLevel[n] != null ? ENEMY.eraLevel[n] : n;
-    const bonus = ENEMY.tierBonus[xpTier(type)] || 0;
-    return clamp(base + bonus, 1, ENEMY.maxLevel);
+    const band = ENEMY.eraBand[n] || { min: n, max: n + 1 };
+    const tier = xpTier(type);
+    let lv = band.min;
+    if (tier === "boss") lv = band.min + (ENEMY.bossBonus || 2);
+    else if (tier === "miniboss") lv = band.max;
+    else if (tier === "sniper" || tier === "heavy" || tier === "cannon") {
+      lv = Math.min(band.max, band.min + 1);
+    }
+    return clamp(lv, 1, ENEMY.maxLevel);
   }
 
   function stampEnemy(e, era) {
