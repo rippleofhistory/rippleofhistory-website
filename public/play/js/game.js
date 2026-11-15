@@ -252,6 +252,13 @@
   let spawned = 0;
 
   const player = {};
+  const progress = new ROH.PlayerProgress();
+  progress.onLevelUp = function (lv) {
+    announce("LEVEL " + lv, 90);
+    floatText(player.x, player.y - 56, "LEVEL " + lv, "#ffe27a");
+    sfx("checkpoint");
+    player.hp = progress.currentHealth;
+  };
   const enemies = [];
   const shots = [];
   const sparks = [];
@@ -717,6 +724,7 @@
     keysOn = s.keysOn !== false;
     difficulty = DIFF[s.difficulty] ? s.difficulty : "medium";
     if (difficulty === "insane" && !insaneUnlocked) difficulty = "hard";
+    progress.load(s.progress);
     const d = diffCfg();
     maxLives = d.cap;
     const lv = s.lives != null ? s.lives : d.lives;
@@ -732,6 +740,7 @@
         difficulty,
         insaneUnlocked,
         keysOn,
+        progress: progress.toJSON(),
       }));
       localStorage.setItem("roh.unlocked", String(unlocked));
     } catch (err) { /* ignore quota */ }
@@ -1049,7 +1058,7 @@
     player.w = 20;
     player.h = 40;
     player.facing = 1;
-    player.hp = 100;
+    player.hp = progress.fill();
     player.onGround = true;
     player.blocking = false;
     player.anim = "idle";
@@ -1626,6 +1635,7 @@
     round.ox = round.x;
     round.oy = round.y;
     round.fresh = true;
+    if (round.dmg) round.dmg = progress.dealDamage(round.dmg);
     shots.push(round);
   }
 
@@ -1992,13 +2002,15 @@
       bloodBurst(player.x, player.y - 22, dir, 8, false);
     }
     hurtFlash = Math.max(hurtFlash, player.blocking ? 4 : 10);
-    player.hp -= dmg;
+    progress.takeDamage(dmg);
+    player.hp = progress.currentHealth;
     player.vx = dir * kb;
     player.vy = player.blocking ? player.vy : -1.4;
     player.invuln = Math.max(3, Math.round((player.blocking ? 12 : 46) * d.iFrames));
     bumpShake(player.blocking ? 3 : 7);
     if (player.hp <= 0) {
       player.hp = 0;
+      progress.currentHealth = 0;
       loseLife();
     }
   }
@@ -2570,7 +2582,7 @@
       if (!aabb(hb.x, hb.y, hb.w, hb.h, box.x, box.y, box.w, box.h)) continue;
       if (Math.abs(player.vx) < (era === 3 ? 0.7 : 0.85)) continue;
       e.trampleCd = 20;
-      e.hp -= era === 3 && e.type === "knight" ? 18 : 12;
+      e.hp -= progress.dealDamage(era === 3 && e.type === "knight" ? 18 : 12);
       e.hurtT = 10;
       e.stunT = e.type === "knight" ? 70 : 40;
       e.vx = player.facing * (e.type === "knight" ? 4.6 : 3.2);
@@ -3527,7 +3539,8 @@
         bumpShake(power ? 16 : 10);
         if (e.hits >= 3) killEnemy(e);
       } else {
-        e.hp -= Math.max(1, Math.round(spec.dmg * diffCfg().dmgOut));
+        const dealt = Math.max(1, Math.round(progress.dealDamage(spec.dmg) * diffCfg().dmgOut));
+        e.hp -= dealt;
         e.hurtT = power ? 16 : 12;
         e.flashT = 0;
         e.state = "hurt";
@@ -3537,7 +3550,7 @@
         sparkBurst(e.x, e.y - e.h * 0.5, power || player.combo === 3 ? 18 : 10, true);
         bloodBurst(e.x, e.y - e.h * 0.45, dir, power || player.combo === 3 ? 16 : 8, e.hp <= 0);
         eraStrikeBurst(e.x, e.y - e.h * 0.5, dir, power || player.combo === 3);
-        floatText(e.x + dir * 6, e.y - e.h - 6, "-" + spec.dmg, "#d23a3a");
+        floatText(e.x + dir * 6, e.y - e.h - 6, "-" + dealt, "#d23a3a");
         sfx("hit");
         hitstop = mega ? Math.max(10, HIT_PAUSE_FRAMES) : player.kind === "heavy" ? 8 : player.combo === 3 ? 7 : 4;
         if (mega) {
@@ -3563,6 +3576,8 @@
     else if (player.combo === 3) pts += 50;
     addScore(pts, null, e.x, e.y - e.h - 20);
     floatText(e.x, e.y - e.h - 20, "+" + pts, "#ffe27a");
+    const xpGot = progress.addXP(ROH.xpForKill(e.type), difficulty, ROH.enemyLevel(e, era));
+    if (xpGot > 0) floatText(e.x, e.y - e.h - 32, "+" + xpGot + " XP", "#c9a227");
     chargeFromKill(e);
     if (e.type === "elephant") {
       elephantCleared = true;
@@ -4674,7 +4689,8 @@
       if (Math.abs(player.x - p.x) < 18 && Math.abs(player.y - p.y) < 30) {
         p.taken = true;
         if (p.type === "plus") {
-          player.hp = Math.min(100, player.hp + 25);
+          progress.currentHealth = Math.min(progress.maxHealth, progress.currentHealth + 25);
+          player.hp = progress.currentHealth;
           addScore(25);
           floatText(p.x, p.y - 16, "+25", "#ff6b6b");
           sfx("pickup");
@@ -4923,10 +4939,11 @@
         const cx = L.x + Math.sin(L.a) * 70;
         if (player.y > GROUND - 22 && Math.abs(player.x - cx) < L.w * 0.5) {
           if (time % 16 === 0) {
-            player.hp -= 2;
+            progress.takeDamage(2);
+            player.hp = progress.currentHealth;
             markDamaged();
             sparkBurst(player.x, player.y - 20, 3, true);
-            if (player.hp <= 0) { player.hp = 0; loseLife(); }
+            if (player.hp <= 0) { player.hp = 0; progress.currentHealth = 0; loseLife(); }
           }
         }
       }
@@ -6534,15 +6551,25 @@
 
   function drawHUD() {
     for (let i = 0; i < player.lives; i++) drawHeart(16 + i * 18, 12, true);
+    ctx.fillStyle = "#e6c35c";
+    ctx.font = "7px Cinzel, serif";
+    ctx.textAlign = "left";
+    ctx.fillText("LV " + progress.level, 16 + player.lives * 18 + 6, 16);
     ctx.fillStyle = "#1a120c";
     ctx.fillRect(8, 24, 104, 8);
     ctx.fillStyle = "#5a2018";
     ctx.fillRect(9, 25, 102, 6);
-    ctx.fillStyle = player.hp > 30 ? "#d23a3a" : "#e6c35c";
-    ctx.fillRect(9, 25, 102 * (player.hp / 100), 6);
+    const hpMax = Math.max(1, progress.maxHealth);
+    ctx.fillStyle = player.hp > hpMax * 0.3 ? "#d23a3a" : "#e6c35c";
+    ctx.fillRect(9, 25, 102 * (player.hp / hpMax), 6);
     ctx.strokeStyle = "#e6c35c";
     ctx.lineWidth = 1;
     ctx.strokeRect(8.5, 24.5, 103, 7);
+    const xpFill = progress.level >= ROH.MAX_LEVEL ? 1 : progress.currentXP / Math.max(1, progress.xpToNextLevel);
+    ctx.fillStyle = "#1a120c";
+    ctx.fillRect(8, 33, 104, 3);
+    ctx.fillStyle = "#c9a227";
+    ctx.fillRect(8, 33, 104 * Math.max(0, Math.min(1, xpFill)), 3);
 
     ctx.fillStyle = "#e6c35c";
     ctx.font = "7px Cinzel, serif";
@@ -7226,6 +7253,11 @@
       warpT,
       lives: player.lives,
       hp: player.hp,
+      level: progress.level,
+      xp: progress.currentXP,
+      xpToNext: progress.xpToNextLevel,
+      maxHealth: progress.maxHealth,
+      attackPower: +progress.attackPower.toFixed(3),
       x: player.x | 0,
       y: player.y | 0,
       anim: player.anim,
@@ -7271,8 +7303,10 @@
     mute: () => toggleMute(),
     back: () => handleBack(),
     persist: () => persistSave(),
+    progress: () => progress.toJSON(),
+    addXP: (n, diff, foe) => progress.addXP(n, diff, foe),
     tp: (x) => { player.x = x; camX = x - VW * 0.38; },
-    wipe: () => { player.hp = 0; player.lives = 0; loseLife(); },
+    wipe: () => { player.hp = 0; progress.currentHealth = 0; player.lives = 0; loseLife(); },
     killSpecial: (type) => {
       const e = enemies.find((n) => n.type === type);
       if (e) killEnemy(e);
@@ -7283,7 +7317,7 @@
     scene: () => scene,
     title: () => toTitle(),
     dumpHorse: () => dumpHorse(),
-    die: () => { player.hp = 0; loseLife(); },
+    die: () => { player.hp = 0; progress.currentHealth = 0; loseLife(); },
     chargeMount: () => { if (horse) horse.hp = horse.maxHp; },
     setLives: (n) => {
       player.lives = clamp(n, 1, MAX_LIVES);
