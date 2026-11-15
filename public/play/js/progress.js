@@ -58,20 +58,43 @@
   const SHOP_PACKS = {
     pouch: { id: "pouch", xp: 500 },
     crate: { id: "crate", xp: 2500 },
+    minor: { id: "minor", xp: 2500 },
     cache: { id: "cache", xp: 5000 },
     chest: { id: "chest", xp: 10000 },
+    major: { id: "major", xp: 12000 },
     vault: { id: "vault", xp: 25000 },
   };
   const SHOP_UPGRADES = {
     taut: { id: "taut", type: "health", value: 16 },
+    crystal: { id: "crystal", type: "health", value: 25 },
     sinew: { id: "sinew", type: "health", value: 30 },
     edge: { id: "edge", type: "attack", value: 0.08 },
+    rune: { id: "rune", type: "attack", value: 0.08 },
     point: { id: "point", type: "attack", value: 0.10 },
     lore: { id: "lore", type: "xp", value: 0.15 },
+    booster: { id: "booster", type: "xp", value: 0.15 },
     saga: { id: "saga", type: "xp", value: 0.20 },
     ward: { id: "ward", type: "reduction", value: 0.05 },
     headstart: { id: "headstart", type: "startLevel", value: 10 },
   };
+  const SHOP_BUNDLES = {
+    kit: {
+      id: "kit",
+      grants: [
+        { type: "health", value: 40 },
+        { type: "reduction", value: 0.05 },
+      ],
+    },
+  };
+  // Named catalog for a later shop screen. No prices or buy UI here.
+  const SHOP_ITEMS = [
+    { id: "crystal", name: "Small Health Crystal", effect: "+25 Max HP", sku: "crystal" },
+    { id: "rune", name: "Attack Rune", effect: "+8% Attack", sku: "rune" },
+    { id: "booster", name: "XP Booster", effect: "+15% all XP", sku: "booster" },
+    { id: "minor", name: "Minor XP Pack", effect: "+2,500 XP", sku: "minor" },
+    { id: "major", name: "Major XP Pack", effect: "+12,000 XP", sku: "major" },
+    { id: "kit", name: "Insane Survival Kit", effect: "+40 HP and +5% DR", sku: "kit" },
+  ];
 
   function clamp(n, a, b) {
     return n < a ? a : n > b ? b : n;
@@ -381,17 +404,24 @@
     return progress.applyPermanentUpgrade(spec.type, spec.value);
   }
 
+  function applyBundle(id, progress) {
+    const spec = SHOP_BUNDLES[id];
+    if (!spec || !progress || !spec.grants) return false;
+    spec.grants.forEach((g) => progress.applyPermanentUpgrade(g.type, g.value));
+    return true;
+  }
+
   /**
    * Stripe / Play Billing success callback.
    * Verify the session/purchase first, then:
    *   ROH.SHOP.onPaymentSuccess(progress, skuId)
-   * skuId is a pack (pouch/crate/cache/chest/vault) or upgrade
-   * (taut/sinew/edge/point/lore/saga/ward/headstart).
+   * Suggested later shop: crystal, rune, booster, minor, major, kit.
    */
   function onPaymentSuccess(progress, skuId) {
     if (!progress || !skuId) return null;
     if (SHOP_PACKS[skuId]) return applyPack(skuId, progress);
     if (SHOP_UPGRADES[skuId]) return applyUpgrade(skuId, progress);
+    if (SHOP_BUNDLES[skuId]) return applyBundle(skuId, progress);
     return null;
   }
 
@@ -438,8 +468,11 @@
   R.SHOP = {
     packs: SHOP_PACKS,
     upgrades: SHOP_UPGRADES,
+    bundles: SHOP_BUNDLES,
+    items: SHOP_ITEMS,
     applyPack: applyPack,
     applyUpgrade: applyUpgrade,
+    applyBundle: applyBundle,
     onPaymentSuccess: onPaymentSuccess,
   };
 })();
