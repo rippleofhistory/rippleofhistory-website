@@ -225,8 +225,12 @@
     const levelAttack = attackAt(this.level);
     const levelDR = damageReductionAt(this.level);
     const shopAtk = shop.bonusAttack || shop.bonusAttackMultiplier || 0;
-    const tempAttack = this.inventory && typeof this.inventory.getActiveAttackBonus === "function"
-      ? this.inventory.getActiveAttackBonus()
+    const bag = this.inventory
+      || (typeof window !== "undefined" && window.inventory && window.inventory.progress === this
+        ? window.inventory
+        : null);
+    const tempAttack = bag && typeof bag.getActiveAttackBonus === "function"
+      ? bag.getActiveAttackBonus()
       : 0;
     this.maxHealth = levelHealth + Math.round(shop.bonusMaxHealth || 0) + Math.round(equip.bonusMaxHealth || 0);
     this.attackMultiplier = levelAttack + shopAtk + (equip.attackMultiplier || 0) + tempAttack;

@@ -255,6 +255,8 @@
   const player = {};
   const progress = new ROH.PlayerProgress();
   const inventory = new ROH.Inventory(progress);
+  window.playerProgress = progress;
+  window.inventory = inventory;
   progress.onLevelUp = function (lv) {
     announce("LEVEL UP!  LEVEL " + lv, 120);
     banner.kind = "level";
