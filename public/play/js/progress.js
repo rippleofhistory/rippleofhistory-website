@@ -58,12 +58,17 @@
   const SHOP_PACKS = {
     pouch: { id: "pouch", xp: 500 },
     crate: { id: "crate", xp: 2500 },
+    cache: { id: "cache", xp: 5000 },
     chest: { id: "chest", xp: 10000 },
+    vault: { id: "vault", xp: 25000 },
   };
   const SHOP_UPGRADES = {
     taut: { id: "taut", type: "health", value: 16 },
+    sinew: { id: "sinew", type: "health", value: 30 },
     edge: { id: "edge", type: "attack", value: 0.08 },
+    point: { id: "point", type: "attack", value: 0.10 },
     lore: { id: "lore", type: "xp", value: 0.15 },
+    saga: { id: "saga", type: "xp", value: 0.20 },
     ward: { id: "ward", type: "reduction", value: 0.05 },
     headstart: { id: "headstart", type: "startLevel", value: 10 },
   };
@@ -271,9 +276,15 @@
   };
 
   /**
-   * Stripe / Play Billing: after payment is verified, grant the pack XP.
-   *   checkout.session.completed  →  progress.applyXPPack(SHOP.packs.crate.xp)
-   * Do not call this from a buy-button click. Packs skip difficulty and farm; shop XP% applies.
+   * After Stripe / payment success webhook or client callback:
+   *   progress.buyHealthUpgrade(30);
+   *   progress.buyAttackUpgrade(0.10);
+   *   progress.applyPermanentUpgrade("reduction", 0.05);
+   *   progress.buyXPBoost(0.20);
+   *   progress.applyXPPack(5000);
+   *   progress.applyXPPack(25000);
+   * Or ROH.SHOP.onPaymentSuccess(progress, skuId).
+   * Do not call these from a buy-button click. Packs skip difficulty and farm; shop XP% applies.
    */
   PlayerProgress.prototype.applyXPPack = function (amount) {
     const raw = Math.max(0, Number(amount) || 0);
@@ -286,10 +297,10 @@
   /**
    * Stripe / Play Billing: after payment is verified, add a permanent bonus.
    *   type: "health" | "attack" | "reduction" | "xp" | "startLevel"
-   *   progress.applyPermanentUpgrade("health", 25)
-   *   progress.applyPermanentUpgrade("attack", 0.08)
+   *   progress.applyPermanentUpgrade("health", 30)
+   *   progress.applyPermanentUpgrade("attack", 0.10)
    *   progress.applyPermanentUpgrade("reduction", 0.05)
-   *   progress.applyPermanentUpgrade("xp", 0.15)
+   *   progress.applyPermanentUpgrade("xp", 0.20)
    *   progress.applyPermanentUpgrade("startLevel", 10)
    */
   PlayerProgress.prototype.applyPermanentUpgrade = function (type, value) {
@@ -322,16 +333,16 @@
   };
 
   PlayerProgress.prototype.buyHealthUpgrade = function (amount) {
-    return this.applyPermanentUpgrade("health", amount == null ? 25 : amount);
+    return this.applyPermanentUpgrade("health", amount == null ? 30 : amount);
   };
   PlayerProgress.prototype.buyAttackUpgrade = function (amount) {
-    return this.applyPermanentUpgrade("attack", amount == null ? 0.08 : amount);
+    return this.applyPermanentUpgrade("attack", amount == null ? 0.10 : amount);
   };
   PlayerProgress.prototype.buyReductionUpgrade = function (amount) {
     return this.applyPermanentUpgrade("reduction", amount == null ? 0.05 : amount);
   };
   PlayerProgress.prototype.buyXPBoost = function (percent) {
-    return this.applyPermanentUpgrade("xp", percent == null ? 0.15 : percent);
+    return this.applyPermanentUpgrade("xp", percent == null ? 0.20 : percent);
   };
 
   PlayerProgress.prototype.load = function (data) {
@@ -374,7 +385,8 @@
    * Stripe / Play Billing success callback.
    * Verify the session/purchase first, then:
    *   ROH.SHOP.onPaymentSuccess(progress, skuId)
-   * skuId is a pack (pouch/crate/chest) or upgrade (taut/edge/lore/ward/headstart).
+   * skuId is a pack (pouch/crate/cache/chest/vault) or upgrade
+   * (taut/sinew/edge/point/lore/saga/ward/headstart).
    */
   function onPaymentSuccess(progress, skuId) {
     if (!progress || !skuId) return null;
