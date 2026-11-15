@@ -254,6 +254,7 @@
 
   const player = {};
   const progress = new ROH.PlayerProgress();
+  const inventory = new ROH.Inventory(progress);
   progress.onLevelUp = function (lv) {
     announce("LEVEL UP!  LEVEL " + lv, 120);
     banner.kind = "level";
@@ -729,6 +730,7 @@
     difficulty = DIFF[s.difficulty] ? s.difficulty : "medium";
     if (difficulty === "insane" && !insaneUnlocked) difficulty = "hard";
     progress.load(s.progress);
+    inventory.load(s.inventory);
     const d = diffCfg();
     maxLives = d.cap;
     const lv = s.lives != null ? s.lives : d.lives;
@@ -745,6 +747,7 @@
         insaneUnlocked,
         keysOn,
         progress: progress.toJSON(),
+        inventory: inventory.toJSON(),
       }));
       localStorage.setItem("roh.unlocked", String(unlocked));
     } catch (err) { /* ignore quota */ }
@@ -2639,6 +2642,7 @@
       if (e.code === "Escape") togglePause();
       if (e.code === "KeyM") toggleMute();
       if (e.code === "KeyH") toggleKeys();
+      if (e.code === "KeyQ") usePotion();
     }
     keys.add(e.code);
   });
@@ -2774,7 +2778,8 @@
       "HP " + player.hp + " / " + progress.maxHealth,
       "ATK " + progress.attackPower.toFixed(3) + "   DR " + (progress.damageReduction * 100).toFixed(1) + "%",
       "SHOP  HP+" + Math.round(s.bonusMaxHealth || 0) + "  ATK+" + (s.bonusAttack || 0).toFixed(2) + "  DR+" + Math.round((s.bonusDamageReduction || 0) * 100) + "%  XP+" + Math.round((s.bonusXPPercent || 0) * 100) + "%",
-      "START LV " + (s.bonusStartLevel || 1) + "   DIFF " + difficulty,
+      "GEAR  " + (inventory.equipment.weapon ? "SWORD" : "-") + "  " + (inventory.equipment.armor ? "ARMOR" : "-") + "  " + (inventory.equipment.accessory ? "MEDAL" : "-"),
+      "POT " + inventory.getQuantity("health_potion_small") + "   RAGE " + inventory.getQuantity("rage_tonic") + "   DIFF " + difficulty,
     ].join("\n");
     const inp = document.getElementById("rpg-debug-lv");
     if (inp && document.activeElement !== inp) inp.value = String(progress.level);
@@ -2817,6 +2822,44 @@
         setProgressLevel(n);
       });
     }
+    panel.querySelectorAll("[data-inv]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const act = btn.getAttribute("data-inv");
+        if (act === "add-pot") inventory.addItem("health_potion_small", 1);
+        else if (act === "use-pot") usePotion();
+        else if (act === "sword") {
+          if (inventory.equipment.weapon) inventory.unequip("weapon");
+          else {
+            if (!inventory.hasItem("iron_sword")) inventory.addItem("iron_sword", 1);
+            inventory.equip("iron_sword");
+          }
+          player.hp = progress.currentHealth;
+        }
+        persistSave();
+        refreshRpgDebug();
+      });
+    });
+  }
+
+  function usePotion() {
+    if (mode !== "play" && mode !== "pause") return false;
+    const id = inventory.getQuantity("health_potion_small") > 0
+      ? "health_potion_small"
+      : (inventory.getQuantity("health_potion_large") > 0 ? "health_potion_large" : null);
+    if (!id) {
+      if (mode === "play") floatText(player.x, player.y - 48, "NO POTION", "#e8d48a");
+      return false;
+    }
+    const before = progress.currentHealth;
+    if (!inventory.useItem(id)) return false;
+    player.hp = progress.currentHealth;
+    persistSave();
+    const healed = Math.max(0, progress.currentHealth - before);
+    floatText(player.x, player.y - 52, healed > 0 ? "+" + healed + " HP" : "FULL", "#d23a3a");
+    refreshRpgDebug();
+    return true;
   }
 
   function refreshDiff() {
@@ -4970,6 +5013,7 @@
     refreshPlayTouch();
     pollGamepad();
     time++;
+    inventory.updateBuffs();
     if (mode === "intro") {
       introT++;
       if (introT >= INTRO_LEN) landEra();
@@ -6655,6 +6699,8 @@
     ctx.font = "6px Cinzel, serif";
     ctx.textAlign = "left";
     ctx.fillText(progress.level >= ROH.MAX_LEVEL ? "XP MAX" : progress.currentXP + "/" + progress.xpToNextLevel, 116, 37);
+    const pots = inventory.getQuantity("health_potion_small") + inventory.getQuantity("health_potion_large");
+    if (pots > 0) ctx.fillText("Q " + pots, 168, 37);
     if (rpgDebugOn && (time % 10 === 0)) refreshRpgDebug();
 
     ctx.fillStyle = "#e6c35c";
@@ -7344,6 +7390,8 @@
       xp: progress.currentXP,
       xpToNext: progress.xpToNextLevel,
       rpgDebug: rpgDebugOn,
+      pots: inventory.getQuantity("health_potion_small"),
+      weapon: inventory.equipment.weapon,
       maxHealth: progress.maxHealth,
       attackPower: +progress.attackPower.toFixed(3),
       damageReduction: +progress.damageReduction.toFixed(4),
@@ -7393,6 +7441,26 @@
     back: () => handleBack(),
     persist: () => persistSave(),
     progress: () => progress.toJSON(),
+    inventory: () => inventory.toJSON(),
+    addItem: (id, n) => { const ok = inventory.addItem(id, n); persistSave(); return ok; },
+    useItem: (id) => {
+      const ok = inventory.useItem(id);
+      player.hp = progress.currentHealth;
+      persistSave();
+      return ok;
+    },
+    equip: (id) => {
+      const ok = inventory.equip(id);
+      player.hp = progress.currentHealth;
+      persistSave();
+      return ok;
+    },
+    unequip: (slot) => {
+      const ok = inventory.unequip(slot);
+      player.hp = progress.currentHealth;
+      persistSave();
+      return ok;
+    },
     addXP: (n, diff, foe) => progress.addXP(n, diff, foe),
     setLevel: (n) => {
       setProgressLevel(n);

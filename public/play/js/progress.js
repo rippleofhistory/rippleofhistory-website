@@ -200,22 +200,34 @@
     this.lastTaken = 0;
     this.shop = new ShopUpgrades();
     this.shopUpgrades = this.shop;
+    this.equipmentBonuses = { attackMultiplier: 0, bonusMaxHealth: 0, damageReduction: 0, xpPercent: 0 };
     this.onLevelUp = null;
   }
 
+  PlayerProgress.prototype.xpMul = function () {
+    const eq = this.equipmentBonuses || {};
+    return 1 + (this.shop.bonusXPPercent || 0) + (eq.xpPercent || 0);
+  };
+
   PlayerProgress.prototype.recalc = function () {
     this.shopUpgrades = this.shop;
+    this.equipmentBonuses = this.equipmentBonuses || { attackMultiplier: 0, bonusMaxHealth: 0, damageReduction: 0, xpPercent: 0 };
+    const eq = this.equipmentBonuses;
     this.level = clamp(this.level | 0, 1, MAX_LEVEL);
     if (this.shop && this.level < this.shop.bonusStartLevel) this.level = this.shop.bonusStartLevel;
     this.xpToNextLevel = xpToNext(this.level);
-    this.maxHealth = maxHealthAt(this.level) + Math.round(this.shop.bonusMaxHealth || 0);
-    this.attackPower = attackAt(this.level) + (this.shop.bonusAttack || 0);
+    this.maxHealth = maxHealthAt(this.level) + Math.round(this.shop.bonusMaxHealth || 0) + Math.round(eq.bonusMaxHealth || 0);
+    this.attackPower = attackAt(this.level) + (this.shop.bonusAttack || 0) + (eq.attackMultiplier || 0);
     this.damageReduction = Math.min(
       SCALING.drShopCap,
-      damageReductionAt(this.level) + (this.shop.bonusDamageReduction || 0)
+      damageReductionAt(this.level) + (this.shop.bonusDamageReduction || 0) + (eq.damageReduction || 0)
     );
     if (this.currentHealth > this.maxHealth) this.currentHealth = this.maxHealth;
     return this;
+  };
+
+  PlayerProgress.prototype.applyAllStats = function () {
+    return this.recalc();
   };
 
   PlayerProgress.prototype.fill = function () {
@@ -272,7 +284,7 @@
     if (!paid) {
       if (difficulty) granted *= XP_DIFF[difficulty] != null ? XP_DIFF[difficulty] : 1;
       granted *= farmMul(this.level, foeLevel);
-      granted *= 1 + (this.shop.bonusXPPercent || 0);
+      granted *= this.xpMul();
       granted = Math.max(1, Math.floor(granted));
     } else {
       granted = Math.floor(granted);
@@ -311,7 +323,7 @@
    */
   PlayerProgress.prototype.applyXPPack = function (amount) {
     const raw = Math.max(0, Number(amount) || 0);
-    const granted = Math.round(raw * (1 + (this.shop.bonusXPPercent || 0)));
+    const granted = Math.round(raw * this.xpMul());
     const result = this.addXP(granted, null, null, { paid: true });
     result.granted = result.gained;
     return result;

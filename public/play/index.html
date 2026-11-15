@@ -175,7 +175,12 @@
         <input id="rpg-debug-lv" type="number" min="1" max="100" value="1" aria-label="Set level" />
         <button type="submit">SET LV</button>
       </form>
-      <p class="rpg-debug-hint">F3 or ` to close</p>
+      <div class="rpg-debug-row">
+        <button type="button" data-inv="add-pot">+POT</button>
+        <button type="button" data-inv="use-pot">USE Q</button>
+        <button type="button" data-inv="sword">SWORD</button>
+      </div>
+      <p class="rpg-debug-hint">F3 or ` to close · Q potion</p>
     </div>
     <div id="touch" class="touch" aria-hidden="true">
       <div class="dpad">
@@ -214,6 +219,7 @@
   <script src="js/enemy.js"></script>
   <script src="js/music.js"></script>
   <script src="js/progress.js"></script>
+  <script src="js/inventory.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>
