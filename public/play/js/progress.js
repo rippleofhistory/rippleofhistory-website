@@ -16,7 +16,7 @@
   const MAX_LEVEL = 100;
   const SAVE_KEY = "roh.save";
 
-  const XP_DIFF = (R.ENEMY && R.ENEMY.difficulty) || { easy: 0.45, medium: 1, hard: 1.6, insane: 2.8 };
+  const XP_DIFF = (R.ENEMY && R.ENEMY.difficulty) || { easy: 0.4, medium: 1, hard: 1.7, insane: 3 };
 
   /**
    * Player combat scaling. Tune these anchors only.
@@ -83,7 +83,7 @@
     return steps[steps.length - 1][key];
   }
 
-  // Piecewise through XP_CURVE. Easy 0.45× still stalls once farmMul cuts in (~L14 vs era 1).
+  // Piecewise through XP_CURVE. Easy 0.4× stalls once farmMul cuts in (gap > 4 vs the foe).
   function xpToNext(level) {
     return Math.round(lerpSteps(level, XP_CURVE, "xp"));
   }
@@ -136,14 +136,23 @@
     return SCALING.drAt100 * (clamp(level, 1, MAX_LEVEL) - 1) / 99;
   }
 
-  // Full XP within 12 levels of the foe. Past that, 70% cut at +13 scaling to 90% by +32.
-  // effectiveLevel is 1–8, so Easy farming of early eras falls off from about player level 14.
+  // Full XP within farm.grace levels of the foe. Then 6%/level off, cap 95%.
+  // Extra crushMul if Kael is > crushRatio × the content and more than crushGap above it.
   function farmMul(playerLevel, foeLevel) {
     if (foeLevel == null) return 1;
-    const over = playerLevel - Math.max(1, foeLevel | 0);
-    if (over <= 12) return 1;
-    const t = Math.min(1, (over - 12) / 20);
-    return 0.3 - t * 0.2;
+    const cfg = (R.ENEMY && R.ENEMY.farm) || {
+      grace: 4, perLevel: 0.06, cap: 0.95, crushMul: 0.6, crushRatio: 2.5, crushGap: 8,
+    };
+    const foe = Math.max(1, foeLevel | 0);
+    const over = playerLevel - foe;
+    let mul = 1;
+    if (over > cfg.grace) {
+      mul *= 1 - Math.min(cfg.cap, (over - cfg.grace) * cfg.perLevel);
+    }
+    if (playerLevel > foe * cfg.crushRatio && over > cfg.crushGap) {
+      mul *= cfg.crushMul;
+    }
+    return mul;
   }
 
   function PlayerProgress() {
@@ -200,19 +209,22 @@
 
   /**
    * amount = kill table (or a shop pack). difficulty scales it; omit for a raw grant.
-   * enemyLevel applies the anti-farm cut when the player is more than 12 above the foe.
+   * foeLevel applies the anti-farm cut when the player is more than 4 above the foe.
    */
   PlayerProgress.prototype.addXP = function (amount, difficulty, foeLevel, opts) {
     if (this.level >= MAX_LEVEL) return 0;
     let granted = Math.max(0, Number(amount) || 0);
+    if (granted <= 0) return 0;
     const paid = opts && opts.paid;
     if (!paid) {
       if (difficulty) granted *= XP_DIFF[difficulty] != null ? XP_DIFF[difficulty] : 1;
       granted *= farmMul(this.level, foeLevel);
       granted *= 1 + (this.shop.bonusXPPercent || 0);
+      granted = Math.max(1, Math.floor(granted));
+    } else {
+      granted = Math.floor(granted);
+      if (granted <= 0) return 0;
     }
-    granted = Math.floor(granted);
-    if (granted <= 0) return 0;
     this.currentXP += granted;
     while (this.level < MAX_LEVEL && this.currentXP >= this.xpToNextLevel) this.levelUp();
     if (this.level >= MAX_LEVEL) this.currentXP = 0;
