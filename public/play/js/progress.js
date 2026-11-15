@@ -4,20 +4,18 @@
 
   /**
    * Light RPG for Kael. Drop-in: new ROH.PlayerProgress(), then
-   *   kill  → progress.addXP(ROH.xpForKill(type), difficulty, ROH.enemyLevel(e, era))
+   *   kill  → ROH.onEnemyDeath(progress, e, difficulty, era)
    *   hurt  → progress.takeDamage(dmg); player.hp = progress.currentHealth
    *   hit   → e.hp -= progress.dealDamage(base)
    *   spawn → player.hp = progress.maxHealth
+   * XP table, effectiveLevel, and Insane solid hits live in ROH.ENEMY (js/enemy.js).
    * Nested in roh.save.progress so persistSave cannot wipe it.
    * Shop methods apply a real Play Billing grant later — no store UI here.
    */
   const MAX_LEVEL = 100;
   const SAVE_KEY = "roh.save";
 
-  // Easy farming of early eras is meant to stall; Medium is the baseline.
-  const XP_DIFF = { easy: 0.45, medium: 1, hard: 1.6, insane: 2.8 };
-
-  const XP_KILL = { grunt: 22, elite: 55, boss: 180 };
+  const XP_DIFF = (R.ENEMY && R.ENEMY.difficulty) || { easy: 0.45, medium: 1, hard: 1.6, insane: 2.8 };
 
   // Permanent ranks (0/1). Applied after a real billing grant via ROH.SHOP.
   const SHOP_PACKS = {
@@ -40,7 +38,7 @@
     return Math.floor(80 * Math.pow(clamp(level, 1, MAX_LEVEL), 1.65));
   }
 
-  // L1=100, L50=158, L100=218. Insane 2.7× of a 40-raw hit is 108; L50 lives, L1 does not.
+  // L1=100, L40=146, L50=158, L100=218. Insane early-era solidHit (150) kills L40, L50 lives.
   function maxHealthAt(level, taut) {
     const base = Math.floor(100 * (1 + 0.012 * (clamp(level, 1, MAX_LEVEL) - 1)));
     return Math.floor(base * (1 + 0.08 * (taut ? 1 : 0)));
@@ -51,23 +49,8 @@
     return 1 + 0.008 * (clamp(level, 1, MAX_LEVEL) - 1) + 0.08 * (edge ? 1 : 0);
   }
 
-  // Era 1 grunt = 1; era 7 grunt = 73; elites +5; bosses +10. Cap 100.
-  function enemyLevel(e, era) {
-    const type = e && typeof e === "object" ? e.type : e;
-    const n = clamp((era | 0) || 1, 1, 7);
-    let lv = 1 + (n - 1) * 12;
-    if (R.isBoss && R.isBoss(type)) lv += 10;
-    else if ((R.isSpecial && R.isSpecial(type)) || type === "knight") lv += 5;
-    return clamp(lv, 1, MAX_LEVEL);
-  }
-
-  function xpForKill(type) {
-    if (R.isBoss && R.isBoss(type)) return XP_KILL.boss;
-    if ((R.isSpecial && R.isSpecial(type)) || type === "knight" || type === "gate") return XP_KILL.elite;
-    return XP_KILL.grunt;
-  }
-
   // Full XP within 12 levels of the foe. Past that, 70% cut at +13 scaling to 90% by +32.
+  // effectiveLevel is 1–8, so Easy farming of early eras falls off from about player level 14.
   function farmMul(playerLevel, foeLevel) {
     if (foeLevel == null) return 1;
     const over = playerLevel - Math.max(1, foeLevel | 0);
@@ -200,12 +183,9 @@
 
   R.MAX_LEVEL = MAX_LEVEL;
   R.XP_DIFF = XP_DIFF;
-  R.XP_KILL = XP_KILL;
   R.xpToNext = xpToNext;
   R.maxHealthAt = maxHealthAt;
   R.attackAt = attackAt;
-  R.enemyLevel = enemyLevel;
-  R.xpForKill = xpForKill;
   R.farmMul = farmMul;
   R.PlayerProgress = PlayerProgress;
   R.SHOP = {

@@ -1292,6 +1292,8 @@
     c.breakT = CANNON_BREAK;
     bumpShake(12);
     floatText(c.x, GROUND - 36, "SPIKED", "#e6c35c");
+    const xpGot = ROH.onEnemyDeath(progress, { type: "cannon" }, difficulty, era);
+    if (xpGot > 0) floatText(c.x, GROUND - 48, "+" + xpGot + " XP", "#c9a227");
     sparkBurst(c.x, GROUND - 18, 18, true);
     const n = perfLow ? 8 : 16;
     for (let i = 0; i < n; i++) {
@@ -1435,6 +1437,7 @@
     e.aim = null;
     e.windMax = 0;
     ROH.fillEnemy(e, type, GROUND, AQUA.y);
+    ROH.stampEnemy(e, era);
     if (e.type !== "elephant") {
       e.hp = e.maxHp = Math.max(1, Math.round((e.maxHp || 1) * diffCfg().hp));
     }
@@ -1940,6 +1943,7 @@
   function hurtPlayer(dmg, kb, srcX) {
     if (player.invuln > 0 || player.deadT > 0 || isMounting()) return;
     const d = diffCfg();
+    const raw = dmg;
     dmg = Math.max(1, Math.round(dmg * d.dmgIn));
     const dir = player.x >= srcX ? 1 : -1;
     markDamaged();
@@ -1953,6 +1957,7 @@
       if (horse.hp <= 0) dumpHorse();
       return;
     }
+    let chipped = false;
     if (player.blocking) {
       const fromFront = (srcX - player.x) * player.facing >= 0;
       if (fromFront && player.blockT > 0 && player.blockT <= d.parry) {
@@ -1979,6 +1984,7 @@
       }
       if (fromFront) {
         dmg = Math.max(1, Math.ceil(dmg * d.chip));
+        chipped = true;
         kb *= 0.18;
         sfx("block");
         sparkBurst(player.x + dir * 10, player.y - 22, 6, true);
@@ -2002,6 +2008,7 @@
       bloodBurst(player.x, player.y - 22, dir, 8, false);
     }
     hurtFlash = Math.max(hurtFlash, player.blocking ? 4 : 10);
+    if (!chipped) dmg = ROH.insaneSolidDamage(dmg, raw, d.id, era);
     progress.takeDamage(dmg);
     player.hp = progress.currentHealth;
     player.vx = dir * kb;
@@ -3576,7 +3583,7 @@
     else if (player.combo === 3) pts += 50;
     addScore(pts, null, e.x, e.y - e.h - 20);
     floatText(e.x, e.y - e.h - 20, "+" + pts, "#ffe27a");
-    const xpGot = progress.addXP(ROH.xpForKill(e.type), difficulty, ROH.enemyLevel(e, era));
+    const xpGot = ROH.onEnemyDeath(progress, e, difficulty, era);
     if (xpGot > 0) floatText(e.x, e.y - e.h - 32, "+" + xpGot + " XP", "#c9a227");
     chargeFromKill(e);
     if (e.type === "elephant") {
