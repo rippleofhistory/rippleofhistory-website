@@ -207,15 +207,29 @@
     return this.level;
   };
 
+  function xpGrant(gained, leveledUp, level) {
+    return { gained: gained | 0, leveledUp: !!leveledUp, level: level | 0 };
+  }
+
+  function resolveKillXP(amountOrType) {
+    if (typeof amountOrType === "string") {
+      if (typeof R.xpForKill === "function") return R.xpForKill(amountOrType);
+      const table = (R.ENEMY && R.ENEMY.xp) || {};
+      return table[amountOrType] != null ? table[amountOrType] : 12;
+    }
+    return Math.max(0, Number(amountOrType) || 0);
+  }
+
   /**
-   * amount = kill table (or a shop pack). difficulty scales it; omit for a raw grant.
-   * foeLevel applies the anti-farm cut when the player is more than 4 above the foe.
+   * Kill: addXP(enemy.type, difficulty, enemy.effectiveLevel)
+   * Pack: addXP(amount, null, null, { paid: true })
+   * Returns { gained, leveledUp, level }.
    */
-  PlayerProgress.prototype.addXP = function (amount, difficulty, foeLevel, opts) {
-    if (this.level >= MAX_LEVEL) return 0;
-    let granted = Math.max(0, Number(amount) || 0);
-    if (granted <= 0) return 0;
+  PlayerProgress.prototype.addXP = function (amountOrType, difficulty, foeLevel, opts) {
+    if (this.level >= MAX_LEVEL) return xpGrant(0, false, this.level);
     const paid = opts && opts.paid;
+    let granted = paid ? Math.max(0, Number(amountOrType) || 0) : resolveKillXP(amountOrType);
+    if (granted <= 0) return xpGrant(0, false, this.level);
     if (!paid) {
       if (difficulty) granted *= XP_DIFF[difficulty] != null ? XP_DIFF[difficulty] : 1;
       granted *= farmMul(this.level, foeLevel);
@@ -223,13 +237,14 @@
       granted = Math.max(1, Math.floor(granted));
     } else {
       granted = Math.floor(granted);
-      if (granted <= 0) return 0;
+      if (granted <= 0) return xpGrant(0, false, this.level);
     }
+    const startLv = this.level;
     this.currentXP += granted;
     while (this.level < MAX_LEVEL && this.currentXP >= this.xpToNextLevel) this.levelUp();
     if (this.level >= MAX_LEVEL) this.currentXP = 0;
     this.save();
-    return granted;
+    return xpGrant(granted, this.level > startLv, this.level);
   };
 
   PlayerProgress.prototype.takeDamage = function (amount) {
@@ -250,7 +265,7 @@
    * Do not call this from a buy-button click. Paid XP skips difficulty, farm, and bonusXPPercent.
    */
   PlayerProgress.prototype.applyXPPack = function (amount) {
-    return this.addXP(amount, null, null, { paid: true });
+    return this.addXP(amount, null, null, { paid: true }).gained;
   };
 
   /**

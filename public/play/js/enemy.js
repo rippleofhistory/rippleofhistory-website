@@ -106,12 +106,13 @@
     return e;
   }
 
-  // Call from killEnemy / breakCannon. addXP applies ENEMY.difficulty itself.
+  // killEnemy / breakCannon: addXP(type, difficulty, effectiveLevel) → { gained, leveledUp, level }
   function onEnemyDeath(progress, e, difficulty, era) {
-    if (!progress || !e) return 0;
-    const base = e.baseXP != null ? e.baseXP : xpForKill(e.type);
+    if (!progress) return { gained: 0, leveledUp: false, level: 1 };
+    if (!e) return { gained: 0, leveledUp: false, level: progress.level };
+    const type = e.type || e.xpTier || "infantry";
     const lv = e.effectiveLevel != null ? e.effectiveLevel : enemyLevel(e, era);
-    return progress.addXP(base, difficulty, lv);
+    return progress.addXP(type, difficulty, lv);
   }
 
   /**
@@ -148,5 +149,6 @@
   R.enemyLevel = enemyLevel;
   R.stampEnemy = stampEnemy;
   R.onEnemyDeath = onEnemyDeath;
+  R.onEnemyKilled = onEnemyDeath;
   R.insaneSolidDamage = insaneSolidDamage;
 })();

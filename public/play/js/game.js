@@ -1297,7 +1297,7 @@
     bumpShake(12);
     floatText(c.x, GROUND - 36, "SPIKED", "#e6c35c");
     const xpGot = ROH.onEnemyDeath(progress, { type: "cannon" }, difficulty, era);
-    if (xpGot > 0) floatText(c.x, GROUND - 48, "+" + xpGot + " XP", "#c9a227");
+    if (xpGot && xpGot.gained > 0) floatText(c.x, GROUND - 48, "+" + xpGot.gained + " XP", "#c9a227");
     sparkBurst(c.x, GROUND - 18, 18, true);
     const n = perfLow ? 8 : 16;
     for (let i = 0; i < n; i++) {
@@ -3654,7 +3654,7 @@
     addScore(pts, null, e.x, e.y - e.h - 20);
     floatText(e.x, e.y - e.h - 20, "+" + pts, "#ffe27a");
     const xpGot = ROH.onEnemyDeath(progress, e, difficulty, era);
-    if (xpGot > 0) floatText(e.x, e.y - e.h - 32, "+" + xpGot + " XP", "#c9a227");
+    if (xpGot && xpGot.gained > 0) floatText(e.x, e.y - e.h - 32, "+" + xpGot.gained + " XP", "#c9a227");
     chargeFromKill(e);
     if (e.type === "elephant") {
       elephantCleared = true;
