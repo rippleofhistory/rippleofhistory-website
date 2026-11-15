@@ -120,9 +120,16 @@
     const dr = R.damageReductionAt ? R.damageReductionAt(lv) : 0;
     const resist = Math.max(0.05, 1 - dr);
     const gate = cfg.gateLevel || 50;
-    if (lv < gate) return Math.ceil(hp / resist);
+    function preForTaken(taken) {
+      const need = Math.max(1, taken | 0);
+      let pre = Math.max(1, Math.round(need / resist));
+      while (Math.round(pre * resist) < need) pre++;
+      while (pre > 1 && Math.round((pre - 1) * resist) >= need) pre--;
+      return pre;
+    }
+    if (lv < gate) return preForTaken(hp);
     const cushion = cfg.surviveCushion != null ? cfg.surviveCushion : 24;
-    return Math.max(1, Math.ceil((hp - cushion) / resist));
+    return preForTaken(hp - cushion);
   }
 
   R.ENEMY = ENEMY;

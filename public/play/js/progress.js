@@ -20,19 +20,38 @@
 
   /**
    * Player combat scaling. Tune these anchors only.
-   *   maxHealth  L1=100, L50=176, L100=240  (linear in two spans)
-   *   attackPower = 1 + 0.005*(level-1)     L50=1.245  L100=1.495
+   *   maxHealth  L1=100, L25=130, L50=170, L75=200, L100=230
+   *   attackPower = 1 + 0.008*(level-1)     L25=1.192  L50=1.392  L75=1.592  L100=1.792
    *   damageReduction = 0.18*(level-1)/99   L50≈8.9%   L100=18%
+   *   xpToNext   L1=80, L25=1400, L50=5500, L75=14000  (L100 unused)
    * dealDamage:  round(baseWeaponDamage * attackPower)
    * takeDamage:  round(amount * (1 - damageReduction))
    */
   const SCALING = {
     hpL1: 100,
-    hpL50: 176,
-    hpL100: 240,
-    atkPerLevel: 0.005,
+    hpL25: 130,
+    hpL50: 170,
+    hpL75: 200,
+    hpL100: 230,
+    atkPerLevel: 0.008,
     drAt100: 0.18,
   };
+
+  const XP_CURVE = [
+    { lv: 1, xp: 80 },
+    { lv: 25, xp: 1400 },
+    { lv: 50, xp: 5500 },
+    { lv: 75, xp: 14000 },
+    { lv: 100, xp: 25000 },
+  ];
+
+  const HP_CURVE = [
+    { lv: 1, hp: SCALING.hpL1 },
+    { lv: 25, hp: SCALING.hpL25 },
+    { lv: 50, hp: SCALING.hpL50 },
+    { lv: 75, hp: SCALING.hpL75 },
+    { lv: 100, hp: SCALING.hpL100 },
+  ];
 
   // Catalog SKUs only (no prices). Stripe / Play Billing maps a paid SKU → these grants.
   const SHOP_PACKS = {
@@ -51,17 +70,26 @@
     return n < a ? a : n > b ? b : n;
   }
 
-  // L1=80, L10=3573, L50≈50423, L100≈159722 — Easy 0.45× cannot keep up.
+  function lerpSteps(level, steps, key) {
+    const lv = clamp(level | 0, 1, MAX_LEVEL);
+    for (let i = 0; i < steps.length - 1; i++) {
+      const a = steps[i];
+      const b = steps[i + 1];
+      if (lv <= b.lv) {
+        const t = (lv - a.lv) / (b.lv - a.lv);
+        return a[key] + (b[key] - a[key]) * t;
+      }
+    }
+    return steps[steps.length - 1][key];
+  }
+
+  // Piecewise through XP_CURVE. Easy 0.45× still stalls once farmMul cuts in (~L14 vs era 1).
   function xpToNext(level) {
-    return Math.floor(80 * Math.pow(clamp(level, 1, MAX_LEVEL), 1.65));
+    return Math.round(lerpSteps(level, XP_CURVE, "xp"));
   }
 
   function maxHealthAt(level) {
-    const lv = clamp(level | 0, 1, MAX_LEVEL);
-    let hp;
-    if (lv <= 50) hp = SCALING.hpL1 + (SCALING.hpL50 - SCALING.hpL1) * (lv - 1) / 49;
-    else hp = SCALING.hpL50 + (SCALING.hpL100 - SCALING.hpL50) * (lv - 50) / 50;
-    return Math.floor(hp);
+    return Math.floor(lerpSteps(level, HP_CURVE, "hp"));
   }
 
   function attackAt(level) {
@@ -324,6 +352,7 @@
 
   R.MAX_LEVEL = MAX_LEVEL;
   R.SCALING = SCALING;
+  R.XP_CURVE = XP_CURVE;
   R.XP_DIFF = XP_DIFF;
   R.xpToNext = xpToNext;
   R.maxHealthAt = maxHealthAt;
