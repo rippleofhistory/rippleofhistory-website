@@ -10,7 +10,8 @@
    *   spawn → player.hp = progress.maxHealth
    * XP table, effectiveLevel, and Insane solid hits live in ROH.ENEMY (js/enemy.js).
    * Nested in roh.save.progress so persistSave cannot wipe it.
-   * Shop methods apply a real Play Billing grant later — no store UI here.
+   * Shop: PlayerProgress.applyXPPack / applyPermanentUpgrade after a verified
+   * Stripe or Play Billing grant. No checkout UI or prices in this file.
    */
   const MAX_LEVEL = 100;
   const SAVE_KEY = "roh.save";
@@ -33,16 +34,17 @@
     drAt100: 0.18,
   };
 
-  // Permanent ranks (0/1). Applied after a real billing grant via ROH.SHOP.
+  // Catalog SKUs only (no prices). Stripe / Play Billing maps a paid SKU → these grants.
   const SHOP_PACKS = {
     pouch: { id: "pouch", xp: 500 },
     crate: { id: "crate", xp: 2500 },
     chest: { id: "chest", xp: 10000 },
   };
   const SHOP_UPGRADES = {
-    taut: { id: "taut", hp: 0.08 },
-    edge: { id: "edge", atk: 0.08 },
-    lore: { id: "lore", xpGain: 0.15 },
+    taut: { id: "taut", type: "health", value: 16 },
+    edge: { id: "edge", type: "attack", value: 0.08 },
+    lore: { id: "lore", type: "xp", value: 0.15 },
+    headstart: { id: "headstart", type: "startLevel", value: 10 },
   };
 
   function clamp(n, a, b) {
@@ -54,17 +56,52 @@
     return Math.floor(80 * Math.pow(clamp(level, 1, MAX_LEVEL), 1.65));
   }
 
-  function maxHealthAt(level, taut) {
+  function maxHealthAt(level) {
     const lv = clamp(level | 0, 1, MAX_LEVEL);
     let hp;
     if (lv <= 50) hp = SCALING.hpL1 + (SCALING.hpL50 - SCALING.hpL1) * (lv - 1) / 49;
     else hp = SCALING.hpL50 + (SCALING.hpL100 - SCALING.hpL50) * (lv - 50) / 50;
-    hp = Math.floor(hp);
-    return Math.floor(hp * (1 + 0.08 * (taut ? 1 : 0)));
+    return Math.floor(hp);
   }
 
-  function attackAt(level, edge) {
-    return 1 + SCALING.atkPerLevel * (clamp(level, 1, MAX_LEVEL) - 1) + 0.08 * (edge ? 1 : 0);
+  function attackAt(level) {
+    return 1 + SCALING.atkPerLevel * (clamp(level, 1, MAX_LEVEL) - 1);
+  }
+
+  /**
+   * Permanent paid bonuses. Stored on roh.save.progress.shop.
+   * bonusMaxHealth — flat HP added after the level curve
+   * bonusAttack    — added to attackPower (0.08 ≈ +8%)
+   * bonusXPPercent — kill-XP multiplier (0.15 ≈ +15%)
+   * bonusStartLevel — floor for Kael's level after a headstart pack
+   */
+  function ShopUpgrades(data) {
+    data = data || {};
+    this.bonusMaxHealth = Math.max(0, Number(data.bonusMaxHealth) || 0);
+    this.bonusAttack = Math.max(0, Number(data.bonusAttack) || 0);
+    this.bonusXPPercent = Math.max(0, Number(data.bonusXPPercent) || 0);
+    this.bonusStartLevel = clamp(parseInt(data.bonusStartLevel, 10) || 1, 1, MAX_LEVEL);
+  }
+
+  ShopUpgrades.prototype.toJSON = function () {
+    return {
+      bonusMaxHealth: this.bonusMaxHealth,
+      bonusAttack: this.bonusAttack,
+      bonusXPPercent: this.bonusXPPercent,
+      bonusStartLevel: this.bonusStartLevel,
+    };
+  };
+
+  function shopFromSave(data) {
+    data = data || {};
+    if (data.shop) return new ShopUpgrades(data.shop);
+    const u = data.upgrades || {};
+    return new ShopUpgrades({
+      bonusMaxHealth: u.taut ? 16 : 0,
+      bonusAttack: u.edge ? 0.08 : 0,
+      bonusXPPercent: u.lore ? 0.15 : 0,
+      bonusStartLevel: 1,
+    });
   }
 
   function damageReductionAt(level) {
@@ -90,15 +127,16 @@
     this.attackPower = 1;
     this.damageReduction = 0;
     this.lastTaken = 0;
-    this.upgrades = { taut: 0, edge: 0, lore: 0 };
+    this.shop = new ShopUpgrades();
     this.onLevelUp = null;
   }
 
   PlayerProgress.prototype.recalc = function () {
     this.level = clamp(this.level | 0, 1, MAX_LEVEL);
+    if (this.shop && this.level < this.shop.bonusStartLevel) this.level = this.shop.bonusStartLevel;
     this.xpToNextLevel = xpToNext(this.level);
-    this.maxHealth = maxHealthAt(this.level, this.upgrades.taut);
-    this.attackPower = attackAt(this.level, this.upgrades.edge);
+    this.maxHealth = maxHealthAt(this.level) + Math.round(this.shop.bonusMaxHealth || 0);
+    this.attackPower = attackAt(this.level) + (this.shop.bonusAttack || 0);
     this.damageReduction = damageReductionAt(this.level);
     if (this.currentHealth > this.maxHealth) this.currentHealth = this.maxHealth;
     return this;
@@ -113,7 +151,7 @@
     return {
       level: this.level,
       xp: this.currentXP,
-      upgrades: { taut: this.upgrades.taut | 0, edge: this.upgrades.edge | 0, lore: this.upgrades.lore | 0 },
+      shop: this.shop.toJSON(),
     };
   };
 
@@ -136,12 +174,15 @@
    * amount = kill table (or a shop pack). difficulty scales it; omit for a raw grant.
    * enemyLevel applies the anti-farm cut when the player is more than 12 above the foe.
    */
-  PlayerProgress.prototype.addXP = function (amount, difficulty, foeLevel) {
+  PlayerProgress.prototype.addXP = function (amount, difficulty, foeLevel, opts) {
     if (this.level >= MAX_LEVEL) return 0;
     let granted = Math.max(0, Number(amount) || 0);
-    if (difficulty) granted *= XP_DIFF[difficulty] != null ? XP_DIFF[difficulty] : 1;
-    granted *= farmMul(this.level, foeLevel);
-    if (this.upgrades.lore) granted *= 1 + SHOP_UPGRADES.lore.xpGain;
+    const paid = opts && opts.paid;
+    if (!paid) {
+      if (difficulty) granted *= XP_DIFF[difficulty] != null ? XP_DIFF[difficulty] : 1;
+      granted *= farmMul(this.level, foeLevel);
+      granted *= 1 + (this.shop.bonusXPPercent || 0);
+    }
     granted = Math.floor(granted);
     if (granted <= 0) return 0;
     this.currentXP += granted;
@@ -163,16 +204,55 @@
     return Math.max(1, Math.round((Number(baseWeaponDamage) || 0) * this.attackPower));
   };
 
+  /**
+   * Stripe / Play Billing: after payment is verified, grant the pack XP.
+   *   checkout.session.completed  →  progress.applyXPPack(SHOP.packs.crate.xp)
+   * Do not call this from a buy-button click. Paid XP skips difficulty, farm, and bonusXPPercent.
+   */
+  PlayerProgress.prototype.applyXPPack = function (amount) {
+    return this.addXP(amount, null, null, { paid: true });
+  };
+
+  /**
+   * Stripe / Play Billing: after payment is verified, add a permanent bonus.
+   *   type: "health" | "attack" | "xp" | "startLevel"
+   *   progress.applyPermanentUpgrade("health", 20)
+   *   progress.applyPermanentUpgrade("attack", 0.08)
+   *   progress.applyPermanentUpgrade("xp", 0.15)
+   *   progress.applyPermanentUpgrade("startLevel", 10)
+   */
+  PlayerProgress.prototype.applyPermanentUpgrade = function (type, value) {
+    const n = Number(value);
+    if (!(n > 0)) return false;
+    const prevMax = this.maxHealth;
+    if (type === "health" || type === "bonusMaxHealth") {
+      this.shop.bonusMaxHealth += n;
+    } else if (type === "attack" || type === "bonusAttack") {
+      this.shop.bonusAttack += n;
+    } else if (type === "xp" || type === "bonusXPPercent") {
+      this.shop.bonusXPPercent += n;
+    } else if (type === "startLevel" || type === "bonusStartLevel") {
+      this.shop.bonusStartLevel = clamp(Math.max(this.shop.bonusStartLevel, Math.round(n)), 1, MAX_LEVEL);
+      if (this.level < this.shop.bonusStartLevel) {
+        this.level = this.shop.bonusStartLevel;
+        this.currentXP = 0;
+      }
+    } else {
+      return false;
+    }
+    this.recalc();
+    if (this.maxHealth > prevMax) {
+      this.currentHealth = Math.min(this.maxHealth, this.currentHealth + (this.maxHealth - prevMax));
+    }
+    this.save();
+    return true;
+  };
+
   PlayerProgress.prototype.load = function (data) {
     data = data || {};
+    this.shop = shopFromSave(data);
     this.level = clamp(parseInt(data.level, 10) || 1, 1, MAX_LEVEL);
     this.currentXP = Math.max(0, parseInt(data.xp, 10) || 0);
-    const u = data.upgrades || {};
-    this.upgrades = {
-      taut: u.taut ? 1 : 0,
-      edge: u.edge ? 1 : 0,
-      lore: u.lore ? 1 : 0,
-    };
     this.recalc();
     this.currentHealth = this.maxHealth;
     while (this.level < MAX_LEVEL && this.currentXP >= this.xpToNextLevel) this.levelUp(true);
@@ -193,19 +273,26 @@
   function applyPack(id, progress) {
     const pack = SHOP_PACKS[id];
     if (!pack || !progress) return 0;
-    return progress.addXP(pack.xp);
+    return progress.applyXPPack(pack.xp);
   }
 
   function applyUpgrade(id, progress) {
     const spec = SHOP_UPGRADES[id];
     if (!spec || !progress) return false;
-    if (progress.upgrades[id]) return false;
-    progress.upgrades[id] = 1;
-    const prevMax = progress.maxHealth;
-    progress.recalc();
-    progress.currentHealth = Math.min(progress.maxHealth, progress.currentHealth + (progress.maxHealth - prevMax));
-    progress.save();
-    return true;
+    return progress.applyPermanentUpgrade(spec.type, spec.value);
+  }
+
+  /**
+   * Stripe / Play Billing success callback.
+   * Verify the session/purchase first, then:
+   *   ROH.SHOP.onPaymentSuccess(progress, skuId)
+   * skuId is a pack (pouch/crate/chest) or upgrade (taut/edge/lore/headstart).
+   */
+  function onPaymentSuccess(progress, skuId) {
+    if (!progress || !skuId) return null;
+    if (SHOP_PACKS[skuId]) return applyPack(skuId, progress);
+    if (SHOP_UPGRADES[skuId]) return applyUpgrade(skuId, progress);
+    return null;
   }
 
   function previewInsaneHit(level, era) {
@@ -245,11 +332,13 @@
   R.previewInsaneHit = previewInsaneHit;
   R.debugInsane = debugInsane;
   R.farmMul = farmMul;
+  R.ShopUpgrades = ShopUpgrades;
   R.PlayerProgress = PlayerProgress;
   R.SHOP = {
     packs: SHOP_PACKS,
     upgrades: SHOP_UPGRADES,
     applyPack: applyPack,
     applyUpgrade: applyUpgrade,
+    onPaymentSuccess: onPaymentSuccess,
   };
 })();

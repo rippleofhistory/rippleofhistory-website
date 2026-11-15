@@ -7315,13 +7315,25 @@
     addXP: (n, diff, foe) => progress.addXP(n, diff, foe),
     setLevel: (n) => {
       const keep = progress.toJSON();
-      progress.load({ level: n, xp: 0, upgrades: keep.upgrades });
+      progress.load({ level: n, xp: 0, shop: keep.shop });
       player.hp = progress.fill();
       persistSave();
       return ROH.previewInsaneHit(progress.level, 1);
     },
     previewInsane: (n, era) => ROH.previewInsaneHit(n != null ? n : progress.level, era),
     debugInsane: () => ROH.debugInsane(),
+    applyXPPack: (n) => {
+      const g = progress.applyXPPack(n);
+      player.hp = progress.currentHealth;
+      persistSave();
+      return g;
+    },
+    applyPermanentUpgrade: (type, value) => {
+      const ok = progress.applyPermanentUpgrade(type, value);
+      player.hp = progress.currentHealth;
+      persistSave();
+      return ok;
+    },
     tp: (x) => { player.x = x; camX = x - VW * 0.38; },
     wipe: () => { player.hp = 0; progress.currentHealth = 0; player.lives = 0; loseLife(); },
     killSpecial: (type) => {
