@@ -35,7 +35,7 @@
     hpL100: 230,
     atkPerLevel: 0.008,
     drAt100: 0.18,
-    drShopCap: 0.35,
+    drShopCap: 0.40,
   };
 
   const XP_CURVE = [
@@ -193,41 +193,59 @@
     this.level = 1;
     this.currentXP = 0;
     this.xpToNextLevel = xpToNext(1);
+    this.baseMaxHealth = SCALING.hpL1;
     this.maxHealth = 100;
     this.currentHealth = 100;
     this.attackPower = 1;
+    this.attackMultiplier = 1;
     this.damageReduction = 0;
+    this.totalXPBonus = 0;
     this.lastTaken = 0;
     this.shop = new ShopUpgrades();
     this.shopUpgrades = this.shop;
     this.equipmentBonuses = { attackMultiplier: 0, bonusMaxHealth: 0, damageReduction: 0, xpPercent: 0 };
+    this.inventory = null;
     this.onLevelUp = null;
   }
 
   PlayerProgress.prototype.xpMul = function () {
-    const eq = this.equipmentBonuses || {};
-    return 1 + (this.shop.bonusXPPercent || 0) + (eq.xpPercent || 0);
+    return 1 + (this.totalXPBonus || 0);
   };
 
-  PlayerProgress.prototype.recalc = function () {
-    this.shopUpgrades = this.shop;
-    this.equipmentBonuses = this.equipmentBonuses || { attackMultiplier: 0, bonusMaxHealth: 0, damageReduction: 0, xpPercent: 0 };
-    const eq = this.equipmentBonuses;
-    this.level = clamp(this.level | 0, 1, MAX_LEVEL);
-    if (this.shop && this.level < this.shop.bonusStartLevel) this.level = this.shop.bonusStartLevel;
-    this.xpToNextLevel = xpToNext(this.level);
-    this.maxHealth = maxHealthAt(this.level) + Math.round(this.shop.bonusMaxHealth || 0) + Math.round(eq.bonusMaxHealth || 0);
-    this.attackPower = attackAt(this.level) + (this.shop.bonusAttack || 0) + (eq.attackMultiplier || 0);
+  PlayerProgress.prototype.applyAllStats = function () {
+    const shop = this.shopUpgrades || this.shop || {};
+    const equip = this.equipmentBonuses || {
+      attackMultiplier: 0,
+      bonusMaxHealth: 0,
+      damageReduction: 0,
+      xpPercent: 0,
+    };
+    this.equipmentBonuses = equip;
+    const levelHealth = maxHealthAt(this.level);
+    const levelAttack = attackAt(this.level);
+    const levelDR = damageReductionAt(this.level);
+    const shopAtk = shop.bonusAttack || shop.bonusAttackMultiplier || 0;
+    const tempAttack = this.inventory && typeof this.inventory.getActiveAttackBonus === "function"
+      ? this.inventory.getActiveAttackBonus()
+      : 0;
+    this.maxHealth = levelHealth + Math.round(shop.bonusMaxHealth || 0) + Math.round(equip.bonusMaxHealth || 0);
+    this.attackMultiplier = levelAttack + shopAtk + (equip.attackMultiplier || 0) + tempAttack;
+    this.attackPower = this.attackMultiplier;
     this.damageReduction = Math.min(
       SCALING.drShopCap,
-      damageReductionAt(this.level) + (this.shop.bonusDamageReduction || 0) + (eq.damageReduction || 0)
+      levelDR + (shop.bonusDamageReduction || 0) + (equip.damageReduction || 0)
     );
+    this.totalXPBonus = (shop.bonusXPPercent || 0) + (equip.xpPercent || 0);
     if (this.currentHealth > this.maxHealth) this.currentHealth = this.maxHealth;
     return this;
   };
 
-  PlayerProgress.prototype.applyAllStats = function () {
-    return this.recalc();
+  PlayerProgress.prototype.recalc = function () {
+    this.shopUpgrades = this.shop;
+    this.level = clamp(this.level | 0, 1, MAX_LEVEL);
+    if (this.shop && this.level < this.shop.bonusStartLevel) this.level = this.shop.bonusStartLevel;
+    this.xpToNextLevel = xpToNext(this.level);
+    return this.applyAllStats();
   };
 
   PlayerProgress.prototype.fill = function () {
@@ -284,7 +302,7 @@
     if (!paid) {
       if (difficulty) granted *= XP_DIFF[difficulty] != null ? XP_DIFF[difficulty] : 1;
       granted *= farmMul(this.level, foeLevel);
-      granted *= this.xpMul();
+      granted *= 1 + (this.totalXPBonus || 0);
       granted = Math.max(1, Math.floor(granted));
     } else {
       granted = Math.floor(granted);

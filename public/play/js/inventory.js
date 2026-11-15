@@ -72,6 +72,7 @@
     this.items = {};
     this.equipment = emptyGear();
     this.activeBuffs = [];
+    if (progress) progress.inventory = this;
   }
 
   Inventory.prototype.def = function (itemId) {
@@ -150,7 +151,6 @@
       if (def.damageReduction) bonuses.damageReduction += def.damageReduction;
       if (def.xpBonus) bonuses.xpPercent += def.xpBonus;
     });
-    bonuses.attackMultiplier += this.getActiveAttackBonus();
     if (!this.progress) return bonuses;
     const prev = this.progress.maxHealth;
     this.progress.equipmentBonuses = bonuses;
