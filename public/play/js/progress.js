@@ -17,6 +17,22 @@
 
   const XP_DIFF = (R.ENEMY && R.ENEMY.difficulty) || { easy: 0.45, medium: 1, hard: 1.6, insane: 2.8 };
 
+  /**
+   * Player combat scaling. Tune these anchors only.
+   *   maxHealth  L1=100, L50=176, L100=240  (linear in two spans)
+   *   attackPower = 1 + 0.005*(level-1)     L50=1.245  L100=1.495
+   *   damageReduction = 0.18*(level-1)/99   L50≈8.9%   L100=18%
+   * dealDamage:  round(baseWeaponDamage * attackPower)
+   * takeDamage:  round(amount * (1 - damageReduction))
+   */
+  const SCALING = {
+    hpL1: 100,
+    hpL50: 176,
+    hpL100: 240,
+    atkPerLevel: 0.005,
+    drAt100: 0.18,
+  };
+
   // Permanent ranks (0/1). Applied after a real billing grant via ROH.SHOP.
   const SHOP_PACKS = {
     pouch: { id: "pouch", xp: 500 },
@@ -38,15 +54,21 @@
     return Math.floor(80 * Math.pow(clamp(level, 1, MAX_LEVEL), 1.65));
   }
 
-  // L1=100, L40=146, L50=158, L100=218. Insane early-era solidHit (150) kills L40, L50 lives.
   function maxHealthAt(level, taut) {
-    const base = Math.floor(100 * (1 + 0.012 * (clamp(level, 1, MAX_LEVEL) - 1)));
-    return Math.floor(base * (1 + 0.08 * (taut ? 1 : 0)));
+    const lv = clamp(level | 0, 1, MAX_LEVEL);
+    let hp;
+    if (lv <= 50) hp = SCALING.hpL1 + (SCALING.hpL50 - SCALING.hpL1) * (lv - 1) / 49;
+    else hp = SCALING.hpL50 + (SCALING.hpL100 - SCALING.hpL50) * (lv - 50) / 50;
+    hp = Math.floor(hp);
+    return Math.floor(hp * (1 + 0.08 * (taut ? 1 : 0)));
   }
 
-  // L1=1.00, L50=1.392, L100=1.792 (~+0.8% attack per level).
   function attackAt(level, edge) {
-    return 1 + 0.008 * (clamp(level, 1, MAX_LEVEL) - 1) + 0.08 * (edge ? 1 : 0);
+    return 1 + SCALING.atkPerLevel * (clamp(level, 1, MAX_LEVEL) - 1) + 0.08 * (edge ? 1 : 0);
+  }
+
+  function damageReductionAt(level) {
+    return SCALING.drAt100 * (clamp(level, 1, MAX_LEVEL) - 1) / 99;
   }
 
   // Full XP within 12 levels of the foe. Past that, 70% cut at +13 scaling to 90% by +32.
@@ -66,6 +88,8 @@
     this.maxHealth = 100;
     this.currentHealth = 100;
     this.attackPower = 1;
+    this.damageReduction = 0;
+    this.lastTaken = 0;
     this.upgrades = { taut: 0, edge: 0, lore: 0 };
     this.onLevelUp = null;
   }
@@ -75,6 +99,7 @@
     this.xpToNextLevel = xpToNext(this.level);
     this.maxHealth = maxHealthAt(this.level, this.upgrades.taut);
     this.attackPower = attackAt(this.level, this.upgrades.edge);
+    this.damageReduction = damageReductionAt(this.level);
     if (this.currentHealth > this.maxHealth) this.currentHealth = this.maxHealth;
     return this;
   };
@@ -102,7 +127,7 @@
     this.level += 1;
     const prevMax = this.maxHealth;
     this.recalc();
-    this.currentHealth = Math.min(this.maxHealth, this.currentHealth + (this.maxHealth - prevMax));
+    this.currentHealth = this.maxHealth;
     if (!silent && typeof this.onLevelUp === "function") this.onLevelUp(this.level, this.maxHealth - prevMax);
     return this.level;
   };
@@ -127,13 +152,15 @@
   };
 
   PlayerProgress.prototype.takeDamage = function (amount) {
-    const n = Math.max(0, Math.round(Number(amount) || 0));
-    this.currentHealth = Math.max(0, this.currentHealth - n);
+    const incoming = Math.max(0, Number(amount) || 0);
+    const taken = Math.max(0, Math.round(incoming * (1 - this.damageReduction)));
+    this.lastTaken = taken;
+    this.currentHealth = Math.max(0, this.currentHealth - taken);
     return this.currentHealth;
   };
 
-  PlayerProgress.prototype.dealDamage = function (baseDamage) {
-    return Math.max(1, Math.round((Number(baseDamage) || 0) * this.attackPower));
+  PlayerProgress.prototype.dealDamage = function (baseWeaponDamage) {
+    return Math.max(1, Math.round((Number(baseWeaponDamage) || 0) * this.attackPower));
   };
 
   PlayerProgress.prototype.load = function (data) {
@@ -181,11 +208,42 @@
     return true;
   }
 
+  function previewInsaneHit(level, era) {
+    const p = new PlayerProgress();
+    p.load({ level: level, xp: 0 });
+    const raw = 14;
+    const applied = Math.max(1, Math.round(raw * 2.7));
+    const incoming = R.insaneSolidDamage
+      ? R.insaneSolidDamage(applied, raw, "insane", era == null ? 1 : era, p.level)
+      : applied;
+    p.takeDamage(incoming);
+    return {
+      level: p.level,
+      maxHealth: p.maxHealth,
+      attackPower: +p.attackPower.toFixed(3),
+      damageReduction: +p.damageReduction.toFixed(4),
+      incoming: incoming,
+      taken: p.lastTaken,
+      hpAfter: p.currentHealth,
+      survives: p.currentHealth > 0,
+    };
+  }
+
+  function debugInsane() {
+    const rows = [1, 40, 49, 50, 100].map((lv) => previewInsaneHit(lv, 1));
+    if (typeof console !== "undefined" && console.table) console.table(rows);
+    return rows;
+  }
+
   R.MAX_LEVEL = MAX_LEVEL;
+  R.SCALING = SCALING;
   R.XP_DIFF = XP_DIFF;
   R.xpToNext = xpToNext;
   R.maxHealthAt = maxHealthAt;
   R.attackAt = attackAt;
+  R.damageReductionAt = damageReductionAt;
+  R.previewInsaneHit = previewInsaneHit;
+  R.debugInsane = debugInsane;
   R.farmMul = farmMul;
   R.PlayerProgress = PlayerProgress;
   R.SHOP = {

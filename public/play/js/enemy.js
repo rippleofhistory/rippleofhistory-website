@@ -6,9 +6,8 @@
    * Kill XP, effectiveLevel, and Insane early-era hits.
    * Tune this object only — game.js calls onEnemyDeath / insaneSolidDamage.
    *
-   * Insane solidHit sits between L40 HP (146) and L50 HP (158):
-   * a level 1–40 player dies to the first unblocked hit in eras I–III;
-   * a level 50+ player lives and can keep fighting.
+   * Insane first blow (eras I–III): lethal below gateLevel, survivable at 50+
+   * after takeDamage damageReduction. Tune gateLevel / surviveCushion.
    */
   const ENEMY = {
     xp: {
@@ -25,7 +24,8 @@
     insane: {
       earlyEra: 3,
       solidMin: 10,
-      solidHit: 150,
+      gateLevel: 50,
+      surviveCushion: 24,
     },
     types: {
       spear: "infantry",
@@ -107,13 +107,22 @@
   /**
    * applied = already * dmgIn. raw = the hurtPlayer first argument.
    * Unblocked Kael hits only — skip for mounts, chip, and parries.
+   * Pre-DR amount: below gateLevel this is lethal after takeDamage;
+   * at 50+ it leaves surviveCushion HP.
    */
-  function insaneSolidDamage(applied, raw, diffId, era) {
+  function insaneSolidDamage(applied, raw, diffId, era, playerLevel) {
     const cfg = ENEMY.insane;
     if (diffId !== "insane") return applied;
     if ((era | 0) > cfg.earlyEra) return applied;
     if ((raw || 0) < cfg.solidMin) return applied;
-    return cfg.solidHit | 0;
+    const lv = playerLevel | 0 || 1;
+    const hp = R.maxHealthAt ? R.maxHealthAt(lv) : 100;
+    const dr = R.damageReductionAt ? R.damageReductionAt(lv) : 0;
+    const resist = Math.max(0.05, 1 - dr);
+    const gate = cfg.gateLevel || 50;
+    if (lv < gate) return Math.ceil(hp / resist);
+    const cushion = cfg.surviveCushion != null ? cfg.surviveCushion : 24;
+    return Math.max(1, Math.ceil((hp - cushion) / resist));
   }
 
   R.ENEMY = ENEMY;

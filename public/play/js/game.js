@@ -2008,7 +2008,7 @@
       bloodBurst(player.x, player.y - 22, dir, 8, false);
     }
     hurtFlash = Math.max(hurtFlash, player.blocking ? 4 : 10);
-    if (!chipped) dmg = ROH.insaneSolidDamage(dmg, raw, d.id, era);
+    if (!chipped) dmg = ROH.insaneSolidDamage(dmg, raw, d.id, era, progress.level);
     progress.takeDamage(dmg);
     player.hp = progress.currentHealth;
     player.vx = dir * kb;
@@ -7265,6 +7265,7 @@
       xpToNext: progress.xpToNextLevel,
       maxHealth: progress.maxHealth,
       attackPower: +progress.attackPower.toFixed(3),
+      damageReduction: +progress.damageReduction.toFixed(4),
       x: player.x | 0,
       y: player.y | 0,
       anim: player.anim,
@@ -7312,6 +7313,15 @@
     persist: () => persistSave(),
     progress: () => progress.toJSON(),
     addXP: (n, diff, foe) => progress.addXP(n, diff, foe),
+    setLevel: (n) => {
+      const keep = progress.toJSON();
+      progress.load({ level: n, xp: 0, upgrades: keep.upgrades });
+      player.hp = progress.fill();
+      persistSave();
+      return ROH.previewInsaneHit(progress.level, 1);
+    },
+    previewInsane: (n, era) => ROH.previewInsaneHit(n != null ? n : progress.level, era),
+    debugInsane: () => ROH.debugInsane(),
     tp: (x) => { player.x = x; camX = x - VW * 0.38; },
     wipe: () => { player.hp = 0; progress.currentHealth = 0; player.lives = 0; loseLife(); },
     killSpecial: (type) => {
