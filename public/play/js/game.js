@@ -244,6 +244,7 @@
   let perfHits = 0;
   let windOn = false;
   let banner = { text: "", t: 0 };
+  let rpgDebugOn = false;
   let checkpoint = 80;
   let doorOpen = false;
   let elephantCleared = false;
@@ -254,10 +255,13 @@
   const player = {};
   const progress = new ROH.PlayerProgress();
   progress.onLevelUp = function (lv) {
-    announce("LEVEL " + lv, 90);
-    floatText(player.x, player.y - 56, "LEVEL " + lv, "#ffe27a");
+    announce("LEVEL UP!  LEVEL " + lv, 120);
+    banner.kind = "level";
+    floatText(player.x, player.y - 58, "LEVEL UP!", "#ffe27a");
+    floatText(player.x, player.y - 44, "LEVEL " + lv, "#f3e2a0");
     sfx("checkpoint");
     player.hp = progress.currentHealth;
+    refreshRpgDebug();
   };
   const enemies = [];
   const shots = [];
@@ -1198,7 +1202,7 @@
   }
 
   function announce(text, t) {
-    banner = { text, t: t || 110 };
+    banner = { text, t: t || 110, kind: null };
   }
 
   function bumpShake(n, dir) {
@@ -2622,6 +2626,10 @@
       return;
     }
     if (!keys.has(e.code)) {
+      if (e.code === "F3" || e.code === "Backquote") {
+        e.preventDefault();
+        toggleRpgDebug();
+      }
       if (e.code === "KeyJ" || e.code === "KeyZ") tap.light = true;
       if (e.code === "KeyK" || e.code === "KeyX") tap.heavy = true;
       if (e.code === "ArrowUp" || e.code === "KeyW") tap.jump = true;
@@ -2748,6 +2756,67 @@
     keysOn = !keysOn;
     persistSave();
     refreshKeys();
+  }
+
+  function refreshRpgDebug() {
+    const panel = document.getElementById("rpg-debug");
+    const stats = document.getElementById("rpg-debug-stats");
+    if (!panel || !stats) return;
+    panel.classList.toggle("open", rpgDebugOn);
+    panel.setAttribute("aria-hidden", rpgDebugOn ? "false" : "true");
+    if (!rpgDebugOn) return;
+    const s = progress.shop || {};
+    const xpLine = progress.level >= ROH.MAX_LEVEL
+      ? "XP MAX"
+      : "XP " + progress.currentXP + " / " + progress.xpToNextLevel;
+    stats.textContent = [
+      "LV " + progress.level + "   " + xpLine,
+      "HP " + player.hp + " / " + progress.maxHealth,
+      "ATK " + progress.attackPower.toFixed(3) + "   DR " + (progress.damageReduction * 100).toFixed(1) + "%",
+      "SHOP  HP+" + Math.round(s.bonusMaxHealth || 0) + "  ATK+" + (s.bonusAttack || 0).toFixed(2) + "  XP+" + Math.round((s.bonusXPPercent || 0) * 100) + "%",
+      "START LV " + (s.bonusStartLevel || 1) + "   DIFF " + difficulty,
+    ].join("\n");
+    const inp = document.getElementById("rpg-debug-lv");
+    if (inp && document.activeElement !== inp) inp.value = String(progress.level);
+  }
+
+  function toggleRpgDebug() {
+    rpgDebugOn = !rpgDebugOn;
+    refreshRpgDebug();
+  }
+
+  function setProgressLevel(n) {
+    const keep = progress.toJSON();
+    progress.load({ level: n, xp: 0, shop: keep.shop });
+    player.hp = progress.fill();
+    persistSave();
+    refreshRpgDebug();
+    announce("LEVEL " + progress.level, 70);
+    return progress.level;
+  }
+
+  function bindRpgDebug() {
+    const panel = document.getElementById("rpg-debug");
+    if (!panel) return;
+    panel.addEventListener("pointerdown", (e) => e.stopPropagation());
+    panel.addEventListener("click", (e) => e.stopPropagation());
+    panel.querySelectorAll("[data-lv]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setProgressLevel(parseInt(btn.getAttribute("data-lv"), 10));
+      });
+    });
+    const form = document.getElementById("rpg-debug-form");
+    if (form) {
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const inp = document.getElementById("rpg-debug-lv");
+        const n = inp ? parseInt(inp.value, 10) : 1;
+        setProgressLevel(n);
+      });
+    }
   }
 
   function refreshDiff() {
@@ -3166,6 +3235,7 @@
   const keysShow = document.getElementById("btn-keys-show");
   if (keysHide) keysHide.addEventListener("click", (e) => { e.stopPropagation(); toggleKeys(); });
   if (keysShow) keysShow.addEventListener("click", (e) => { e.stopPropagation(); toggleKeys(); });
+  bindRpgDebug();
   document.getElementById("btn-restart").addEventListener("click", () => {
     hide(screens.dead);
     player.lives = maxLives;
@@ -6574,9 +6644,18 @@
     ctx.strokeRect(8.5, 24.5, 103, 7);
     const xpFill = progress.level >= ROH.MAX_LEVEL ? 1 : progress.currentXP / Math.max(1, progress.xpToNextLevel);
     ctx.fillStyle = "#1a120c";
-    ctx.fillRect(8, 33, 104, 3);
+    ctx.fillRect(8, 33, 104, 5);
+    ctx.fillStyle = "#3a3420";
+    ctx.fillRect(9, 34, 102, 3);
+    ctx.fillStyle = "#e6c35c";
+    ctx.fillRect(9, 34, 102 * Math.max(0, Math.min(1, xpFill)), 3);
+    ctx.strokeStyle = "#c9a227";
+    ctx.strokeRect(8.5, 33.5, 103, 4);
     ctx.fillStyle = "#c9a227";
-    ctx.fillRect(8, 33, 104 * Math.max(0, Math.min(1, xpFill)), 3);
+    ctx.font = "6px Cinzel, serif";
+    ctx.textAlign = "left";
+    ctx.fillText(progress.level >= ROH.MAX_LEVEL ? "XP MAX" : progress.currentXP + "/" + progress.xpToNextLevel, 116, 37);
+    if (rpgDebugOn && (time % 10 === 0)) refreshRpgDebug();
 
     ctx.fillStyle = "#e6c35c";
     ctx.font = "7px Cinzel, serif";
@@ -6659,14 +6738,15 @@
 
     if (banner.t > 0) {
       const a = banner.t > 20 ? 1 : banner.t / 20;
+      const levelUp = banner.kind === "level";
       ctx.save();
       ctx.globalAlpha = a;
-      ctx.fillStyle = "rgba(0,0,0,0.4)";
-      ctx.fillRect(VW / 2 - 110, 48, 220, 22);
-      ctx.fillStyle = "#f3e2a0";
-      ctx.font = "11px Cinzel, serif";
+      ctx.fillStyle = levelUp ? "rgba(20, 12, 4, 0.62)" : "rgba(0,0,0,0.4)";
+      ctx.fillRect(VW / 2 - 120, levelUp ? 44 : 48, 240, levelUp ? 28 : 22);
+      ctx.fillStyle = levelUp ? "#ffe27a" : "#f3e2a0";
+      ctx.font = levelUp ? "12px Cinzel, serif" : "11px Cinzel, serif";
       ctx.textAlign = "center";
-      ctx.fillText(banner.text, VW / 2, 63);
+      ctx.fillText(banner.text, VW / 2, levelUp ? 63 : 63);
       ctx.restore();
     }
   }
@@ -7263,6 +7343,7 @@
       level: progress.level,
       xp: progress.currentXP,
       xpToNext: progress.xpToNextLevel,
+      rpgDebug: rpgDebugOn,
       maxHealth: progress.maxHealth,
       attackPower: +progress.attackPower.toFixed(3),
       damageReduction: +progress.damageReduction.toFixed(4),
@@ -7314,12 +7395,10 @@
     progress: () => progress.toJSON(),
     addXP: (n, diff, foe) => progress.addXP(n, diff, foe),
     setLevel: (n) => {
-      const keep = progress.toJSON();
-      progress.load({ level: n, xp: 0, shop: keep.shop });
-      player.hp = progress.fill();
-      persistSave();
+      setProgressLevel(n);
       return ROH.previewInsaneHit(progress.level, 1);
     },
+    toggleRpgDebug,
     previewInsane: (n, era) => ROH.previewInsaneHit(n != null ? n : progress.level, era),
     debugInsane: () => ROH.debugInsane(),
     applyXPPack: (n) => {

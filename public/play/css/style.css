@@ -389,6 +389,84 @@ html.force-land #stage {
 .show-touch .keys,
 .show-touch .keys-show { display: none !important; }
 
+.rpg-debug {
+  display: none;
+  position: absolute;
+  left: max(8px, env(safe-area-inset-left));
+  top: 24%;
+  z-index: 12;
+  width: min(220px, 46%);
+  max-height: 42%;
+  overflow: auto;
+  padding: 8px 10px 7px;
+  background: rgba(8, 12, 24, 0.88);
+  border: 1px solid rgba(230, 195, 92, 0.55);
+  color: #e8d5a3;
+  font-family: "Cinzel", serif;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.rpg-debug.open { display: block; }
+.rpg-debug-title {
+  margin: 0 0 4px;
+  color: #e6c35c;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+}
+.rpg-debug pre {
+  margin: 0 0 6px;
+  font-family: "Cinzel", serif;
+  font-size: 9px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: #f3e2a0;
+}
+.rpg-debug-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.rpg-debug-row button,
+.rpg-debug form button {
+  flex: 1;
+  appearance: none;
+  border: 1px solid #8a6a24;
+  background: rgba(18, 22, 42, 0.95);
+  color: #e6c35c;
+  font-family: "Cinzel", serif;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+.rpg-debug form {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 4px;
+}
+.rpg-debug input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #8a6a24;
+  background: #12162a;
+  color: #f3e2a0;
+  font-family: "Cinzel", serif;
+  font-size: 10px;
+  padding: 3px 6px;
+}
+.rpg-debug form button { flex: 0 0 auto; padding: 4px 8px; }
+.rpg-debug-hint {
+  margin: 0;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  color: #8a7340;
+}
+.show-touch .rpg-debug {
+  top: max(48px, calc(env(safe-area-inset-top) + 40px));
+  max-height: 36%;
+}
+
 .btn-col {
   display: flex;
   flex-direction: column;

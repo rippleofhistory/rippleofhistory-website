@@ -163,6 +163,20 @@
       <button type="button" id="btn-keys-hide">HIDE KEYS</button>
     </div>
     <button type="button" id="btn-keys-show" class="keys-show">KEYS</button>
+    <div id="rpg-debug" class="rpg-debug" aria-hidden="true">
+      <p class="rpg-debug-title">RPG DEBUG</p>
+      <pre id="rpg-debug-stats"></pre>
+      <div class="rpg-debug-row">
+        <button type="button" data-lv="1">LV 1</button>
+        <button type="button" data-lv="50">LV 50</button>
+        <button type="button" data-lv="100">LV 100</button>
+      </div>
+      <form id="rpg-debug-form">
+        <input id="rpg-debug-lv" type="number" min="1" max="100" value="1" aria-label="Set level" />
+        <button type="submit">SET LV</button>
+      </form>
+      <p class="rpg-debug-hint">F3 or ` to close</p>
+    </div>
     <div id="touch" class="touch" aria-hidden="true">
       <div class="dpad">
         <button type="button" data-act="jump" class="dpad-up" aria-label="Jump">▲</button>
