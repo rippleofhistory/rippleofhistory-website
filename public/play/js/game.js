@@ -2676,71 +2676,111 @@
   function bindTouch() {
     const root = document.getElementById("touch");
     const held = new Map();
-    function setAct(act, on) {
-      if (mode === "intro") { if (on) skipIntro(); return; }
-      if (act === "pause") { if (on) togglePause(); return; }
-      if (act === "mute") { if (on) toggleMute(); return; }
-      if (act === "left") pad.left = on;
-      if (act === "right") pad.right = on;
-      if (act === "jump") {
-        if (on && !pad.jump) tap.jump = true;
-        pad.jump = on;
-      }
-      if (act === "light") {
-        if (on && !pad.light) tap.light = true;
-        pad.light = on;
-      }
-      if (act === "heavy") {
-        if (on && !pad.heavy) tap.heavy = true;
-        pad.heavy = on;
-      }
-      if (act === "block") pad.block = on;
-      if (act === "roll") {
-        if (on && !pad.roll) tap.roll = true;
-        pad.roll = on;
-      }
-      if (act === "mount") {
-        if (on && !pad.mount) tap.mount = true;
-        pad.mount = on;
-      }
+    function flagsFor(act) {
+      return {
+        left: act === "left" || act === "jump-left" || act === "roll-left",
+        right: act === "right" || act === "jump-right" || act === "roll-right",
+        jump: act === "jump" || act === "jump-left" || act === "jump-right",
+        roll: act === "roll" || act === "roll-left" || act === "roll-right",
+        light: act === "light",
+        heavy: act === "heavy",
+        block: act === "block",
+        mount: act === "mount",
+      };
+    }
+    function syncPad() {
+      const next = { left: false, right: false, jump: false, light: false, heavy: false, block: false, mount: false, roll: false };
+      held.forEach((btn) => {
+        const f = flagsFor(btn.dataset.act);
+        Object.keys(f).forEach((k) => { if (f[k]) next[k] = true; });
+      });
+      if (next.jump && !pad.jump) tap.jump = true;
+      if (next.roll && !pad.roll) tap.roll = true;
+      if (next.light && !pad.light) tap.light = true;
+      if (next.heavy && !pad.heavy) tap.heavy = true;
+      if (next.mount && !pad.mount) tap.mount = true;
+      pad.left = next.left;
+      pad.right = next.right;
+      pad.jump = next.jump;
+      pad.roll = next.roll;
+      pad.light = next.light;
+      pad.heavy = next.heavy;
+      pad.block = next.block;
+      pad.mount = next.mount;
     }
     function press(btn, id) {
       if (!btn) return;
       const old = held.get(id);
       if (old === btn) return;
-      if (old) {
-        old.classList.remove("held");
-        setAct(old.dataset.act, false);
-      }
+      if (old) old.classList.remove("held");
       held.set(id, btn);
       btn.classList.add("held");
-      setAct(btn.dataset.act, true);
+      syncPad();
     }
     function release(id) {
       const btn = held.get(id);
       if (!btn) return;
       btn.classList.remove("held");
-      setAct(btn.dataset.act, false);
       held.delete(id);
+      syncPad();
     }
-    root.querySelectorAll("[data-act]").forEach((btn) => {
-      btn.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-        press(btn, e.pointerId);
-      });
-      btn.addEventListener("pointerup", (e) => {
+    function moveSector(padEl, x, y) {
+      const r = padEl.getBoundingClientRect();
+      const dx = x - (r.left + r.width * 0.5);
+      const dy = y - (r.top + r.height * 0.5);
+      const dist = Math.hypot(dx, dy);
+      const rad = r.width * 0.5;
+      if (dist < rad * 0.16) return "neutral";
+      let deg = Math.atan2(-dy, dx) * 180 / Math.PI;
+      if (deg < 0) deg += 360;
+      const i = Math.round(deg / 45) % 8;
+      return ["right", "jump-right", "jump", "jump-left", "left", "roll-left", "roll", "roll-right"][i];
+    }
+    function pressMove(padEl, id, x, y) {
+      const act = moveSector(padEl, x, y);
+      if (!act || act === "neutral") {
+        release(id);
+        return;
+      }
+      const btn = padEl.querySelector('[data-act="' + act + '"]');
+      if (btn) press(btn, id);
+    }
+    function onDown(e, el) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (mode === "intro") { skipIntro(); return; }
+      const act = el.dataset && el.dataset.act;
+      if (act === "pause") { togglePause(); return; }
+      if (act === "mute") { toggleMute(); return; }
+      try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      const movePad = el.classList.contains("move-pad") ? el : el.closest(".move-pad");
+      if (movePad) {
+        pressMove(movePad, e.pointerId, e.clientX, e.clientY);
+        return;
+      }
+      const btn = el.closest ? el.closest("[data-act]") : el;
+      if (btn) press(btn, e.pointerId);
+    }
+    root.querySelectorAll("[data-act], .move-pad").forEach((el) => {
+      el.addEventListener("pointerdown", (e) => onDown(e, el));
+      el.addEventListener("pointerup", (e) => {
         e.preventDefault();
         release(e.pointerId);
       });
-      btn.addEventListener("pointercancel", (e) => release(e.pointerId));
-      btn.addEventListener("pointermove", (e) => {
+      el.addEventListener("pointercancel", (e) => release(e.pointerId));
+      el.addEventListener("pointermove", (e) => {
+        if (!held.has(e.pointerId) && !e.buttons) return;
+        const movePad = el.classList.contains("move-pad") ? el : el.closest(".move-pad");
+        if (movePad) {
+          if (!held.has(e.pointerId) && e.buttons === 0) return;
+          pressMove(movePad, e.pointerId, e.clientX, e.clientY);
+          return;
+        }
         if (!held.has(e.pointerId)) return;
-        const padEl = btn.closest(".dpad");
+        const padEl = el.closest(".dpad");
         if (!padEl) return;
-        const el = document.elementFromPoint(e.clientX, e.clientY);
-        const next = el && el.closest ? el.closest(".dpad [data-act]") : null;
+        const hit = document.elementFromPoint(e.clientX, e.clientY);
+        const next = hit && hit.closest ? hit.closest(".dpad [data-act]") : null;
         if (next && padEl.contains(next) && next !== held.get(e.pointerId)) press(next, e.pointerId);
       });
     });
@@ -2777,8 +2817,11 @@
       const down = firearmEra() ? "DUCK" : "ROLL";
       line.innerHTML = "<b>A D</b> MOVE <b>W</b> JUMP <b>S</b> " + down + " <b>J</b> LIGHT <b>K</b> HEAVY <b>L</b> GUARD <b>SPACE</b> MOUNT <b>ESC</b> PAUSE";
     }
-    const duckBtn = document.querySelector(".dpad [data-act='roll']");
-    if (duckBtn) duckBtn.setAttribute("aria-label", firearmEra() ? "Duck" : "Roll");
+    const duckWord = firearmEra() ? "Duck" : "Roll";
+    document.querySelectorAll(".move-pad [data-act='roll'], .move-pad [data-act='roll-left'], .move-pad [data-act='roll-right']").forEach((btn) => {
+      const act = btn.dataset.act;
+      btn.setAttribute("aria-label", act === "roll-left" ? duckWord + " left" : act === "roll-right" ? duckWord + " right" : duckWord);
+    });
   }
 
   function toggleKeys() {

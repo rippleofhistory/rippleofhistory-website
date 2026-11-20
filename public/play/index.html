@@ -183,11 +183,15 @@
       <p class="rpg-debug-hint">F3 or ` to close · Q potion</p>
     </div>
     <div id="touch" class="touch" aria-hidden="true">
-      <div class="dpad">
+      <div class="dpad move-pad" aria-label="Move">
+        <button type="button" data-act="jump-left" class="dpad-ul" aria-label="Jump left">↖</button>
         <button type="button" data-act="jump" class="dpad-up" aria-label="Jump">▲</button>
+        <button type="button" data-act="jump-right" class="dpad-ur" aria-label="Jump right">↗</button>
         <button type="button" data-act="left" class="dpad-left" aria-label="Left">◀</button>
         <button type="button" data-act="right" class="dpad-right" aria-label="Right">▶</button>
+        <button type="button" data-act="roll-left" class="dpad-dl" aria-label="Roll left">↙</button>
         <button type="button" data-act="roll" class="dpad-down" aria-label="Roll">▼</button>
+        <button type="button" data-act="roll-right" class="dpad-dr" aria-label="Roll right">↘</button>
       </div>
       <button type="button" data-act="mute" id="btn-play-mute" class="touch-mute" aria-label="Mute">♪</button>
       <button type="button" data-act="pause" class="touch-pause" aria-label="Pause">II</button>

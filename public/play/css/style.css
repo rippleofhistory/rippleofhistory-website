@@ -708,6 +708,66 @@ html.force-land #stage {
 .dpad-left { left: 0; top: 56px; border-radius: 10px 4px 4px 10px; }
 .dpad-right { right: 0; top: 56px; border-radius: 4px 10px 10px 4px; }
 
+.move-pad {
+  width: 176px;
+  height: 176px;
+  border-radius: 50%;
+  pointer-events: auto;
+  background: radial-gradient(circle, rgba(8, 6, 4, 0.18) 0 22%, rgba(8, 6, 4, 0.52) 26% 100%);
+  border: 1px solid rgba(230, 195, 92, 0.4);
+  box-shadow: 0 0 0 5px rgba(8, 6, 4, 0.28);
+}
+
+.move-pad button {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  font-size: 16px;
+  z-index: 1;
+}
+
+.move-pad button::before { inset: -12px; }
+
+.move-pad .dpad-up {
+  left: 50%;
+  top: 4px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+}
+.move-pad .dpad-down {
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+}
+.move-pad .dpad-left {
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 50%;
+}
+.move-pad .dpad-right {
+  right: 4px;
+  top: 50%;
+  left: auto;
+  transform: translateY(-50%);
+  border-radius: 50%;
+}
+.move-pad .dpad-ul,
+.move-pad .dpad-ur,
+.move-pad .dpad-dl,
+.move-pad .dpad-dr {
+  z-index: 2;
+  width: 42px;
+  height: 42px;
+  font-size: 15px;
+  background: rgba(212, 175, 55, 0.28);
+}
+.move-pad .dpad-ul { left: 16px; top: 16px; }
+.move-pad .dpad-ur { right: 16px; top: 16px; left: auto; }
+.move-pad .dpad-dl { left: 16px; bottom: 16px; }
+.move-pad .dpad-dr { right: 16px; bottom: 16px; left: auto; }
+
 .atk-pad {
   left: auto;
   right: max(10px, env(safe-area-inset-right));
@@ -812,6 +872,14 @@ html.force-land #stage {
   .dpad button { width: 48px; height: 48px; }
   .dpad-up, .dpad-down { left: 50px; }
   .dpad-left, .dpad-right { top: 50px; }
+  .move-pad { width: 156px; height: 156px; }
+  .move-pad button { width: 40px; height: 40px; font-size: 14px; }
+  .move-pad .dpad-ul,
+  .move-pad .dpad-ur,
+  .move-pad .dpad-dl,
+  .move-pad .dpad-dr { width: 36px; height: 36px; left: 14px; right: auto; }
+  .move-pad .dpad-ur,
+  .move-pad .dpad-dr { left: auto; right: 14px; }
   .act-jump {
     width: 56px;
     height: 56px;
@@ -838,6 +906,14 @@ html.force-land #stage {
   .dpad button { width: 42px; height: 42px; font-size: 16px; }
   .dpad-up, .dpad-down { left: 43px; }
   .dpad-left, .dpad-right { top: 43px; }
+  .move-pad { width: 132px; height: 132px; }
+  .move-pad button { width: 34px; height: 34px; font-size: 13px; }
+  .move-pad .dpad-ul,
+  .move-pad .dpad-ur,
+  .move-pad .dpad-dl,
+  .move-pad .dpad-dr { width: 32px; height: 32px; left: 10px; right: auto; }
+  .move-pad .dpad-ur,
+  .move-pad .dpad-dr { left: auto; right: 10px; }
   .atk-pad span { font-size: 8px; }
   .act-jump {
     width: 48px;
