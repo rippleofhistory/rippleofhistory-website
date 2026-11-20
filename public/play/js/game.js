@@ -218,6 +218,7 @@
   let droneT = 0;
   let ending = false;
   let pits = [];
+  let holeSign = null;
   let mines = [];
   let trees = [];
   let slopes = [];
@@ -1141,6 +1142,7 @@
     jurassic = false;
     ending = false;
     pits.length = 0;
+    holeSign = null;
     mines.length = 0;
     trees.length = 0;
     slopes.length = 0;
@@ -1174,12 +1176,33 @@
     };
   }
 
+  function holeSignCopy() {
+    if (era === 5) return "ACHTUNG!";
+    if (era === 2) return "CAVE FOSAM";
+    if (era === 3) return "YE OLDE HOLE";
+    if (era === 4) return "SAUTEZ!";
+    if (era === 6) return "PUNJI!";
+    if (era === 7) return "WET FLOOR";
+    return "LOOK DOWN";
+  }
+
+  function plantHoleSign() {
+    holeSign = null;
+    if (!pits.length) return;
+    let first = pits[0];
+    for (let i = 1; i < pits.length; i++) {
+      if (pits[i].x < first.x) first = pits[i];
+    }
+    holeSign = { x: first.x - 26, pitX: first.x, text: holeSignCopy() };
+  }
+
   function resetLevel(opts) {
     opts = opts || {};
     const savedLives = clamp(player.lives > 0 ? player.lives : maxLives, 1, maxLives);
     era = opts.era || 1;
     clearWorld();
     ROH.applyEra(era, eraBag());
+    plantHoleSign();
     if (era === 4) warmFlight();
     for (const c of cannons) {
       if (c.hp == null) c.hp = 36;
@@ -5342,6 +5365,74 @@
     }
   }
 
+  function drawHoleSign() {
+    if (!holeSign) return;
+    const gx = holeSign.x - camX;
+    if (gx < -48 || gx > VW + 48) return;
+    const gy = floorY(holeSign.x);
+    const ww2 = era === 5;
+    ctx.save();
+    ctx.translate(gx, gy);
+    ctx.rotate(-0.1);
+    ctx.fillStyle = "rgba(0,0,0,0.28)";
+    ctx.fillRect(-3, -4, 8, 5);
+    ctx.fillStyle = "#2a180c";
+    ctx.fillRect(-2, -38, 4, 38);
+    ctx.fillStyle = "#6a4420";
+    ctx.fillRect(-1, -36, 2, 34);
+    if (ww2) {
+      ctx.translate(0, -50);
+      ctx.beginPath();
+      ctx.moveTo(0, -18);
+      ctx.lineTo(18, 14);
+      ctx.lineTo(-18, 14);
+      ctx.closePath();
+      ctx.fillStyle = "#0a0a08";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, -14);
+      ctx.lineTo(14, 12);
+      ctx.lineTo(-14, 12);
+      ctx.closePath();
+      ctx.fillStyle = "#f0d24a";
+      ctx.fill();
+      ctx.fillStyle = "#111008";
+      ctx.font = "bold 12px Cinzel, serif";
+      ctx.textAlign = "center";
+      ctx.fillText("!", 0, 8);
+      ctx.fillStyle = "#f4ead0";
+      ctx.fillRect(-30, 16, 60, 14);
+      ctx.strokeStyle = "#111008";
+      ctx.lineWidth = 1.4;
+      ctx.strokeRect(-30, 16, 60, 14);
+      ctx.fillStyle = "#111008";
+      ctx.font = "bold 7px Cinzel, serif";
+      ctx.fillText("ACHTUNG!", 0, 26);
+    } else {
+      ctx.translate(0, -46);
+      ctx.save();
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = "#1a1208";
+      ctx.fillRect(-13, -13, 26, 26);
+      ctx.fillStyle = "#e8c84a";
+      ctx.fillRect(-11, -11, 22, 22);
+      ctx.restore();
+      ctx.fillStyle = "#1a1208";
+      ctx.font = "bold 12px Cinzel, serif";
+      ctx.textAlign = "center";
+      ctx.fillText("!", 0, 5);
+      ctx.fillStyle = "#f3e2a0";
+      ctx.fillRect(-32, 16, 64, 13);
+      ctx.strokeStyle = "#3a2410";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-32, 16, 64, 13);
+      ctx.fillStyle = "#5a1020";
+      ctx.font = "bold 6px Cinzel, serif";
+      ctx.fillText(holeSign.text, 0, 25);
+    }
+    ctx.restore();
+  }
+
   function drawLedges() {
     for (const L of ledges) {
       if (L.gone || !L.kind) continue;
@@ -6818,6 +6909,7 @@
     drawGround();
     drawSlopes();
     drawPits();
+    drawHoleSign();
     if (era === 2) drawAqueduct();
     drawLedges();
     drawCovers();
@@ -7434,6 +7526,7 @@
       shots: shots.filter((s) => !s.dead).map((s) => ({ type: s.type, x: s.x | 0, y: s.y | 0, vx: +(s.vx || 0).toFixed(1), vy: +(s.vy || 0).toFixed(1), friendly: !!s.friendly, life: s.life | 0, duck: s.duck || null })),
       nestCleared,
       pits: pits.length,
+      holeSign: holeSign && { x: holeSign.x | 0, pitX: holeSign.pitX | 0, text: holeSign.text },
       mines: mines.map((m) => ({ x: m.x | 0, dead: !!m.dead, boomT: m.boomT | 0 })),
       trees: trees.map((t) => ({ x: t.x | 0, sprung: !!t.sprung, drop: t.drop })),
       slopes: slopes.length,
