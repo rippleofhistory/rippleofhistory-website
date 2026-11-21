@@ -33,6 +33,13 @@
   font-display: swap;
   src: url("../fonts/cinzel-decorative-900.woff2") format("woff2");
 }
+@font-face {
+  font-family: "UnifrakturMaguntia";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/unifraktur-maguntia.woff2") format("woff2");
+}
 
 :root {
   --gold: #d4af37;
@@ -183,6 +190,46 @@ html.force-land #stage {
 @keyframes riftPulse {
   0%, 100% { filter: drop-shadow(0 0 8px #e6c35c) drop-shadow(0 0 22px #a07c28); }
   50% { filter: drop-shadow(0 0 16px #fff3c4) drop-shadow(0 0 36px #e6c35c); }
+}
+
+.rip-mark {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.rip-letter {
+  position: absolute;
+  top: 26%;
+  font-family: "UnifrakturMaguntia", "Cinzel Decorative", serif;
+  font-size: clamp(72px, 17vw, 168px);
+  line-height: 0.75;
+  color: #b01028;
+  -webkit-text-stroke: 3px #e6c35c;
+  paint-order: stroke fill;
+  text-shadow:
+    0 0 6px #fff6c8,
+    0 0 22px rgba(212, 175, 55, 0.9),
+    0 0 40px rgba(154, 20, 40, 0.5),
+    0 8px 0 #1a0c14;
+  animation: ripLetterPulse 2.8s ease-in-out infinite;
+}
+
+.rip-r {
+  left: 16%;
+  transform: skewX(-14deg) rotate(-6deg);
+}
+
+.rip-p {
+  right: 16%;
+  left: auto;
+  transform: skewX(-14deg) rotate(6deg);
+}
+
+@keyframes ripLetterPulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.4)); }
+  50% { filter: drop-shadow(0 0 16px rgba(243, 226, 160, 0.85)); }
 }
 
 .embers {
@@ -894,6 +941,7 @@ html.force-land #stage {
   .series { margin-bottom: 0.15em; gap: 0.05em; }
   .presents-line { font-size: clamp(10px, 3.2vh, 14px); }
   .title-col h1 { font-size: clamp(16px, 7.2vh, 28px); margin-bottom: 0.12em; }
+  .rip-letter { font-size: clamp(40px, 14vh, 88px); top: 16%; }
   .era-tag { margin-bottom: 0.28em; font-size: clamp(10px, 3vh, 12px); }
   .diff-row { margin-bottom: 0.4em; gap: 4px; }
   .diff-row .gold-btn { padding: 4px 6px; font-size: 8px; min-height: 24px; }
