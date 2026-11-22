@@ -22,6 +22,17 @@
     cornerNudge: 4,
     pitInset: 8,
   };
+  const CAM = {
+    lookMin: 35,
+    lookMax: 50,
+    lookLerp: 0.08,
+    xLerp: 0.12,
+    yLerp: 0.1,
+    yDead: 64,
+    yMin: -130,
+    yMax: 0,
+    runRef: 2.15,
+  };
   const MAX_LIVES = 5;
   const LIVES_FLOOR = 3;
   const WIND_UP = 30;
@@ -245,6 +256,11 @@
   let lifeDamaged = false;
   let gp = { left: false, right: false, jump: false, light: false, heavy: false, block: false, jumpHeld: false, lightHeld: false, heavyHeld: false, rollHeld: false };
   let camX = 0;
+  let camY = 0;
+  let camLook = 0;
+  let camFocus = GROUND;
+  let lastDrawCamX = 0;
+  let lastDrawCamY = 0;
   let shake = 0;
   let shakeDecay = 0.82;
   let hitstop = 0;
@@ -1270,7 +1286,12 @@
     }
     player.lives = savedLives;
     player.invuln = 0;
+    camLook = CAM.lookMin;
+    camFocus = GROUND;
+    camY = 0;
     camX = 0;
+    lastDrawCamX = 0;
+    lastDrawCamY = 0;
     lifeDamaged = false;
   }
 
@@ -5410,16 +5431,45 @@
     if (motes.length > 24) motes.splice(0, motes.length - 24);
   }
 
+  function lookAheadDist() {
+    const t = Math.max(0, Math.min(1, Math.abs(player.vx || 0) / CAM.runRef));
+    return CAM.lookMin + (CAM.lookMax - CAM.lookMin) * t;
+  }
+
+  function camFloorY() {
+    if (isHueyAir()) return player.y;
+    let y = floorY(player.x);
+    for (const L of ledges) {
+      if (L.gone) continue;
+      const top = L.y + (L.fall || 0);
+      if (player.x >= L.x && player.x <= L.x + L.w && player.y <= top + 12) y = Math.min(y, top);
+    }
+    return y;
+  }
+
   function updateCamera() {
-    const target = player.x - VW * 0.38;
+    camLook += ((player.facing || 1) * lookAheadDist() - camLook) * CAM.lookLerp;
+    const target = player.x - VW * 0.38 + camLook;
     let min = 0;
     let max = LEVEL_W - VW;
     if (lock) {
       min = lock.left - 40;
       max = lock.right - VW + 40;
     }
-    camX += (clamp(target, min, max) - camX) * 0.12;
+    camX += (clamp(target, min, max) - camX) * CAM.xLerp;
     camX = clamp(camX, min, max);
+
+    const flying = isMounted() && isHuey();
+    const lifting = isMounting() && isHuey();
+    if (flying || lifting) camFocus = player.y;
+    else if (player.onGround) {
+      if (Math.abs(player.y - camFocus) > CAM.yDead) camFocus = player.y;
+    } else if (player.vy > 0.35) {
+      const dest = camFloorY();
+      if (dest > camFocus + CAM.yDead && dest <= GROUND + 8) camFocus = dest;
+    }
+    camY += (camFocus - GROUND - camY) * CAM.yLerp;
+    camY = clamp(camY, CAM.yMin, CAM.yMax);
   }
 
   function cull() {
@@ -6363,7 +6413,7 @@
       g.addColorStop(1, "#e09a4a");
     }
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, VW, VH);
+    ctx.fillRect(0, -180, VW, VH + 360);
     drawEraBack();
 
     ctx.save();
@@ -7366,8 +7416,12 @@
   }
 
   function draw() {
+    lastDrawCamX = Math.round(camX);
+    lastDrawCamY = Math.round(camY);
+    const physCamX = camX;
+    camX = lastDrawCamX;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.translate(FEEL.shakeX, FEEL.shakeY);
+    ctx.translate(FEEL.shakeX, FEEL.shakeY - lastDrawCamY);
 
     drawSky();
     if (era === 7) drawPresent();
@@ -7978,6 +8032,7 @@
       ctx.fillRect(0, 0, VW, VH);
     }
     if (mode === "play" || mode === "pause") drawHUD();
+    camX = physCamX;
   }
 
   let acc = 0;
@@ -8091,6 +8146,15 @@
       trees: trees.map((t) => ({ x: t.x | 0, sprung: !!t.sprung, drop: t.drop })),
       slopes: slopes.length,
       floor: floorY(player.x) | 0,
+      facing: player.facing | 0,
+      camX: +camX.toFixed(3),
+      camY: +camY.toFixed(3),
+      drawCamX: Math.round(camX),
+      drawCamY: Math.round(camY),
+      lastDrawCamX: lastDrawCamX | 0,
+      lastDrawCamY: lastDrawCamY | 0,
+      camLook: +camLook.toFixed(2),
+      camFocus: +camFocus.toFixed(1),
     }),
     mute: () => toggleMute(),
     back: () => handleBack(),
@@ -8157,7 +8221,16 @@
       persistSave();
       return ok;
     },
-    tp: (x) => { player.x = x; camX = x - VW * 0.38; },
+    tp: (x, y) => {
+      player.x = x;
+      if (y != null) {
+        player.y = y;
+        player.vy = 0;
+        player.onGround = true;
+      }
+      camLook = (player.facing || 1) * lookAheadDist();
+      camX = clamp(player.x - VW * 0.38 + camLook, 0, LEVEL_W - VW);
+    },
     wipe: () => { player.hp = 0; progress.currentHealth = 0; player.lives = 0; loseLife(); },
     killSpecial: (type) => {
       const e = enemies.find((n) => n.type === type);
