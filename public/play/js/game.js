@@ -289,7 +289,12 @@
   const bits = [];
   const bitPool = [];
   const HIT_PAUSE_FRAMES = 3;
+  const HIT_HEAVY_MS = 50;
+  const HIT_MEGA_MS = 60;
+  const SQUASH_MS = 120;
   const FEEL = { shakeX: 0, shakeY: 0, decay: 0.82 };
+  const hairChain = [];
+  const beardChain = [];
   const floats = [];
   const pickups = [];
   const flags = [];
@@ -1114,6 +1119,11 @@
     player.jumpBufMs = 0;
     player.jumpCut = false;
     player.jumpAge = 0;
+    player.squashMs = 0;
+    player.squashSx = 1;
+    player.squashSy = 1;
+    player.gunRecoilT = 0;
+    resetHairBeard();
     lifeDamaged = false;
   }
 
@@ -1260,6 +1270,171 @@
     FEEL.shakeY = -n * 0.22;
     FEEL.decay = n >= 18 ? 0.91 : n >= 12 ? 0.88 : 0.82;
     shakeDecay = FEEL.decay;
+  }
+
+  function microShake(dir, px) {
+    const n = clamp(px == null ? 2 : px, 1, 3);
+    const d = dir == null ? (player.facing || 1) : (dir < 0 ? -1 : 1);
+    FEEL.shakeX = d * n;
+    FEEL.shakeY = -n * 0.4;
+    FEEL.decay = 0.76;
+    shakeDecay = FEEL.decay;
+    shake = Math.max(shake, n);
+  }
+
+  function hitFreeze(ms) {
+    hitstop = Math.max(hitstop, Math.max(1, Math.round(ms / TICK_MS)));
+  }
+
+  function setSquash(sx, sy) {
+    player.squashSx = sx;
+    player.squashSy = sy;
+    player.squashMs = SQUASH_MS;
+  }
+
+  function spawnDustPuff(x, y, n) {
+    if (perfLow) return;
+    const count = Math.min(n || 8, 12);
+    for (let i = 0; i < count; i++) {
+      dusts.push({
+        x: x + rand(-6, 6),
+        y: y + rand(-1, 2),
+        vx: rand(-1.6, 1.6),
+        vy: rand(-2.4, -0.3),
+        life: rand(8, 16),
+        max: 16,
+        s: rand(1, 2.2),
+        col: dustColor(),
+        pixel: true,
+      });
+    }
+    if (dusts.length > 70) dusts.splice(0, dusts.length - 70);
+  }
+
+  function hairRootsAt(wx, wy, facing) {
+    const f = facing || 1;
+    const roll = !!player.rolling;
+    if (isMounted()) {
+      const seat = riderSeat();
+      const sx = wx + (seat.saddle || 0);
+      const sy = wy - (seat.lift || 28);
+      return {
+        crownX: sx - f * 2,
+        crownY: sy - 16,
+        chinX: sx + f * 1,
+        chinY: sy - 6,
+      };
+    }
+    return {
+      crownX: wx - f * 2.5,
+      crownY: wy - (roll ? 16 : 36),
+      chinX: wx + f * 1.4,
+      chinY: wy - (roll ? 8 : 18),
+    };
+  }
+
+  function hairWindX() {
+    let w = Math.sin((time || 0) * 0.07) * 0.1;
+    if (mode === "cliffs" || scene === "flight" || isHueyAir()) w += 1.4 + Math.sin((time || 0) * 0.16) * 0.5;
+    else if (era === 5 || era === 6) w += 0.5 + Math.sin((time || 0) * 0.1) * 0.25;
+    return w;
+  }
+
+  function resetHairBeard() {
+    hairChain.length = 0;
+    beardChain.length = 0;
+    const r = hairRootsAt(player.x, player.y, player.facing || 1);
+    const f = player.facing || 1;
+    for (let i = 0; i < 3; i++) {
+      const x = r.crownX - f * (5 + i * 5);
+      const y = r.crownY + 3 + i * 4;
+      hairChain.push({ x, y, px: x, py: y });
+    }
+    for (let i = 0; i < 2; i++) {
+      const x = r.chinX - f * (1 + i * 3);
+      const y = r.chinY + 3 + i * 3.5;
+      beardChain.push({ x, y, px: x, py: y });
+    }
+  }
+
+  function stepChain(chain, rootX, rootY, segs, ax, ay, pin) {
+    for (let i = 0; i < chain.length; i++) {
+      const n = chain[i];
+      const vx = (n.x - n.px) * 0.78;
+      const vy = (n.y - n.py) * 0.78;
+      n.px = n.x;
+      n.py = n.y;
+      n.x += vx + ax;
+      n.y += vy + ay;
+    }
+    for (let it = 0; it < 2; it++) {
+      let px = rootX;
+      let py = rootY;
+      for (let i = 0; i < chain.length; i++) {
+        const n = chain[i];
+        const dx = n.x - px;
+        const dy = n.y - py;
+        const dist = Math.hypot(dx, dy) || 0.0001;
+        const k = i === 0 ? pin : 0.55;
+        const diff = (dist - segs[i]) / dist;
+        n.x -= dx * diff * k;
+        n.y -= dy * diff * k;
+        px = n.x;
+        py = n.y;
+      }
+    }
+  }
+
+  function stepHairBeard() {
+    if (!hairChain.length || !beardChain.length) resetHairBeard();
+    const r = hairRootsAt(player.x + footLunge(), player.y, player.facing || 1);
+    const f = player.facing || 1;
+    const lagX = -(player.vx || 0) * 0.42 + hairWindX();
+    const lagY = -(player.vy || 0) * 0.16 + 0.32;
+    const rollX = player.rolling ? -(player.rollDir || f) * 1.15 : 0;
+    stepChain(hairChain, r.crownX, r.crownY, [5.5, 5.2, 4.8], lagX + rollX, lagY, 0.85);
+    stepChain(beardChain, r.chinX, r.chinY, [4.4, 3.8], lagX * 0.55 + rollX * 0.4, lagY * 0.7, 0.9);
+  }
+
+  function drawHairBeard(dx, dy, facing, h, scale) {
+    if (player.anim === "death" || !hairChain.length) return;
+    const sc = scale == null ? 1 : scale;
+    const extraY = isMounted() ? 0 : dy - Math.round(player.y);
+    const r = hairRootsAt(player.x + footLunge(), player.y, facing || 1);
+    ctx.save();
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(r.crownX - camX, r.crownY + extraY);
+    for (let i = 0; i < hairChain.length; i++) ctx.lineTo(hairChain[i].x - camX, hairChain[i].y + extraY);
+    ctx.strokeStyle = "#2a140c";
+    ctx.lineWidth = 4.4 * sc;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(r.crownX - camX, r.crownY + extraY);
+    for (let i = 0; i < hairChain.length; i++) ctx.lineTo(hairChain[i].x - camX, hairChain[i].y + extraY);
+    ctx.strokeStyle = "#6b3a22";
+    ctx.lineWidth = 2.6 * sc;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(r.crownX - camX + facing * 0.8, r.crownY + extraY + 0.6);
+    for (let i = 0; i < hairChain.length; i++) ctx.lineTo(hairChain[i].x - camX + facing * 0.5, hairChain[i].y + extraY + 0.5);
+    ctx.strokeStyle = "#4a2a18";
+    ctx.lineWidth = 1.3 * sc;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(r.chinX - camX, r.chinY + extraY);
+    for (let i = 0; i < beardChain.length; i++) ctx.lineTo(beardChain[i].x - camX, beardChain[i].y + extraY);
+    ctx.strokeStyle = "#6a280c";
+    ctx.lineWidth = 3.1 * sc;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(r.chinX - camX, r.chinY + extraY);
+    for (let i = 0; i < beardChain.length; i++) ctx.lineTo(beardChain[i].x - camX, beardChain[i].y + extraY);
+    ctx.strokeStyle = "#b4531e";
+    ctx.lineWidth = 1.7 * sc;
+    ctx.stroke();
+    ctx.restore();
   }
 
   function spawnBit(x, y, opts) {
@@ -1703,9 +1878,11 @@
   }
 
   function gunDrawKick() {
-    if (isMounted() || !player.attacking || player.phase !== "active") return 0;
+    if (isMounted() || !player.attacking) return 0;
     if (!isGunSpec(currentSpec())) return 0;
-    return -player.facing * (player.kind === "heavy" || player.kind === "mega" ? 4 : 2);
+    const rec = player.gunRecoilT || 0;
+    const base = player.phase === "active" ? (player.kind === "heavy" || player.kind === "mega" ? 4 : 2) : 0;
+    return -player.facing * (base + rec * 0.55);
   }
 
   function mountPose(dh) {
@@ -1860,8 +2037,17 @@
     return [pt];
   }
 
+  function applyGunRecoil(spec) {
+    if (isMounted()) return;
+    const heavy = !!(player.kind === "heavy" || player.kind === "mega" || (spec && (spec.bazooka || spec.shotgun)));
+    player.vx -= player.facing * (heavy ? 0.72 : 0.32);
+    player.gunRecoilT = heavy ? 6 : 4;
+    microShake(-player.facing, heavy ? 1.6 : 1);
+  }
+
   function firePistol() {
     const spec = currentSpec() || {};
+    if (!isMounted()) applyGunRecoil(spec);
     const huey = isMounted() && horse.kind === 6;
     const jeep = isMounted() && horse.kind === 5;
     const cart = isMounted() && horse.kind === 4;
@@ -3489,7 +3675,7 @@
       player.anim = "run";
       sfx("jump");
       sparkBurst(player.x, player.y - 6, 8, true);
-      spawnDust(player.x, player.y - 2, 8);
+      spawnDustPuff(player.x, player.y - 2, 10);
     }
 
     player.ducking = duckHold && canAct && !player.rolling && !mounted && !player.blocking && !isMounting();
@@ -3586,6 +3772,8 @@
       player.jumpBufMs = 0;
       player.jumpCut = true;
       player.jumpAge = 0;
+      setSquash(0.9, 1.12);
+      spawnDustPuff(player.x, player.y - 2, 8);
       sfx("jump");
     }
 
@@ -3628,10 +3816,14 @@
     }
     if (wasAir && player.onGround) {
       player.landT = 9;
-      spawnDust(player.x, player.y - 2, 7);
+      setSquash(1.15, 0.85);
+      spawnDustPuff(player.x, player.y - 2, 10);
       sparkBurst(player.x, player.y - 4, 4, true);
     }
     if ((player.landT || 0) > 0) player.landT--;
+    if ((player.squashMs || 0) > 0) player.squashMs = Math.max(0, player.squashMs - TICK_MS);
+    if ((player.gunRecoilT || 0) > 0) player.gunRecoilT--;
+    stepHairBeard();
 
     if (player.deadT === 0 && player.y > GROUND + 28) {
       if (bailT > 0 || flying || lifting) {
@@ -3819,8 +4011,8 @@
         sparkBurst(box.x + box.w / 2, box.y + box.h * 0.3, 16, true);
         bloodBurst(box.x + box.w / 2, box.y + box.h * 0.4, dir, 12, e.hits >= 3);
         sfx("hit");
-        hitstop = 7;
-        bumpShake(power ? 16 : 10);
+        hitFreeze(HIT_HEAVY_MS);
+        microShake(dir, power ? 3 : 2);
         if (e.hits >= 3) killEnemy(e);
       } else {
         const dealt = Math.max(1, Math.round(progress.dealDamage(spec.dmg) * diffCfg().dmgOut));
@@ -3836,13 +4028,19 @@
         eraStrikeBurst(e.x, e.y - e.h * 0.5, dir, power || player.combo === 3);
         floatText(e.x + dir * 6, e.y - e.h - 6, "-" + dealt, "#d23a3a");
         sfx("hit");
-        hitstop = mega ? Math.max(10, HIT_PAUSE_FRAMES) : player.kind === "heavy" ? 8 : player.combo === 3 ? 7 : 4;
         if (mega) {
-          bumpShake(20, dir);
-          hitstop = Math.max(hitstop, HIT_PAUSE_FRAMES);
-        } else if (player.kind === "heavy") bumpShake(16, dir);
-        else if (player.combo === 3) bumpShake(12, dir);
-        else bumpShake(6, dir);
+          hitFreeze(HIT_MEGA_MS);
+          microShake(dir, 3);
+        } else if (player.kind === "heavy") {
+          hitFreeze(HIT_HEAVY_MS);
+          microShake(dir, 2.4);
+        } else if (player.combo === 3) {
+          hitstop = Math.max(hitstop, 3);
+          microShake(dir, 2);
+        } else {
+          hitstop = Math.max(hitstop, 2);
+          microShake(dir, 1.2);
+        }
         if (e.hp <= 0) killEnemy(e);
       }
     }
@@ -5414,14 +5612,26 @@
   function kaelPose() {
     if (player.rolling) {
       const p = 1 - player.rollT / Math.max(1, player.rollMax);
-      return { sx: 1, sy: 0.7, rot: player.facing * p * Math.PI * 2.1, yOff: 0.55 };
+      return { sx: 1.08, sy: 0.7, rot: player.facing * p * Math.PI * 2.1, yOff: 0.55 };
     }
     if (isDucking()) return { sx: 1, sy: 0.82, rot: 0, yOff: 0.9 };
     let sx = 1, sy = 1, rot = 0;
-    if ((player.landT || 0) > 0) { sx = 1.14; sy = 0.82; }
-    else if (!player.onGround) {
-      if (player.vy < -1.2) { sx = 0.9; sy = 1.14; }
-      else if (player.vy > 2) { sx = 1.1; sy = 0.88; }
+    const sm = player.squashMs || 0;
+    if (sm > 0) {
+      const t = 1 - sm / SQUASH_MS;
+      const ease = t * t * (3 - 2 * t);
+      sx = (player.squashSx || 1) + (1 - (player.squashSx || 1)) * ease;
+      sy = (player.squashSy || 1) + (1 - (player.squashSy || 1)) * ease;
+    } else if (!player.onGround) {
+      if (player.vy < -0.4) {
+        const k = clamp((-player.vy - 0.4) / 5.5, 0, 1);
+        sx = 1 - 0.1 * k;
+        sy = 1 + 0.12 * k;
+      } else if (player.vy > 1.2) {
+        const k = clamp((player.vy - 1.2) / 6, 0, 1);
+        sx = 1 + 0.1 * k;
+        sy = 1 - 0.12 * k;
+      }
     } else if (player.anim === "run") {
       const g = gaitFrom(player.gait || player.runT || 0);
       sx = 1 + g.plant * 0.08;
@@ -5432,11 +5642,39 @@
       sx = 1 + b * 0.012;
       sy = 1 - b * 0.02;
     }
-    const gunPose = player.attacking && isGunSpec(currentSpec());
+    const spec = player.attacking ? currentSpec() : null;
+    const gunPose = !!(spec && isGunSpec(spec));
     if (player.attacking && !gunPose) {
-      rot = player.phase === "wu" ? -0.22 : player.phase === "active" ? 0.32 : 0.08;
-      if (player.phase === "active") { sx *= 1.06; sy *= 0.96; }
-      else if (player.phase === "wu") { sx *= 0.96; sy *= 1.05; }
+      const combo = player.combo || 1;
+      const heavy = player.kind === "heavy" || player.kind === "mega";
+      const overhead = !!(spec && (spec.overhead || player.kind === "mega" || (player.kind === "light" && combo === 3)));
+      const phaseT = player.phaseT || 0;
+      if (player.phase === "wu") {
+        const ant = Math.min(1, phaseT / 3);
+        if (overhead) { rot += -0.38 * ant; sx *= 0.92; sy *= 1.08; }
+        else if (combo === 2) { rot += -0.28 * ant; sx *= 0.94; sy *= 1.06; }
+        else if (heavy) { rot += -0.42 * ant; sx *= 0.9; sy *= 1.1; }
+        else { rot += -0.18 * ant; sx *= 0.96; sy *= 1.04; }
+      } else if (player.phase === "active") {
+        if (overhead) { rot += 0.55; sx *= 1.12; sy *= 0.88; }
+        else if (combo === 2) { rot += 0.42; sx *= 1.1; sy *= 0.9; }
+        else if (heavy) { rot += 0.48; sx *= 1.14; sy *= 0.86; }
+        else { rot += 0.28; sx *= 1.08; sy *= 0.94; }
+      } else {
+        const recK = 1 - Math.min(1, phaseT / Math.max(1, (spec && spec.rec) || 10));
+        if (overhead) { rot += 0.22 * recK; sx *= 1 + 0.04 * recK; sy *= 1 - 0.04 * recK; }
+        else if (combo === 2) rot += 0.12 * recK;
+        else if (heavy) { rot += 0.18 * recK; sx *= 1.06; sy *= 0.94; }
+        else rot += 0.08 * recK;
+      }
+    } else if (player.attacking && gunPose) {
+      const rec = player.gunRecoilT || 0;
+      if (player.phase === "wu") { rot += -0.08; sx *= 0.98; sy *= 1.03; }
+      else if (player.phase === "active" || rec > 0) {
+        rot += 0.06;
+        sx *= 1.04;
+        sy *= 0.96;
+      }
     }
     return { sx, sy, rot, yOff: 1 };
   }
@@ -5812,14 +6050,16 @@
       ctx.arc(ox + dir * 10, oy + 4, 16 + t * 10, 0, Math.PI * 2);
       ctx.stroke();
     } else {
+      const anticipate = player.phase === "wu" && player.phaseT <= 3;
       const start = dir > 0 ? (overhead ? -2.35 : -1.15) : Math.PI - (overhead ? -0.4 : 0.4);
-      const span = (cleave || mega ? 2.65 : heavy ? 2.05 : overhead ? 2.2 : player.combo === 2 ? 1.45 : 1.05) * dir;
-      const r = 10 + reach * (player.phase === "wu" ? 0.4 + t * 0.25 : 0.95);
+      const span = (cleave || mega ? 2.65 : heavy ? 2.05 : overhead ? 2.2 : player.combo === 2 ? 1.45 : 1.05) * dir * (anticipate ? 0.45 : 1);
+      const r = 10 + reach * (player.phase === "wu" ? (anticipate ? 0.22 : 0.4 + t * 0.25) : player.phase === "rec" ? 0.72 : 0.95);
       const lift = overhead ? -22 : cleave ? -8 : 2;
       if (player.phase === "active") {
-        for (let i = 3; i >= 1; i--) {
-          ctx.globalAlpha = 0.22 * i;
-          ctx.lineWidth = (mega ? 7 : heavy ? 5 : 2.4) * (i / 3);
+        const smears = (overhead || heavy || player.combo === 3) ? 4 : 3;
+        for (let i = smears; i >= 1; i--) {
+          ctx.globalAlpha = 0.16 * i;
+          ctx.lineWidth = (mega ? 7 : heavy ? 5 : 2.4) * (i / smears);
           ctx.strokeStyle = i === 1 ? "#fff6c8" : "#e6c35c";
           ctx.beginPath();
           ctx.arc(ox - dir * i * 3, oy + lift + i, r - i * 3, start, start + span, dir < 0);
@@ -7277,6 +7517,15 @@
         ctx.globalAlpha = 0.14;
         blitKael(kaelSprite(), player.x - player.rollDir * 26, player.y, player.facing, dh, 0);
         ctx.restore();
+      } else if (!mounted && player.attacking && player.phase === "active" && !isGunSpec(currentSpec()) && !perfLow) {
+        const dir = player.facing;
+        const lift = (player.kind === "mega" || player.combo === 3) ? 4 : 0;
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        blitKael(kaelSprite(), player.x + lunge - dir * 10, player.y, player.facing, dh, bob);
+        ctx.globalAlpha = 0.1;
+        blitKael(kaelSprite(), player.x + lunge - dir * 18, player.y - lift, player.facing, dh, bob);
+        ctx.restore();
       } else if (!mounted && player.anim === "run" && Math.abs(player.vx) > 1.4 && !perfLow) {
         ctx.save();
         ctx.globalAlpha = 0.16;
@@ -7285,6 +7534,14 @@
       }
       if (mounted) blitRider(kaelSprite(), player.x, player.y, player.facing);
       else blitKael(kaelSprite(), player.x + lunge, player.y, player.facing, dh, bob);
+      if (player.anim !== "death") {
+        if (mounted) {
+          const seat = riderSeat();
+          drawHairBeard(Math.round(player.x - camX + seat.saddle), Math.round(player.y - seat.lift), player.facing, seat.sitH, 0.75);
+        } else {
+          drawHairBeard(Math.round(player.x + lunge - camX), Math.round(player.y + bob), player.facing, dh, 1);
+        }
+      }
       if (player.blocking) {
         const px = player.x - camX + player.facing * 14;
         const py = player.y - 22;
@@ -7494,9 +7751,16 @@
     for (const d of dusts) {
       ctx.globalAlpha = Math.max(0, d.life / (d.max || 20)) * 0.7;
       ctx.fillStyle = d.col || dustColor();
-      ctx.beginPath();
-      ctx.arc(d.x - camX, d.y, d.s, 0, Math.PI * 2);
-      ctx.fill();
+      const px = Math.round(d.x - camX);
+      const py = Math.round(d.y);
+      if (d.pixel) {
+        const s = Math.max(1, Math.round(d.s));
+        ctx.fillRect(px, py, s, s);
+      } else {
+        ctx.beginPath();
+        ctx.arc(px, d.y, d.s, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.globalAlpha = 1;
     }
     for (const b of bits) {
@@ -7653,6 +7917,21 @@
       vy: +(player.vy || 0).toFixed(2),
       coyoteMs: +(player.coyoteMs || 0).toFixed(1),
       jumpBufMs: +(player.jumpBufMs || 0).toFixed(1),
+      squashSx: +(player.squashSx || 1).toFixed(3),
+      squashSy: +(player.squashSy || 1).toFixed(3),
+      squashMs: +(player.squashMs || 0).toFixed(1),
+      poseSx: +kaelPose().sx.toFixed(3),
+      poseSy: +kaelPose().sy.toFixed(3),
+      poseRot: +kaelPose().rot.toFixed(3),
+      hitstop: hitstop | 0,
+      gunRecoilT: player.gunRecoilT | 0,
+      shakeX: +FEEL.shakeX.toFixed(2),
+      shakeY: +FEEL.shakeY.toFixed(2),
+      hairN: hairChain.length,
+      beardN: beardChain.length,
+      hairTipX: hairChain.length ? +(hairChain[hairChain.length - 1].x - player.x).toFixed(1) : 0,
+      dustPixel: dusts.filter((d) => d.pixel).length,
+      phaseT: player.phaseT | 0,
       invuln: player.invuln | 0,
       combo: player.combo || 0,
       kind: player.kind || null,
