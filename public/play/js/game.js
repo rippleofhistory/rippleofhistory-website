@@ -7,6 +7,21 @@
   const LEVEL_W = 5400;
   const MAX_ENEMIES = 6;
   const GRAVITY = 0.32;
+  const TICK_HZ = 60;
+  const TICK_MS = 1000 / TICK_HZ;
+  const PHYS = {
+    dt: 1,
+    walkAccel: 0.62,
+    airAccel: 0.36,
+    groundFriction: 0.48,
+    airFriction: 0.1,
+    coyoteMs: 90,
+    jumpBufMs: 100,
+    jumpCut: 0.5,
+    fallMul: 1.4,
+    cornerNudge: 4,
+    pitInset: 8,
+  };
   const MAX_LIVES = 5;
   const LIVES_FLOOR = 3;
   const WIND_UP = 30;
@@ -1095,6 +1110,10 @@
     player.landT = 0;
     player.gait = 0;
     player.struckT = 0;
+    player.coyoteMs = PHYS.coyoteMs;
+    player.jumpBufMs = 0;
+    player.jumpCut = false;
+    player.jumpAge = 0;
     lifeDamaged = false;
   }
 
@@ -2295,11 +2314,18 @@
     }
   }
 
-  function overPit(px) {
+  function overPit(px, inset) {
+    const pad = inset == null ? 4 : inset;
     for (const p of pits) {
-      if (px > p.x + 4 && px < p.x + p.w - 4) return p;
+      if (px > p.x + pad && px < p.x + p.w - pad) return p;
     }
     return null;
+  }
+
+  function approach(cur, target, rate) {
+    const d = rate * PHYS.dt;
+    if (cur < target) return Math.min(target, cur + d);
+    return Math.max(target, cur - d);
   }
 
   function holeAt(px) {
@@ -2508,7 +2534,7 @@
     snapOffHole(e);
   }
 
-  function standY(px, py, pvy) {
+  function standY(px, py, pvy, pitInset) {
     let y = floorY(px);
     let onLedge = false;
     for (const L of ledges) {
@@ -2521,8 +2547,38 @@
         }
       }
     }
-    if (!onLedge && overPit(px) && y >= GROUND) return VH + 90;
+    if (!onLedge && overPit(px, pitInset) && y >= GROUND) return VH + 90;
     return y;
+  }
+
+  function cornerCorrect() {
+    if (player.deadT > 0) return;
+    const flying = isMounted() && isHuey();
+    if (flying || isMounting()) return;
+    const n = PHYS.cornerNudge;
+    const head = player.y - player.h;
+    for (const L of ledges) {
+      if (L.gone) continue;
+      const top = L.y + (L.fall || 0);
+      const left = L.x;
+      const right = L.x + L.w;
+      if (player.vy < 0 && head < top + 8 && player.y > top - 6) {
+        const pastL = player.x + 8 - left;
+        const pastR = right - (player.x - 8);
+        if (pastL > 0 && pastL <= n && player.x < left + n) {
+          player.x -= pastL;
+          continue;
+        }
+        if (pastR > 0 && pastR <= n && player.x > right - n) {
+          player.x += pastR;
+          continue;
+        }
+      }
+      if (player.y > top + 16 || player.y < top - 22) continue;
+      if (player.x >= left && player.x <= right) continue;
+      if (player.x < left && left - player.x <= n) player.x = left + 0.5;
+      else if (player.x > right && player.x - right <= n) player.x = right - 0.5;
+    }
   }
 
   function updateLedges() {
@@ -2542,6 +2598,7 @@
         if (L.shakeT > 16 && !L.fall) {
           L.fall = 0.4;
           floatText(L.x + L.w / 2, L.y - 12, "CRACKS", "#d23a3a");
+          if (player.onGround && player.x >= L.x && player.x <= L.x + L.w) player.coyoteMs = PHYS.coyoteMs;
         }
         if (L.fall) {
           L.fall += 0.55;
@@ -3494,42 +3551,81 @@
       const spd = (mounted
         ? (player.attacking ? 1.05 : (era === 7 ? 1.35 : era === 6 ? 2.85 : era === 5 ? 4.15 : era === 4 ? 2.2 : era === 3 ? 2.45 : 3.55))
         : (player.attacking ? 0.7 : 2.15)) * (player.ducking ? 0.42 : 1);
-      if (wantLeft()) { player.vx = -spd; player.facing = -1; moving = true; }
-      else if (wantRight()) { player.vx = spd; player.facing = 1; moving = true; }
-      else player.vx *= 0.7;
+      const left = wantLeft() && !wantRight();
+      const right = wantRight() && !wantLeft();
+      if (left) player.facing = -1;
+      else if (right) player.facing = 1;
+      if (mounted) {
+        if (left) { player.vx = -spd; moving = true; }
+        else if (right) { player.vx = spd; moving = true; }
+        else player.vx *= 0.7;
+      } else {
+        const accel = player.onGround ? PHYS.walkAccel : PHYS.airAccel;
+        const friction = player.onGround ? PHYS.groundFriction : PHYS.airFriction;
+        if (left || right) {
+          player.vx = approach(player.vx, (left ? -spd : spd), accel);
+          moving = true;
+        } else {
+          player.vx = approach(player.vx, 0, friction);
+        }
+      }
     } else if (player.blocking) {
-      player.vx *= 0.6;
+      player.vx = approach(player.vx, 0, PHYS.groundFriction * 1.2);
     }
 
-    if (canAct && player.onGround && !player.blocking && !player.attacking && !player.rolling && (consumeTap("jump") || (wantJump() && tap.jump))) {
+    if (consumeTap("jump")) player.jumpBufMs = PHYS.jumpBufMs;
+    else if (player.jumpBufMs > 0) player.jumpBufMs = Math.max(0, player.jumpBufMs - TICK_MS);
+
+    const flying = mounted && isHuey();
+    const lifting = isMounting() && isHuey();
+    const canJump = canAct && (player.onGround || player.coyoteMs > 0) && !player.blocking && !player.attacking && !player.rolling && !flying && !lifting;
+    if (canJump && player.jumpBufMs > 0) {
       player.vy = era === 2 ? -7.2 : (era === 3 || era === 5 || era === 6 || era === 7) ? -6.8 : -6.35;
       player.onGround = false;
+      player.coyoteMs = 0;
+      player.jumpBufMs = 0;
+      player.jumpCut = true;
+      player.jumpAge = 0;
       sfx("jump");
     }
-    tap.jump = false;
 
     updateLedges();
     const wasAir = !player.onGround;
     const prevX = player.x;
     const wasGround = player.onGround;
-    const flying = mounted && isHuey();
-    const lifting = isMounting() && isHuey();
     if (flying || lifting) {
       player.vy = 0;
+      player.jumpCut = false;
       if (flying) player.y += (HUEY_HOVER - player.y) * 0.22;
     } else {
-      player.vy += GRAVITY;
+      if (player.jumpCut && player.jumpAge > 0 && !wantJump() && player.vy < 0) {
+        player.vy *= PHYS.jumpCut;
+        player.jumpCut = false;
+      }
+      const g = GRAVITY * PHYS.dt * (player.vy > 0 ? PHYS.fallMul : 1);
+      player.vy += g;
+      if (player.jumpCut) player.jumpAge = (player.jumpAge || 0) + 1;
     }
-    player.x += player.vx;
+    player.x += player.vx * PHYS.dt;
     if (wasGround && !flying && !lifting) {
       stopOnFoes(prevX);
       holdAtPit(prevX);
     }
-    if (!flying && !lifting) player.y += player.vy;
+    if (!flying && !lifting) {
+      cornerCorrect();
+      player.y += player.vy * PHYS.dt;
+    }
 
-    const floor = standY(player.x, player.y, player.vy);
+    const floor = standY(player.x, player.y, player.vy, mounted ? 4 : PHYS.pitInset);
     if (flying || lifting) player.onGround = false;
     else player.onGround = landed(player, floor);
+    if (player.onGround) {
+      player.coyoteMs = PHYS.coyoteMs;
+      player.jumpCut = false;
+      player.jumpAge = 0;
+    } else {
+      player.coyoteMs = Math.max(0, (player.coyoteMs || 0) - TICK_MS);
+    }
     if (wasAir && player.onGround) {
       player.landT = 9;
       spawnDust(player.x, player.y - 2, 7);
@@ -7494,9 +7590,9 @@
     const dt = Math.min(50, now - last);
     last = now;
     acc += dt;
-    while (acc >= 1000 / 60) {
+    while (acc >= TICK_MS) {
       update();
-      acc -= 1000 / 60;
+      acc -= TICK_MS;
     }
     if (dt > 24) perfHits = Math.min(18, perfHits + 1);
     else if (dt < 18) perfHits = Math.max(0, perfHits - 1);
@@ -7553,6 +7649,10 @@
       cannonState: cannons.map((c) => ({ x: c.x | 0, hp: c.hp | 0, dead: !!c.dead, breakT: c.breakT | 0 })),
       rolling: !!player.rolling,
       ducking: !!player.ducking,
+      onGround: !!player.onGround,
+      vy: +(player.vy || 0).toFixed(2),
+      coyoteMs: +(player.coyoteMs || 0).toFixed(1),
+      jumpBufMs: +(player.jumpBufMs || 0).toFixed(1),
       invuln: player.invuln | 0,
       combo: player.combo || 0,
       kind: player.kind || null,
