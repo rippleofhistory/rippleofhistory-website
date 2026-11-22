@@ -291,6 +291,9 @@
   const HIT_PAUSE_FRAMES = 3;
   const HIT_HEAVY_MS = 50;
   const HIT_MEGA_MS = 60;
+  const PARRY_MS = 80;
+  const COMBO_BUF_MS = 150;
+  const AIM_LATE_MS = 150;
   const SQUASH_MS = 120;
   const FEEL = { shakeX: 0, shakeY: 0, decay: 0.82 };
   const hairChain = [];
@@ -668,6 +671,16 @@
       tone(784, 0.22, "square", 0.06);
     } else if (kind === "jump") {
       tone(340, 0.08, "square", 0.04, 520);
+    } else if (kind === "parry") {
+      noiseBurst(0.08, 0.22, 1800);
+      tone(880, 0.06, "square", 0.07);
+      tone(1320, 0.1, "triangle", 0.05);
+    } else if (kind === "aimGold") {
+      tone(784, 0.05, "square", 0.032);
+      tone(1175, 0.04, "triangle", 0.022);
+    } else if (kind === "aimRed") {
+      tone(392, 0.05, "square", 0.032);
+      tone(294, 0.06, "triangle", 0.022);
     } else if (kind === "block") {
       noiseBurst(0.07, 0.16, 900);
       tone(240, 0.06, "triangle", 0.05);
@@ -1098,6 +1111,9 @@
     player.phase = null;
     player.phaseT = 0;
     player.buffer = false;
+    player.inputBuf = null;
+    player.inputBufMs = 0;
+    player.parryFlash = 0;
     player.heavyCd = 0;
     player.hurtT = 0;
     player.invuln = 80;
@@ -2198,13 +2214,14 @@
     if (player.blocking) {
       const fromFront = (srcX - player.x) * player.facing >= 0;
       if (fromFront && player.blockT > 0 && player.blockT <= d.parry) {
-        sfx("block");
-        sparkBurst(player.x + player.facing * 12, player.y - 22, 10, true);
+        sfx("parry");
+        sparkBurst(player.x + player.facing * 12, player.y - 22, 18, true);
         eraStrikeBurst(player.x + player.facing * 12, player.y - 22, player.facing, true);
-        floatText(player.x, player.y - 52, "PARRY", "#ffe27a");
+        floatText(player.x, player.y - 52, "PARRY", "#fff6c8");
         player.invuln = 18;
-        bumpShake(14, player.facing);
-        hitstop = Math.max(hitstop, HIT_PAUSE_FRAMES);
+        player.parryFlash = 8;
+        microShake(player.facing, 2);
+        hitFreeze(PARRY_MS);
         let best = null;
         let bestD = 80;
         for (const e of enemies) {
@@ -2843,6 +2860,84 @@
     return lightMoves()[Math.max(0, player.combo - 1)] || lightMoves()[0];
   }
 
+  function isLightRec() {
+    return !!(player.attacking && player.kind === "light" && player.phase === "rec");
+  }
+
+  function cancelLightRec() {
+    if (!isLightRec()) return false;
+    player.attacking = false;
+    player.kind = null;
+    player.combo = 0;
+    player.phase = null;
+    player.phaseT = 0;
+    player.buffer = false;
+    player.shotQueued = false;
+    player.inputBuf = null;
+    player.inputBufMs = 0;
+    return true;
+  }
+
+  function queueStrike(name) {
+    player.inputBuf = name;
+    player.inputBufMs = COMBO_BUF_MS;
+  }
+
+  function applyQueuedStrike() {
+    const name = player.inputBuf;
+    if (!name || (player.inputBufMs || 0) <= 0) return;
+    if (player.rolling || isMounting() || player.hurtT > 0) return;
+    if (!player.attacking) {
+      if (name === "light") {
+        startAttack("light", 1);
+        player.inputBuf = null;
+        player.inputBufMs = 0;
+      } else if (name === "heavy" && player.heavyCd === 0) {
+        startAttack("heavy", 0);
+        player.inputBuf = null;
+        player.inputBufMs = 0;
+      }
+      return;
+    }
+    if (player.kind !== "light") return;
+    if (name === "light" && player.combo < 3) {
+      if (player.buffer !== "mega") player.buffer = "light";
+      player.inputBuf = null;
+      player.inputBufMs = 0;
+    } else if (name === "heavy" && player.combo === 2 && player.heavyCd === 0) {
+      player.buffer = "mega";
+      player.inputBuf = null;
+      player.inputBufMs = 0;
+    }
+  }
+
+  function tickQueuedStrike() {
+    applyQueuedStrike();
+    if (!player.inputBuf) return;
+    const hold = player.attacking && player.kind === "light" && (player.phase === "active" || player.phase === "rec");
+    if (hold) return;
+    player.inputBufMs = Math.max(0, (player.inputBufMs || 0) - TICK_MS);
+    if (player.inputBufMs === 0) player.inputBuf = null;
+  }
+
+  function isAimLate(e) {
+    return !!(e && e.state === "flash" && e.aim && (e.flashT || 0) * TICK_MS <= AIM_LATE_MS);
+  }
+
+  function tickAimTells() {
+    for (const e of enemies) {
+      if (e.hp <= 0 || e.deadT > 0) {
+        e.aimCue = false;
+        continue;
+      }
+      const late = isAimLate(e);
+      if (late && !e.aimCue) {
+        e.aimCue = true;
+        sfx(isGoldAim(e.aim) ? "aimGold" : "aimRed");
+      } else if (!late) e.aimCue = false;
+    }
+  }
+
   function wantLeft() { return keys.has("ArrowLeft") || keys.has("KeyA") || pad.left || gp.left; }
   function wantRight() { return keys.has("ArrowRight") || keys.has("KeyD") || pad.right || gp.right; }
   function wantJump() { return keys.has("ArrowUp") || keys.has("KeyW") || pad.jump || gp.jump; }
@@ -3258,6 +3353,8 @@
     player.phase = null;
     player.kind = null;
     player.buffer = false;
+    player.inputBuf = null;
+    player.inputBufMs = 0;
     player.combo = 0;
     for (let i = 0; i < SWORD_PACK.length; i++) dropSprite(SWORD_PACK[i]);
   }
@@ -3628,7 +3725,8 @@
     const mounted = isMounted();
     const tappedAtk = tap.light || tap.heavy;
     const duckHold = wantDuckHold();
-    const nowBlock = canAct && !player.attacking && wantBlock() && player.onGround && !mounted && !tappedAtk && !duckHold;
+    const nowBlock = canAct && (!player.attacking || isLightRec()) && wantBlock() && player.onGround && !mounted && !tappedAtk && !duckHold;
+    if (nowBlock && player.attacking) cancelLightRec();
     if (nowBlock && !player.blocking) player.blockT = 0;
     player.blocking = nowBlock;
     if (player.blocking) {
@@ -3664,7 +3762,8 @@
     } else if (firearmEra()) {
       player.rolling = false;
       consumeTap("roll");
-    } else if (canAct && player.onGround && !player.attacking && !player.blocking && !mounted && !isMounting() && player.rollCd === 0 && consumeTap("roll")) {
+    } else if (canAct && player.onGround && (!player.attacking || isLightRec()) && !player.blocking && !mounted && !isMounting() && player.rollCd === 0 && consumeTap("roll")) {
+      cancelLightRec();
       player.rollMax = 22;
       player.rollT = player.rollMax;
       player.rolling = true;
@@ -3678,29 +3777,23 @@
       spawnDustPuff(player.x, player.y - 2, 10);
     }
 
-    player.ducking = duckHold && canAct && !player.rolling && !mounted && !player.blocking && !isMounting();
+    if (duckHold && canAct && isLightRec() && !player.rolling && !mounted && !player.blocking && !isMounting()) cancelLightRec();
+    player.ducking = duckHold && canAct && !player.rolling && !mounted && !player.blocking && !isMounting() && !player.attacking;
     if (!player.rolling) player.h = player.ducking ? 24 : 40;
 
     if (canAct && !player.rolling && !isMounting()) {
       if (consumeTap("light")) {
         player.blocking = false;
         player.blockT = 0;
-        if (player.attacking && player.kind === "light" && player.combo < 3 && (player.phase === "rec" || player.phase === "active")) {
-          if (player.buffer !== "mega") player.buffer = "light";
-        } else if (!player.attacking) {
-          startAttack("light", 1);
-        }
+        queueStrike("light");
       }
       if (consumeTap("heavy")) {
         player.blocking = false;
         player.blockT = 0;
-        if (player.attacking && player.kind === "light" && player.combo === 2 && player.heavyCd === 0 && (player.phase === "rec" || player.phase === "active" || player.phase === "wu")) {
-          player.buffer = "mega";
-        } else if (!player.attacking && player.heavyCd === 0) {
-          startAttack("heavy", 0);
-        }
+        queueStrike("heavy");
       }
     }
+    tickQueuedStrike();
 
     if (player.attacking) {
       const spec = currentSpec();
@@ -3764,8 +3857,9 @@
 
     const flying = mounted && isHuey();
     const lifting = isMounting() && isHuey();
-    const canJump = canAct && (player.onGround || player.coyoteMs > 0) && !player.blocking && !player.attacking && !player.rolling && !flying && !lifting;
+    const canJump = canAct && (player.onGround || player.coyoteMs > 0) && !player.blocking && !player.rolling && !flying && !lifting && (!player.attacking || isLightRec());
     if (canJump && player.jumpBufMs > 0) {
+      cancelLightRec();
       player.vy = era === 2 ? -7.2 : (era === 3 || era === 5 || era === 6 || era === 7) ? -6.8 : -6.35;
       player.onGround = false;
       player.coyoteMs = 0;
@@ -5251,6 +5345,7 @@
     for (const st of stains) st.life--;
     for (let i = stains.length - 1; i >= 0; i--) if (stains[i].life <= 0) stains.splice(i, 1);
     if (hurtFlash > 0) hurtFlash--;
+    if ((player.parryFlash || 0) > 0) player.parryFlash--;
     for (const f of floats) { f.y -= 0.45; f.life--; }
     for (let i = floats.length - 1; i >= 0; i--) if (floats[i].life <= 0) floats.splice(i, 1);
     if (banner.t > 0) banner.t--;
@@ -5408,6 +5503,7 @@
     updatePlayer();
     hitEnemies();
     for (const e of enemies) updateEnemy(e);
+    tickAimTells();
     if (era === 5 && !jurassic && player.x >= ROH.RIFT_X && player.deadT === 0) {
       jurassic = true;
       announce("THE RIFT OPENS", 140);
@@ -7449,13 +7545,15 @@
         const ty = flying ? player.y - 16 : floorY(player.x) - (gold ? 8 : 22);
         const max = Math.max(1, e.windMax || WIND_UP);
         const p = 1 - clamp(e.flashT / max, 0, 1);
+        const late = isAimLate(e);
+        const pulse = late ? (time % 2 === 0 ? 1 : 0.28) : (0.3 + p * 0.65);
         ctx.save();
-        ctx.globalAlpha = 0.3 + p * 0.65;
+        ctx.globalAlpha = pulse;
         ctx.strokeStyle = gold ? "#e6c35c" : "#ff5a4a";
         ctx.shadowColor = gold ? "rgba(230,195,92,0.9)" : "rgba(255,70,50,0.9)";
-        ctx.shadowBlur = perfLow ? 0 : 8;
-        ctx.lineWidth = 1.4 + p * 1.8;
-        ctx.setLineDash(p > 0.78 ? [] : (gold ? [6, 5] : [3, 6]));
+        ctx.shadowBlur = perfLow ? 0 : (late ? 14 : 8);
+        ctx.lineWidth = late ? 3.4 : 1.4 + p * 1.8;
+        ctx.setLineDash(late || p > 0.78 ? [] : (gold ? [6, 5] : [3, 6]));
         ctx.beginPath();
         ctx.moveTo(sx - camX, sy);
         ctx.lineTo(tx - camX, ty);
@@ -7464,7 +7562,7 @@
         ctx.shadowBlur = 0;
         ctx.fillStyle = gold ? "#ffe27a" : "#ff8a78";
         ctx.beginPath();
-        ctx.arc(sx - camX, sy, 1.8 + p * 2.2, 0, Math.PI * 2);
+        ctx.arc(sx - camX, sy, (late ? 3.4 : 1.8) + p * 2.2, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
@@ -7512,10 +7610,19 @@
       if (!mounted) drawBlobShadow(player.x + lunge, player.y, player.rolling || isDucking() ? 14 : 10);
       if (player.rolling && !perfLow) {
         ctx.save();
-        ctx.globalAlpha = 0.28;
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.42;
         blitKael(kaelSprite(), player.x - player.rollDir * 14, player.y, player.facing, dh, 0);
-        ctx.globalAlpha = 0.14;
+        ctx.globalAlpha = 0.22;
         blitKael(kaelSprite(), player.x - player.rollDir * 26, player.y, player.facing, dh, 0);
+        ctx.restore();
+      } else if (!mounted && airborneDodge() && !perfLow) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.38;
+        blitKael(kaelSprite(), player.x + lunge - (player.vx || 0) * 5, player.y - (player.vy || 0) * 3.5, player.facing, dh, bob);
+        ctx.globalAlpha = 0.18;
+        blitKael(kaelSprite(), player.x + lunge - (player.vx || 0) * 10, player.y - (player.vy || 0) * 7, player.facing, dh, bob);
         ctx.restore();
       } else if (!mounted && player.attacking && player.phase === "active" && !isGunSpec(currentSpec()) && !perfLow) {
         const dir = player.facing;
@@ -7553,6 +7660,31 @@
         if (player.facing > 0) ctx.arc(px, py, 16, -1.15, 1.15);
         else ctx.arc(px, py, 16, Math.PI - 1.15, Math.PI + 1.15);
         ctx.stroke();
+        ctx.restore();
+      }
+      if ((player.parryFlash || 0) > 0) {
+        const px = player.x - camX + player.facing * 14;
+        const py = player.y - 22;
+        const a = Math.min(1, player.parryFlash / 6);
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = a;
+        const g = ctx.createRadialGradient(px, py, 2, px, py, 30);
+        g.addColorStop(0, "rgba(255,255,240,0.95)");
+        g.addColorStop(0.35, "rgba(255,226,122,0.75)");
+        g.addColorStop(1, "rgba(230,195,92,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(px, py, 30, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#fff6c8";
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        if (player.facing > 0) ctx.arc(px, py, 18, -1.2, 1.2);
+        else ctx.arc(px, py, 18, Math.PI - 1.2, Math.PI + 1.2);
+        ctx.stroke();
+        ctx.globalAlpha = a * 0.7;
+        blitKael(kaelSprite(), player.x + lunge, player.y, player.facing, dh, bob);
         ctx.restore();
       }
       drawSwing();
@@ -7898,7 +8030,7 @@
       gait: +(player.gait || 0).toFixed(1),
       vx: +(player.vx || 0).toFixed(2),
       struckT: player.struckT | 0,
-      enemies: enemies.map((e) => ({ type: e.type, x: e.x | 0, y: e.y | 0, hp: e.hp, facing: e.facing, state: e.state, hits: e.hits, guarded: e.guarded, aim: e.aim || null, flashT: e.flashT | 0, windMax: e.windMax | 0 })),
+      enemies: enemies.map((e) => ({ type: e.type, x: e.x | 0, y: e.y | 0, hp: e.hp, facing: e.facing, state: e.state, hits: e.hits, guarded: e.guarded, aim: e.aim || null, flashT: e.flashT | 0, windMax: e.windMax | 0, aimCue: !!e.aimCue })),
       lock,
       doorOpen,
       doorX: door.x | 0,
@@ -7932,6 +8064,12 @@
       hairTipX: hairChain.length ? +(hairChain[hairChain.length - 1].x - player.x).toFixed(1) : 0,
       dustPixel: dusts.filter((d) => d.pixel).length,
       phaseT: player.phaseT | 0,
+      buffer: player.buffer || null,
+      inputBuf: player.inputBuf || null,
+      inputBufMs: +(player.inputBufMs || 0).toFixed(1),
+      parryFlash: player.parryFlash | 0,
+      blocking: !!player.blocking,
+      blockT: player.blockT | 0,
       invuln: player.invuln | 0,
       combo: player.combo || 0,
       kind: player.kind || null,
