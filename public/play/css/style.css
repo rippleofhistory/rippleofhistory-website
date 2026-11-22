@@ -659,6 +659,11 @@ html.force-land #stage {
   inset: 0;
   z-index: 7;
   pointer-events: none;
+  touch-action: none;
+  --touch-left: max(24px, calc(env(safe-area-inset-left, 0px) + 12px));
+  --touch-right: max(24px, calc(env(safe-area-inset-right, 0px) + 12px));
+  --touch-bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + 8px));
+  --touch-top: max(8px, env(safe-area-inset-top, 0px));
 }
 
 .touch button {
@@ -669,8 +674,11 @@ html.force-land #stage {
   font-family: "Cinzel", serif;
   font-weight: 700;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
   touch-action: none;
   backdrop-filter: blur(6px);
+  transform-origin: center center;
 }
 
 .touch button:active,
@@ -678,15 +686,18 @@ html.force-land #stage {
   background: rgba(230, 195, 92, 0.38);
   color: #fff6c8;
   box-shadow: 0 0 14px rgba(230, 195, 92, 0.35);
+  transform: scale(0.92);
+  opacity: 0.85;
 }
 
 .dpad {
   position: absolute;
-  left: max(10px, env(safe-area-inset-left));
-  bottom: max(12px, env(safe-area-inset-bottom));
+  left: var(--touch-left);
+  bottom: var(--touch-bottom);
   width: 168px;
   height: 168px;
   pointer-events: none;
+  touch-action: none;
 }
 
 .dpad button {
@@ -713,6 +724,7 @@ html.force-land #stage {
   height: 176px;
   border-radius: 50%;
   pointer-events: auto;
+  touch-action: none;
   background: radial-gradient(circle, rgba(8, 6, 4, 0.18) 0 22%, rgba(8, 6, 4, 0.52) 26% 100%);
   border: 1px solid rgba(230, 195, 92, 0.4);
   box-shadow: 0 0 0 5px rgba(8, 6, 4, 0.28);
@@ -724,6 +736,7 @@ html.force-land #stage {
   border-radius: 50%;
   font-size: 16px;
   z-index: 1;
+  pointer-events: none;
 }
 
 .move-pad button::before { inset: -12px; }
@@ -753,6 +766,14 @@ html.force-land #stage {
   transform: translateY(-50%);
   border-radius: 50%;
 }
+.move-pad .dpad-up:active,
+.move-pad .dpad-up.held { transform: translateX(-50%) scale(0.92); opacity: 0.85; }
+.move-pad .dpad-down:active,
+.move-pad .dpad-down.held { transform: translateX(-50%) scale(0.92); opacity: 0.85; }
+.move-pad .dpad-left:active,
+.move-pad .dpad-left.held { transform: translateY(-50%) scale(0.92); opacity: 0.85; }
+.move-pad .dpad-right:active,
+.move-pad .dpad-right.held { transform: translateY(-50%) scale(0.92); opacity: 0.85; }
 .move-pad .dpad-ul,
 .move-pad .dpad-ur,
 .move-pad .dpad-dl,
@@ -770,7 +791,12 @@ html.force-land #stage {
 
 .atk-pad {
   left: auto;
-  right: max(10px, env(safe-area-inset-right));
+  right: var(--touch-right);
+  bottom: var(--touch-bottom);
+  width: 196px;
+  height: 184px;
+  pointer-events: none;
+  touch-action: none;
 }
 
 .atk-pad button {
@@ -779,6 +805,24 @@ html.force-land #stage {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  touch-action: none;
+}
+
+.atk-pad button::before,
+.act-jump::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(48px, calc(100% + 16px));
+  height: max(48px, calc(100% + 16px));
+  min-width: 48px;
+  min-height: 48px;
+  transform: translate(-50%, -50%);
+  inset: auto;
 }
 
 .atk-pad span {
@@ -786,6 +830,35 @@ html.force-land #stage {
   line-height: 1.05;
   text-align: center;
   pointer-events: none;
+}
+
+.atk-pad .dpad-right {
+  left: auto;
+  right: 0;
+  top: auto;
+  bottom: 52px;
+  border-radius: 12px;
+}
+.atk-pad .dpad-up {
+  left: auto;
+  right: 18px;
+  top: 4px;
+  border-radius: 12px;
+}
+.atk-pad .dpad-left {
+  left: 8px;
+  top: 28px;
+  right: auto;
+  border-radius: 12px;
+}
+.atk-pad .dpad-down {
+  left: auto;
+  right: 8px;
+  top: auto;
+  bottom: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
 }
 
 .atk-pad .dpad-right,
@@ -811,8 +884,8 @@ html.force-land #stage {
 
 .act-jump {
   position: absolute;
-  right: calc(max(10px, env(safe-area-inset-right)) + 176px);
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 52px);
+  right: calc(var(--touch-right) + 128px);
+  bottom: calc(var(--touch-bottom) + 48px);
   width: 64px;
   height: 64px;
   border-radius: 12px;
@@ -822,6 +895,7 @@ html.force-land #stage {
   align-items: center;
   justify-content: center;
   pointer-events: auto;
+  touch-action: none;
   z-index: 8;
 }
 
@@ -829,8 +903,8 @@ html.force-land #stage {
 
 .touch-pause {
   position: absolute;
-  top: max(8px, env(safe-area-inset-top));
-  right: max(10px, env(safe-area-inset-right));
+  top: var(--touch-top);
+  right: var(--touch-right);
   width: 44px;
   height: 36px;
   border-radius: 8px;
@@ -840,8 +914,8 @@ html.force-land #stage {
 
 .touch-mute {
   position: absolute;
-  top: max(8px, env(safe-area-inset-top));
-  right: max(58px, calc(env(safe-area-inset-right) + 48px));
+  top: var(--touch-top);
+  right: calc(var(--touch-right) + 48px);
   width: 44px;
   height: 36px;
   border-radius: 8px;
@@ -880,11 +954,15 @@ html.force-land #stage {
   .move-pad .dpad-dr { width: 36px; height: 36px; left: 14px; right: auto; }
   .move-pad .dpad-ur,
   .move-pad .dpad-dr { left: auto; right: 14px; }
+  .atk-pad { width: 176px; height: 168px; }
+  .atk-pad .dpad-right { bottom: 46px; }
+  .atk-pad .dpad-up { right: 14px; }
+  .atk-pad .dpad-left { left: 4px; top: 22px; }
   .act-jump {
     width: 56px;
     height: 56px;
-    right: calc(max(10px, env(safe-area-inset-right)) + 156px);
-    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 46px);
+    right: calc(var(--touch-right) + 112px);
+    bottom: calc(var(--touch-bottom) + 42px);
     font-size: 10px;
   }
 }
@@ -914,12 +992,24 @@ html.force-land #stage {
   .move-pad .dpad-dr { width: 32px; height: 32px; left: 10px; right: auto; }
   .move-pad .dpad-ur,
   .move-pad .dpad-dr { left: auto; right: 10px; }
-  .atk-pad span { font-size: 8px; }
-  .act-jump {
+  .atk-pad {
+    width: 172px;
+    height: 160px;
+  }
+  .atk-pad button {
     width: 48px;
     height: 48px;
-    right: calc(max(10px, env(safe-area-inset-right)) + 136px);
-    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 40px);
+  }
+  .atk-pad .dpad-right { bottom: 42px; right: 0; }
+  .atk-pad .dpad-up { right: 12px; top: 0; }
+  .atk-pad .dpad-left { left: 4px; top: 20px; }
+  .atk-pad .dpad-down { right: 4px; bottom: 0; width: 44px; height: 44px; }
+  .atk-pad span { font-size: 8px; }
+  .act-jump {
+    width: 52px;
+    height: 52px;
+    right: calc(var(--touch-right) + 108px);
+    bottom: calc(var(--touch-bottom) + 36px);
     font-size: 9px;
   }
   .touch-pause,

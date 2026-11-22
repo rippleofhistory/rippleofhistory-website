@@ -3091,7 +3091,9 @@
 
   function bindTouch() {
     const root = document.getElementById("touch");
+    if (!root) return;
     const held = new Map();
+    let movePtr = null;
     function flagsFor(act) {
       return {
         left: act === "left" || act === "jump-left" || act === "roll-left",
@@ -3106,8 +3108,9 @@
     }
     function syncPad() {
       const next = { left: false, right: false, jump: false, light: false, heavy: false, block: false, mount: false, roll: false };
-      held.forEach((btn) => {
-        const f = flagsFor(btn.dataset.act);
+      held.forEach((rec) => {
+        if (!rec || !rec.act || rec.act === "neutral") return;
+        const f = flagsFor(rec.act);
         Object.keys(f).forEach((k) => { if (f[k]) next[k] = true; });
       });
       if (next.jump && !pad.jump) tap.jump = true;
@@ -3124,20 +3127,22 @@
       pad.block = next.block;
       pad.mount = next.mount;
     }
-    function press(btn, id) {
-      if (!btn) return;
+    function markHeld(btn, on) {
+      if (btn) btn.classList.toggle("held", !!on);
+    }
+    function press(id, rec) {
       const old = held.get(id);
-      if (old === btn) return;
-      if (old) old.classList.remove("held");
-      held.set(id, btn);
-      btn.classList.add("held");
+      if (old && old.btn && old.btn !== rec.btn) markHeld(old.btn, false);
+      held.set(id, rec);
+      markHeld(rec.btn, true);
       syncPad();
     }
     function release(id) {
-      const btn = held.get(id);
-      if (!btn) return;
-      btn.classList.remove("held");
+      const rec = held.get(id);
+      if (!rec) return;
+      markHeld(rec.btn, false);
       held.delete(id);
+      if (movePtr === id) movePtr = null;
       syncPad();
     }
     function moveSector(padEl, x, y) {
@@ -3154,52 +3159,65 @@
     }
     function pressMove(padEl, id, x, y) {
       const act = moveSector(padEl, x, y);
+      const old = held.get(id);
       if (!act || act === "neutral") {
-        release(id);
+        if (old && old.btn) markHeld(old.btn, false);
+        held.set(id, { kind: "move", el: padEl, btn: null, act: "neutral" });
+        syncPad();
         return;
       }
       const btn = padEl.querySelector('[data-act="' + act + '"]');
-      if (btn) press(btn, id);
+      press(id, { kind: "move", el: padEl, btn, act });
     }
-    function onDown(e, el) {
+    function pressAct(btn, id) {
+      if (!btn) return;
+      press(id, { kind: "act", el: btn, btn, act: btn.dataset.act });
+    }
+    function onDown(e) {
+      const t = e.target;
+      if (!t || !t.closest) return;
+      const movePad = t.closest(".move-pad");
+      const btn = t.closest("[data-act]");
+      if (!movePad && !btn) return;
       e.preventDefault();
       e.stopPropagation();
       if (mode === "intro") { skipIntro(); return; }
-      const act = el.dataset && el.dataset.act;
+      const act = btn && btn.dataset && btn.dataset.act;
       if (act === "pause") { togglePause(); return; }
       if (act === "mute") { toggleMute(); return; }
-      try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-      const movePad = el.classList.contains("move-pad") ? el : el.closest(".move-pad");
       if (movePad) {
+        if (movePtr != null && movePtr !== e.pointerId) return;
+        movePtr = e.pointerId;
         pressMove(movePad, e.pointerId, e.clientX, e.clientY);
         return;
       }
-      const btn = el.closest ? el.closest("[data-act]") : el;
-      if (btn) press(btn, e.pointerId);
+      pressAct(btn, e.pointerId);
     }
-    root.querySelectorAll("[data-act], .move-pad").forEach((el) => {
-      el.addEventListener("pointerdown", (e) => onDown(e, el));
-      el.addEventListener("pointerup", (e) => {
-        e.preventDefault();
-        release(e.pointerId);
-      });
-      el.addEventListener("pointercancel", (e) => release(e.pointerId));
-      el.addEventListener("pointermove", (e) => {
-        if (!held.has(e.pointerId) && !e.buttons) return;
-        const movePad = el.classList.contains("move-pad") ? el : el.closest(".move-pad");
-        if (movePad) {
-          if (!held.has(e.pointerId) && e.buttons === 0) return;
-          pressMove(movePad, e.pointerId, e.clientX, e.clientY);
-          return;
-        }
-        if (!held.has(e.pointerId)) return;
-        const padEl = el.closest(".dpad");
-        if (!padEl) return;
+    function onMove(e) {
+      const rec = held.get(e.pointerId);
+      if (!rec) return;
+      e.preventDefault();
+      if (rec.kind === "move") {
+        pressMove(rec.el, e.pointerId, e.clientX, e.clientY);
+        return;
+      }
+      if (rec.kind === "act" && rec.el && rec.el.closest && rec.el.closest(".atk-pad")) {
         const hit = document.elementFromPoint(e.clientX, e.clientY);
-        const next = hit && hit.closest ? hit.closest(".dpad [data-act]") : null;
-        if (next && padEl.contains(next) && next !== held.get(e.pointerId)) press(next, e.pointerId);
-      });
-    });
+        const next = hit && hit.closest ? hit.closest(".atk-pad [data-act]") : null;
+        if (next && next !== rec.btn) pressAct(next, e.pointerId);
+      }
+    }
+    function onUp(e) {
+      if (!held.has(e.pointerId)) return;
+      e.preventDefault();
+      release(e.pointerId);
+    }
+    const opts = { capture: true, passive: false };
+    root.addEventListener("pointerdown", onDown, opts);
+    window.addEventListener("pointermove", onMove, opts);
+    window.addEventListener("pointerup", onUp, opts);
+    window.addEventListener("pointercancel", onUp, opts);
+    root.addEventListener("contextmenu", (e) => e.preventDefault());
   }
 
   function refreshPlayTouch() {
@@ -8169,6 +8187,7 @@
       cannonState: cannons.map((c) => ({ x: c.x | 0, hp: c.hp | 0, dead: !!c.dead, breakT: c.breakT | 0 })),
       rolling: !!player.rolling,
       ducking: !!player.ducking,
+      pad: { left: !!pad.left, right: !!pad.right, jump: !!pad.jump, roll: !!pad.roll, light: !!pad.light, heavy: !!pad.heavy, block: !!pad.block, mount: !!pad.mount },
       onGround: !!player.onGround,
       vy: +(player.vy || 0).toFixed(2),
       coyoteMs: +(player.coyoteMs || 0).toFixed(1),
