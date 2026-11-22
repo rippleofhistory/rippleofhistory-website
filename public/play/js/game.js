@@ -41,6 +41,7 @@
   const HUEY_HOVER = 112;
   const HUEY_MOUNT_UP = 26;
   const HUEY_WRECK = 72;
+  const HUEY_BAIL_T = 60;
   const CANNON_BREAK = 32;
   const CANNON_CYCLE = 90;
   const CANNON_FIRE_AT = 56;
@@ -1645,6 +1646,25 @@
     if (dusts.length > 70) dusts.splice(0, dusts.length - 70);
   }
 
+  function spawnRooster(x, y, dir) {
+    if (perfLow) return;
+    const d = dir || 1;
+    for (let i = 0; i < 2; i++) {
+      dusts.push({
+        x: x - d * (14 + i * 5) + rand(-3, 3),
+        y: y - 1 + rand(-1, 2),
+        vx: -d * rand(1.8, 3.6),
+        vy: rand(-3.2, -0.7),
+        life: rand(16, 28),
+        max: 28,
+        s: rand(2.6, 5.4),
+        col: dustColor(),
+        rooster: true,
+      });
+    }
+    if (dusts.length > 90) dusts.splice(0, dusts.length - 90);
+  }
+
   function bloodBurst(x, y, dir, n, kill) {
     const count = (n || 10) + (kill ? 10 : 0);
     const cap = perfLow ? 40 : 96;
@@ -1927,9 +1947,18 @@
     const facing = (horse && horse.facing) || player.facing;
     if (kind === 6) {
       const wreck = isWrecking() ? 1 - Math.min(1, horse.wreckT / HUEY_WRECK) : 0;
-      const bob = isWrecking() ? 0 : Math.sin(time * 0.22) * 1.5;
-      const pitch = isWrecking() ? wreck * 0.55 * (facing < 0 ? -1 : 1) : Math.sin(time * 0.1) * 0.025 * (facing < 0 ? -1 : 1);
+      const bob = isWrecking() ? 0 : (horse.bob || 0);
+      const pitch = isWrecking()
+        ? wreck * 0.55 * (facing < 0 ? -1 : 1)
+        : (horse.tilt || 0) + Math.sin(time * 0.1) * 0.02 * (facing < 0 ? -1 : 1);
       return { facing, bob, pitch, squash: 1, h: dh || 56 };
+    }
+    if (kind === 5) {
+      const gallop = Math.abs(player.vx) > 0.45;
+      const gait = time * (gallop ? 0.42 : 0.12);
+      const bob = (horse.suspY || 0) + Math.sin(gait) * (gallop ? 0.7 : 0.25);
+      const pitch = (horse.tilt || 0) + Math.sin(gait) * (gallop ? 0.02 : 0.008) * (facing < 0 ? -1 : 1);
+      return { facing, bob, pitch, squash: 1, h: dh || 42 };
     }
     const vehicle = kind >= 4;
     const gallop = Math.abs(player.vx) > 0.45;
@@ -2428,12 +2457,16 @@
   }
 
   function bailFromHuey() {
-    bailT = 48;
-    player.vy = -2.2;
+    bailT = HUEY_BAIL_T;
+    player.vy = -4.8;
+    player.vx += (player.facing || 1) * -0.9;
+    player.vx = clamp(player.vx, -3.4, 3.4);
     player.onGround = false;
     player.anim = "jump";
-    player.invuln = Math.max(player.invuln, 56);
+    player.invuln = Math.max(player.invuln, HUEY_BAIL_T);
     player.x = nearestSolidX(player.x);
+    setSquash(0.88, 1.16);
+    hitFreeze(70);
     floatText(player.x, player.y - 40, "BAIL OUT", "#ffe27a");
   }
 
@@ -2470,10 +2503,10 @@
     if (horse.kind === 6) {
       bailFromHuey();
       horse.wreckT = HUEY_WRECK;
-      horse.vy = 1.15;
+      horse.vy = 0.85;
       horse.boom = false;
       horse.y = Math.min(player.y, HUEY_HOVER);
-      player.invuln = Math.max(player.invuln, 56);
+      player.invuln = Math.max(player.invuln, HUEY_BAIL_T);
       sparkBurst(horse.x, horse.y - 12, 16, true);
       bumpShake(12);
       announce("BAIL OUT", 70);
@@ -2510,8 +2543,9 @@
     if (horse.wreckT > 0) {
       horse.wreckT--;
       if (horse.kind === 6) {
-        horse.vy = (horse.vy || 0.8) + GRAVITY * 0.9;
-        horse.x += (horse.facing || 1) * 0.85;
+        const slow = bailT > 0 ? 0.4 : 1;
+        horse.vy = (horse.vy || 0.8) + GRAVITY * 0.9 * slow;
+        horse.x += (horse.facing || 1) * 0.85 * slow;
         horse.y += horse.vy;
         if (horse.y >= GROUND) {
           horse.y = GROUND;
@@ -2550,6 +2584,29 @@
     const d = rate * PHYS.dt;
     if (cur < target) return Math.min(target, cur + d);
     return Math.max(target, cur - d);
+  }
+
+  function tickMountFeel() {
+    if (!horse || !isMounted()) return;
+    if (horse.kind === 5) {
+      const lift = slopeLift(player.x);
+      const dLift = lift - (horse.prevLift == null ? lift : horse.prevLift);
+      horse.prevLift = lift;
+      horse.suspY = horse.suspY || 0;
+      horse.suspV = (horse.suspV || 0) - horse.suspY * 0.22 - (horse.suspV || 0) * 0.28 + dLift * 0.9;
+      horse.suspY = clamp(horse.suspY + horse.suspV, -7, 8);
+      const ax = player.vx - (horse.prevVx || 0);
+      horse.prevVx = player.vx;
+      const fwd = ax * (player.facing || 1);
+      horse.tilt = (horse.tilt || 0) + ((-fwd * 0.16) - (horse.tilt || 0)) * 0.24;
+      if (player.onGround && Math.abs(player.vx) > 1.15 && !perfLow && time % 2 === 0) {
+        spawnRooster(player.x, player.y, player.facing);
+      }
+    } else if (horse.kind === 6) {
+      const fwd = clamp((player.vx || 0) / 2.85, -1, 1) * (player.facing || 1);
+      horse.tilt = (horse.tilt || 0) + (fwd * 0.22 - (horse.tilt || 0)) * 0.14;
+      horse.bob = Math.sin(time * 0.11) * 2.2 + Math.sin(time * 0.19) * 0.95;
+    }
   }
 
   function holeAt(px) {
@@ -3856,7 +3913,14 @@
       if (left) player.facing = -1;
       else if (right) player.facing = 1;
       if (mounted) {
-        if (left) { player.vx = -spd; moving = true; }
+        const kind = horse.kind;
+        if (kind === 5) {
+          if (left || right) { player.vx = approach(player.vx, left ? -spd : spd, 0.34); moving = true; }
+          else player.vx = approach(player.vx, 0, 0.24);
+        } else if (kind === 6) {
+          if (left || right) { player.vx = approach(player.vx, left ? -spd : spd, 0.22); moving = true; }
+          else player.vx = approach(player.vx, 0, 0.16);
+        } else if (left) { player.vx = -spd; moving = true; }
         else if (right) { player.vx = spd; moving = true; }
         else player.vx *= 0.7;
       } else {
@@ -3905,7 +3969,7 @@
         player.vy *= PHYS.jumpCut;
         player.jumpCut = false;
       }
-      const g = GRAVITY * PHYS.dt * (player.vy > 0 ? PHYS.fallMul : 1);
+      const g = GRAVITY * PHYS.dt * (bailT > 0 ? 0.36 : (player.vy > 0 ? PHYS.fallMul : 1));
       player.vy += g;
       if (player.jumpCut) player.jumpAge = (player.jumpAge || 0) + 1;
     }
@@ -3958,6 +4022,7 @@
       horse.x = player.x;
       horse.y = player.y;
       horse.facing = player.facing;
+      tickMountFeel();
       if (!flying) trampleEnemies();
       if (era === 7 && horse.kind === 7) {
         for (const w of wrecks) {
@@ -3970,7 +4035,7 @@
           }
         }
       }
-    } else if (horse && horse.alive && !horse.mounted) {
+    } else if (horse && horse.alive && !horse.mounted && !(isWrecking() && horse.kind === 6)) {
       horse.y = floorY(horse.x);
     }
 
@@ -7670,7 +7735,7 @@
         ctx.globalAlpha = 0.22;
         blitKael(kaelSprite(), player.x - player.rollDir * 26, player.y, player.facing, dh, 0);
         ctx.restore();
-      } else if (!mounted && airborneDodge() && !perfLow) {
+      } else if (!mounted && (airborneDodge() || bailT > 0) && !perfLow) {
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
         ctx.globalAlpha = 0.38;
@@ -7939,7 +8004,11 @@
       ctx.fillStyle = d.col || dustColor();
       const px = Math.round(d.x - camX);
       const py = Math.round(d.y);
-      if (d.pixel) {
+      if (d.rooster) {
+        ctx.beginPath();
+        ctx.ellipse(px, py, d.s * 1.7, Math.max(1.1, d.s * 0.42), d.vx >= 0 ? 0.38 : -0.38, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (d.pixel) {
         const s = Math.max(1, Math.round(d.s));
         ctx.fillRect(px, py, s, s);
       } else {
@@ -8090,7 +8159,7 @@
       doorOpen,
       doorX: door.x | 0,
       checkpoint,
-      horse: horse && { x: horse.x | 0, hp: horse.hp, maxHp: horse.maxHp, mounted: horse.mounted, alive: horse.alive, kind: horse.kind || 0, mountT: horse.mountT | 0, wreckT: horse.wreckT | 0 },
+      horse: horse && { x: horse.x | 0, y: horse.y | 0, hp: horse.hp, maxHp: horse.maxHp, mounted: horse.mounted, alive: horse.alive, kind: horse.kind || 0, mountT: horse.mountT | 0, wreckT: horse.wreckT | 0, tilt: +(horse.tilt || 0).toFixed(3), suspY: +(horse.suspY || 0).toFixed(2), bob: +(horse.bob || 0).toFixed(2) },
       unlocked,
       maxLives,
       muted,
@@ -8126,6 +8195,8 @@
       blocking: !!player.blocking,
       blockT: player.blockT | 0,
       invuln: player.invuln | 0,
+      bailT: bailT | 0,
+      rooster: dusts.filter((d) => d.rooster).length,
       combo: player.combo || 0,
       kind: player.kind || null,
       phase: player.phase || null,

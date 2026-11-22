@@ -13,7 +13,10 @@
     this.x = WOW.W / 2;
     this.y = WOW.H - 110;
     this.prevX = this.x;
+    this.vx = 0;
+    this.vy = 0;
     this.bank = 0;
+    this.engineT = 0;
     this.cool = 0;
     this.podCool = 0;
     this.rocketCool = 0;
@@ -62,11 +65,41 @@
     const speed = focus ? (this.focusSpeed || WOW.PLAYER.focus) : (this.speed || WOW.PLAYER.speed);
     const axes = input.moveAxes();
     const mag = Math.hypot(axes.x, axes.y);
-    if (mag > 0 && this.spawn <= 0) {
-      this.x += (axes.x / mag) * speed * dt;
-      this.y += (axes.y / mag) * speed * dt;
+    this.engineT = (this.engineT || 0) + dt;
+    this.vx = this.vx || 0;
+    this.vy = this.vy || 0;
+    if (this.spawn <= 0) {
+      if (mag > 0) {
+        const tx = (axes.x / mag) * speed;
+        const ty = (axes.y / mag) * speed;
+        const k = Math.min(1, dt * 6.2);
+        this.vx += (tx - this.vx) * k;
+        this.vy += (ty - this.vy) * k;
+      } else {
+        const drag = Math.max(0, 1 - dt * 5.4);
+        this.vx *= drag;
+        this.vy *= drag;
+      }
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
     }
-    if (input.pointer.held && this.spawn <= 0) {
+    if (input.touchLiftPending) {
+      if (this.spawn <= 0 && input.pointer.held && input.pointer.touch && input.touchOrigin) {
+        const scale = input.playfieldPerCss();
+        const cdx = (input.touchOrigin.x - this.x) / scale.x;
+        const cdy = (input.touchOrigin.y - this.y) / scale.y;
+        input.touchLift = (cdx * cdx + cdy * cdy) <= 100 * 100 ? 70 * scale.y : 0;
+      }
+      input.touchLiftPending = false;
+    }
+    if (this.spawn <= 0 && input.pointer.touch) {
+      this.x += input.touchDx;
+      this.y += input.touchDy;
+      if (input.pointer.held && input.touchLift > 0) {
+        const targetY = input.pointer.y - input.touchLift;
+        this.y += (targetY - this.y) * Math.min(1, dt * 9);
+      }
+    } else if (input.pointer.held && this.spawn <= 0) {
       const k = Math.min(1, dt * (focus ? 8 : 14));
       this.x += (input.pointer.x - this.x) * k;
       this.y += (input.pointer.y - this.y) * k;
@@ -77,11 +110,13 @@
     const minY = this.minY || WOW.PLAYER.minY;
     const tail = this.craft && this.craft.id === 'fortress' ? 100 : 72;
     this.y = WOW.clamp(this.y, minY, WOW.H - tail);
+    this.x = WOW.clamp(this.x, 0, WOW.W);
+    this.y = WOW.clamp(this.y, 0, WOW.H);
 
-    const vx = (this.x - this.prevX) / Math.max(dt, 0.001);
+    const visVx = (this.x - this.prevX) / Math.max(dt, 0.001);
     this.prevX = this.x;
-    const targetBank = WOW.clamp(vx / 700, -0.42, 0.42);
-    this.bank += (targetBank - this.bank) * Math.min(1, dt * 8);
+    const targetBank = WOW.clamp(visVx / 380, -0.58, 0.58);
+    this.bank += (targetBank - this.bank) * Math.min(1, dt * 5.5);
 
     if (this.iFrames > 0) this.iFrames -= dt;
     if (this.bombCd > 0) this.bombCd -= dt;
@@ -267,7 +302,6 @@
     }
     game.fx.bombFlash();
     game.fx.explode(this.x, this.y, 'boss');
-    game.shake = 8;
     WOW.audio.bomb();
   };
 
@@ -277,7 +311,7 @@
     this.lives -= 1;
     this.laser = 0;
     game.fx.explode(this.x, this.y, 'player');
-    game.shake = 11;
+    game.addShake(5);
     game.hitStop = 0.09;
     WOW.audio.hurt();
     if (this.lives <= 0) {
@@ -294,15 +328,30 @@
     const blink = this.iFrames > 0 && Math.floor(performance.now() / 70) % 2 === 0;
     const alpha = blink ? 0.35 : 1;
     const sprite = this.sprite || 'player';
+    const t = this.engineT || 0;
+    const vibX = Math.sin(t * 68) * 0.55;
+    const vibY = Math.cos(t * 91) * 0.4;
+    const vibR = Math.sin(t * 74) * 0.016;
+    const roll = this.bank + vibR;
+    const dx = this.x + vibX;
+    const dy = this.y + vibY;
     if (this.tier >= 3 && !(this.craft && this.craft.id === 'fortress')) {
       for (let i = 0; i < this.pods.length; i++) {
         const p = this.pods[i];
-        WOW.shadow(ctx, p.x, p.y, 16);
-        WOW.blit(ctx, sprite, p.x, p.y, 40, this.bank * 0.4, alpha);
+        WOW.blit(ctx, sprite, p.x + vibX * 0.4, p.y + vibY * 0.4, 40, roll * 0.4, alpha);
       }
     }
-    WOW.shadow(ctx, this.x, this.y, this.craft && this.craft.id === 'fortress' ? 46 : 28);
-    WOW.blit(ctx, sprite, this.x, this.y, this.drawW || WOW.PLAYER.drawW, this.bank, alpha);
+    const drawW = this.drawW || WOW.PLAYER.drawW;
+    WOW.blit(ctx, sprite, dx, dy, drawW, roll, alpha);
+    ctx.save();
+    ctx.translate(dx, dy);
+    ctx.rotate(roll);
+    ctx.globalAlpha = 0.2 * alpha;
+    ctx.fillStyle = '#d8d2b4';
+    ctx.beginPath();
+    ctx.ellipse(0, -drawW * 0.34, drawW * 0.2, 2.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
     ctx.fillStyle = '#fff8e4';
     ctx.beginPath();

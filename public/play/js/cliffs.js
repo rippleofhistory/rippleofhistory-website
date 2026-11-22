@@ -286,6 +286,10 @@
       assets: !!WOW.assetsReady,
       playerImage: !!(img && img.width),
       t: game.waves ? game.waves.t : 0,
+      vx: game.player ? +(game.player.vx || 0).toFixed(2) : 0,
+      vy: game.player ? +(game.player.vy || 0).toFixed(2) : 0,
+      bank: game.player ? +(game.player.bank || 0).toFixed(3) : 0,
+      engineT: game.player ? +(game.player.engineT || 0).toFixed(2) : 0,
     };
   }
 
