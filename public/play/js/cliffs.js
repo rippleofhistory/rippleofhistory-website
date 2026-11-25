@@ -247,6 +247,27 @@
     if (running) requestAnimationFrame(loop);
   }
 
+  function pause() {
+    running = false;
+    if (game.audio && game.audio.ac && game.audio.ac.state === "running") {
+      game.audio.ac.suspend().catch(() => {});
+    }
+  }
+
+  function resume() {
+    if (left) return;
+    if (game.audio && game.audio.ensure) game.audio.ensure();
+    if (!running) {
+      running = true;
+      lastT = performance.now();
+      requestAnimationFrame(loop);
+    }
+  }
+
+  function unlockAudio() {
+    if (game.audio && game.audio.ensure) game.audio.ensure();
+  }
+
   function start(opts) {
     pending = opts || {};
     left = false;
@@ -297,6 +318,9 @@
 
   window.ROHCliffs = {
     start: start,
+    pause: pause,
+    resume: resume,
+    unlockAudio: unlockAudio,
     preload: preload,
     unload: unload,
     ready: ready,

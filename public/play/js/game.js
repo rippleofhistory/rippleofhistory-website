@@ -57,6 +57,9 @@
   let difficulty = "medium";
   let insaneUnlocked = false;
   let keysOn = true;
+  let hapticsOn = true;
+  let autoPaused = false;
+  let cliffsHeld = false;
 
   function diffCfg() {
     return DIFF[difficulty] || DIFF.medium;
@@ -305,6 +308,39 @@
   const sparkPool = [];
   const bits = [];
   const bitPool = [];
+  const dustPool = [];
+  const motePool = [];
+  const stainPool = [];
+  const floatPool = [];
+  const rainPool = [];
+  const snowPool = [];
+  const mudPool = [];
+  function seedPool(pool, n) {
+    for (let i = 0; i < n; i++) pool.push({});
+  }
+  seedPool(sparkPool, 96);
+  seedPool(bitPool, 110);
+  seedPool(dustPool, 90);
+  seedPool(motePool, 24);
+  seedPool(stainPool, 36);
+  seedPool(floatPool, 24);
+  seedPool(rainPool, 90);
+  seedPool(snowPool, 80);
+  seedPool(mudPool, 24);
+  function takePool(pool) {
+    return pool.length ? pool.pop() : null;
+  }
+  function recycleDead(list, pool) {
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (list[i].life > 0) continue;
+      pool.push(list[i]);
+      list[i] = list[list.length - 1];
+      list.pop();
+    }
+  }
+  function drainToPool(list, pool) {
+    while (list.length) pool.push(list.pop());
+  }
   const HIT_PAUSE_FRAMES = 3;
   const HIT_HEAVY_MS = 50;
   const HIT_MEGA_MS = 60;
@@ -607,6 +643,17 @@
     if (failed.length) console.warn("sprites skipped", failed);
   }
 
+  function unlockAudio() {
+    if (actx && actx.state === "suspended") actx.resume().catch(() => {});
+    if (window.ROHCliffs && window.ROHCliffs.unlockAudio) window.ROHCliffs.unlockAudio();
+  }
+
+  function haptic(ms) {
+    if (!hapticsOn) return;
+    if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
+    try { navigator.vibrate(ms); } catch (err) { /* ignore */ }
+  }
+
   function audioInit() {
     if (actx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -617,6 +664,7 @@
     master.connect(actx.destination);
     applyMute();
     if (ROH.musicStart) ROH.musicStart(actx, master, mode === "play" ? era : "intro");
+    unlockAudio();
   }
 
   function tone(freq, dur, type, vol, slide) {
@@ -780,6 +828,7 @@
     muted = !!s.muted;
     insaneUnlocked = !!s.insaneUnlocked;
     keysOn = s.keysOn !== false;
+    hapticsOn = s.haptics !== false;
     difficulty = DIFF[s.difficulty] ? s.difficulty : "medium";
     if (difficulty === "insane" && !insaneUnlocked) difficulty = "hard";
     progress.load(s.progress);
@@ -799,6 +848,7 @@
         difficulty,
         insaneUnlocked,
         keysOn,
+        haptics: hapticsOn,
         progress: progress.toJSON(),
         inventory: inventory.toJSON(),
       }));
@@ -1030,18 +1080,30 @@
     const availH = Math.max(90, h - pad * 2);
     const portrait = h > w + 40;
     document.documentElement.classList.toggle("force-land", portrait);
-    let cssW;
-    let cssH;
+    let boxW;
+    let boxH;
     if (portrait) {
-      cssH = Math.min(availW, availH * 9 / 16);
-      cssW = cssH * 16 / 9;
+      boxH = Math.min(availW, availH * 9 / 16);
+      boxW = boxH * 16 / 9;
     } else {
-      cssW = Math.min(availW, availH * 16 / 9);
-      cssH = cssW * 9 / 16;
+      boxW = availW;
+      boxH = availH;
     }
+    let scale = Math.min(boxW / 480, boxH / 270);
+    const intScale = Math.max(1, Math.floor(scale + 1e-6));
+    if (intScale / scale >= 0.86) scale = intScale;
+    const gameW = Math.round(480 * scale);
+    const gameH = Math.round(270 * scale);
+    const cssW = portrait ? gameW : boxW;
+    const cssH = portrait ? gameH : boxH;
+    const gutter = Math.max(0, (cssW - gameW) * 0.5);
     if (stage) {
       stage.style.width = cssW.toFixed(2) + "px";
       stage.style.height = cssH.toFixed(2) + "px";
+      stage.style.setProperty("--game-w", gameW + "px");
+      stage.style.setProperty("--game-h", gameH + "px");
+      stage.style.setProperty("--hud-gutter", gutter.toFixed(1) + "px");
+      stage.classList.toggle("wide-hud", !portrait && gutter >= 56);
     }
     try {
       if (screen.orientation && screen.orientation.lock && (isNativeApp() || portrait)) {
@@ -1061,6 +1123,17 @@
   function refreshTitleEra() {
     const el = document.querySelector("#title-screen .era-tag");
     if (el) el.textContent = ERA_LABEL[unlocked] || ERA_LABEL[1];
+  }
+  function refreshHapticsButton() {
+    const btn = document.getElementById("btn-pause-haptics");
+    if (!btn) return;
+    btn.textContent = hapticsOn ? "HAPTICS ON" : "HAPTICS OFF";
+    btn.classList.toggle("muted", !hapticsOn);
+  }
+  function toggleHaptics() {
+    hapticsOn = !hapticsOn;
+    persistSave();
+    refreshHapticsButton();
   }
   function refreshMuteButtons() {
     const label = muted ? "SOUND OFF" : "SOUND ON";
@@ -1163,9 +1236,10 @@
   function clearWorld() {
     enemies.length = 0;
     shots.length = 0;
-    sparks.length = 0;
-    while (bits.length) bitPool.push(bits.pop());
-    floats.length = 0;
+    drainToPool(sparks, sparkPool);
+    drainToPool(bits, bitPool);
+    drainToPool(floats, floatPool);
+    drainToPool(stains, stainPool);
     pickups.length = 0;
     flags.length = 0;
     spawns.length = 0;
@@ -1190,12 +1264,12 @@
     bailT = 0;
     villaX = 0;
     gateCleared = false;
-    rain.length = 0;
-    muds.length = 0;
-    dusts.length = 0;
-    motes.length = 0;
+    drainToPool(rain, rainPool);
+    drainToPool(muds, mudPool);
+    drainToPool(dusts, dustPool);
+    drainToPool(motes, motePool);
     cannons.length = 0;
-    snows.length = 0;
+    drainToPool(snows, snowPool);
     searchlights.length = 0;
     nestCleared = false;
     wrecks.length = 0;
@@ -1208,7 +1282,6 @@
     mines.length = 0;
     trees.length = 0;
     slopes.length = 0;
-    stains.length = 0;
     hurtFlash = 0;
   }
 
@@ -1334,19 +1407,21 @@
     if (perfLow) return;
     const count = Math.min(n || 8, 12);
     for (let i = 0; i < count; i++) {
-      dusts.push({
-        x: x + rand(-6, 6),
-        y: y + rand(-1, 2),
-        vx: rand(-1.6, 1.6),
-        vy: rand(-2.4, -0.3),
-        life: rand(8, 16),
-        max: 16,
-        s: rand(1, 2.2),
-        col: dustColor(),
-        pixel: true,
-      });
+      if (dusts.length >= 70) return;
+      const d = takePool(dustPool);
+      if (!d) return;
+      d.x = x + rand(-6, 6);
+      d.y = y + rand(-1, 2);
+      d.vx = rand(-1.6, 1.6);
+      d.vy = rand(-2.4, -0.3);
+      d.life = rand(8, 16);
+      d.max = 16;
+      d.s = rand(1, 2.2);
+      d.col = dustColor();
+      d.pixel = true;
+      d.rooster = false;
+      dusts.push(d);
     }
-    if (dusts.length > 70) dusts.splice(0, dusts.length - 70);
   }
 
   function hairRootsAt(wx, wy, facing) {
@@ -1478,7 +1553,8 @@
   function spawnBit(x, y, opts) {
     const cap = perfLow ? 48 : 110;
     if (bits.length >= cap) return;
-    const p = bitPool.pop() || {};
+    const p = takePool(bitPool);
+    if (!p) return;
     p.x = x;
     p.y = y;
     p.vx = opts.vx || 0;
@@ -1599,7 +1675,8 @@
     const blood = gold === "blood";
     n = Math.min(n, perfLow ? 4 : n, room);
     for (let i = 0; i < n; i++) {
-      const s = sparkPool.pop() || {};
+      const s = takePool(sparkPool);
+      if (!s) return;
       s.x = x;
       s.y = y;
       s.vx = blood ? rand(-1.2, 2.8) * (Math.random() < 0.5 ? -1 : 1) : rand(-2.4, 2.4);
@@ -1632,37 +1709,42 @@
     if (perfLow) return;
     n = Math.min(n || 5, 10);
     for (let i = 0; i < n; i++) {
-      dusts.push({
-        x: x + rand(-8, 8),
-        y: y + rand(-2, 2),
-        vx: rand(-1.1, 1.1),
-        vy: rand(-1.8, -0.2),
-        life: rand(10, 20),
-        max: 20,
-        s: rand(1.4, 3.4),
-        col: dustColor(),
-      });
+      if (dusts.length >= 70) return;
+      const d = takePool(dustPool);
+      if (!d) return;
+      d.x = x + rand(-8, 8);
+      d.y = y + rand(-2, 2);
+      d.vx = rand(-1.1, 1.1);
+      d.vy = rand(-1.8, -0.2);
+      d.life = rand(10, 20);
+      d.max = 20;
+      d.s = rand(1.4, 3.4);
+      d.col = dustColor();
+      d.pixel = false;
+      d.rooster = false;
+      dusts.push(d);
     }
-    if (dusts.length > 70) dusts.splice(0, dusts.length - 70);
   }
 
   function spawnRooster(x, y, dir) {
     if (perfLow) return;
     const d = dir || 1;
     for (let i = 0; i < 2; i++) {
-      dusts.push({
-        x: x - d * (14 + i * 5) + rand(-3, 3),
-        y: y - 1 + rand(-1, 2),
-        vx: -d * rand(1.8, 3.6),
-        vy: rand(-3.2, -0.7),
-        life: rand(16, 28),
-        max: 28,
-        s: rand(2.6, 5.4),
-        col: dustColor(),
-        rooster: true,
-      });
+      if (dusts.length >= 90) return;
+      const p = takePool(dustPool);
+      if (!p) return;
+      p.x = x - d * (14 + i * 5) + rand(-3, 3);
+      p.y = y - 1 + rand(-1, 2);
+      p.vx = -d * rand(1.8, 3.6);
+      p.vy = rand(-3.2, -0.7);
+      p.life = rand(16, 28);
+      p.max = 28;
+      p.s = rand(2.6, 5.4);
+      p.col = dustColor();
+      p.pixel = false;
+      p.rooster = true;
+      dusts.push(p);
     }
-    if (dusts.length > 90) dusts.splice(0, dusts.length - 90);
   }
 
   function bloodBurst(x, y, dir, n, kill) {
@@ -1672,7 +1754,8 @@
     if (room <= 0) return;
     const take = Math.min(count, perfLow ? 6 : count, room);
     for (let i = 0; i < take; i++) {
-      const s = sparkPool.pop() || {};
+      const s = takePool(sparkPool);
+      if (!s) break;
       s.x = x + rand(-4, 4);
       s.y = y + rand(-6, 4);
       s.vx = (dir || 1) * rand(0.6, 3.6) + rand(-0.8, 0.8);
@@ -1685,19 +1768,28 @@
       sparks.push(s);
     }
     if (stains.length < 36) {
-      stains.push({
-        x: x + rand(-10, 10),
-        y: GROUND - 1,
-        w: kill ? rand(10, 22) : rand(5, 12),
-        h: kill ? rand(3, 6) : rand(2, 4),
-        a: kill ? 0.62 : 0.42,
-        life: kill ? 900 : 520,
-      });
+      const st = takePool(stainPool);
+      if (st) {
+        st.x = x + rand(-10, 10);
+        st.y = GROUND - 1;
+        st.w = kill ? rand(10, 22) : rand(5, 12);
+        st.h = kill ? rand(3, 6) : rand(2, 4);
+        st.a = kill ? 0.62 : 0.42;
+        st.life = kill ? 900 : 520;
+        stains.push(st);
+      }
     }
   }
 
   function floatText(x, y, text, color) {
-    floats.push({ x, y, text, color: color || "#f3e2a0", life: 50 });
+    const f = takePool(floatPool);
+    if (!f) return;
+    f.x = x;
+    f.y = y;
+    f.text = text;
+    f.color = color || "#f3e2a0";
+    f.life = 50;
+    floats.push(f);
   }
 
   function aliveEnemies() {
@@ -2114,6 +2206,7 @@
   function firePistol() {
     const spec = currentSpec() || {};
     if (!isMounted()) applyGunRecoil(spec);
+    if (player.kind === "heavy" || player.kind === "mega" || spec.bazooka || spec.mega) haptic(30);
     const huey = isMounted() && horse.kind === 6;
     const jeep = isMounted() && horse.kind === 5;
     const cart = isMounted() && horse.kind === 4;
@@ -2255,6 +2348,7 @@
       player.vx = dir * kb * 0.35;
       player.invuln = Math.max(4, Math.round(16 * d.iFrames));
       sfx("hurt");
+      haptic(30);
       sparkBurst(player.x, player.y - 28, 10, true);
       bumpShake(8);
       if (horse.hp <= 0) dumpHorse();
@@ -2265,6 +2359,7 @@
       const fromFront = (srcX - player.x) * player.facing >= 0;
       if (fromFront && player.blockT > 0 && player.blockT <= d.parry) {
         sfx("parry");
+        haptic(12);
         sparkBurst(player.x + player.facing * 12, player.y - 22, 18, true);
         eraStrikeBurst(player.x + player.facing * 12, player.y - 22, player.facing, true);
         floatText(player.x, player.y - 52, "PARRY", "#fff6c8");
@@ -2311,6 +2406,7 @@
       sparkBurst(player.x, player.y - 24, 10, true);
       bloodBurst(player.x, player.y - 22, dir, 8, false);
     }
+    haptic(30);
     hurtFlash = Math.max(hurtFlash, player.blocking ? 4 : 10);
     if (!chipped) dmg = ROH.insaneSolidDamage(dmg, raw, d.id, era, progress.level);
     progress.takeDamage(dmg);
@@ -2379,6 +2475,7 @@
     if (before < horse.maxHp && horse.hp >= horse.maxHp) {
       floatText(player.x, player.y - 52, "MOUNT READY", "#ffe27a");
       sfx("checkpoint");
+      haptic([10, 40, 12]);
     }
   }
 
@@ -3386,16 +3483,47 @@
     refreshDiff();
   }
 
-  function togglePause() {
-    if (mode === "intro") { skipIntro(); return; }
-    if (mode === "warp" || mode === "bind" || mode === "cliffs") return;
+  function pausePlay() {
     if (mode === "play") {
       mode = "pause";
       show(screens.pause);
+      refreshPlayTouch();
+      refreshKeys();
+      return true;
+    }
+    if (mode === "cliffs" && !cliffsHeld) {
+      cliffsHeld = true;
+      if (window.ROHCliffs && window.ROHCliffs.pause) window.ROHCliffs.pause();
+      show(screens.pause);
+      return true;
+    }
+    return false;
+  }
+  function resumePlay() {
+    hide(screens.pause);
+    if (cliffsHeld || mode === "cliffs") {
+      cliffsHeld = false;
+      if (window.ROHCliffs && window.ROHCliffs.resume) window.ROHCliffs.resume();
     } else if (mode === "pause") {
       mode = "play";
-      hide(screens.pause);
     }
+    autoPaused = false;
+    unlockAudio();
+    refreshKeys();
+    refreshPlayTouch();
+  }
+  function togglePause() {
+    if (mode === "intro") { skipIntro(); return; }
+    if (mode === "warp" || mode === "bind") return;
+    if (mode === "pause" || cliffsHeld) resumePlay();
+    else pausePlay();
+  }
+  function autoPause() {
+    if (mode === "play" || (mode === "cliffs" && !cliffsHeld)) {
+      autoPaused = true;
+      pausePlay();
+    }
+    if (actx && actx.state === "running") actx.suspend().catch(() => {});
   }
 
   function eraBanner(n) {
@@ -3431,12 +3559,15 @@
   }
 
   function drainFx() {
-    sparks.length = 0;
-    sparkPool.length = 0;
-    bits.length = 0;
-    bitPool.length = 0;
-    floats.length = 0;
-    stains.length = 0;
+    drainToPool(sparks, sparkPool);
+    drainToPool(bits, bitPool);
+    drainToPool(floats, floatPool);
+    drainToPool(stains, stainPool);
+    drainToPool(dusts, dustPool);
+    drainToPool(motes, motePool);
+    drainToPool(rain, rainPool);
+    drainToPool(snows, snowPool);
+    drainToPool(muds, mudPool);
   }
 
   function unloadSwordCombat() {
@@ -3503,7 +3634,7 @@
       } catch (err) { /* ignore */ }
     }
     audioInit();
-    if (actx && actx.state === "suspended") actx.resume();
+    unlockAudio();
     applyMute();
     if (ROH.musicStop) ROH.musicStop();
     hide(screens.title);
@@ -3593,7 +3724,7 @@
       } catch (err) { /* ignore */ }
     }
     audioInit();
-    if (actx && actx.state === "suspended") actx.resume();
+    unlockAudio();
     applyMute();
     startWind();
     hide(screens.title);
@@ -3696,11 +3827,11 @@
     if (screens.how && screens.how.classList.contains("active")) { hide(screens.how); return true; }
     if (screens.eras && screens.eras.classList.contains("active")) { hide(screens.eras); return true; }
     if (screens.board && screens.board.classList.contains("active")) { hide(screens.board); return true; }
-    if (mode === "pause") { mode = "play"; hide(screens.pause); refreshKeys(); return true; }
+    if (mode === "pause" || cliffsHeld) { resumePlay(); return true; }
     if (mode === "dead" || mode === "win") { toTitle(); return true; }
     if (mode === "bind") return true;
     if (mode === "intro") { skipIntro(); return true; }
-    if (mode === "play" || mode === "warp") { togglePause(); return true; }
+    if (mode === "play" || mode === "warp" || mode === "cliffs") { togglePause(); return true; }
     return false;
   }
 
@@ -3769,10 +3900,12 @@
       begin(i === 1, i);
     });
   }
-  document.getElementById("btn-resume").addEventListener("click", () => { mode = "play"; hide(screens.pause); refreshKeys(); });
+  document.getElementById("btn-resume").addEventListener("click", () => resumePlay());
   document.getElementById("btn-pause-title").addEventListener("click", toTitle);
   document.getElementById("btn-mute").addEventListener("click", toggleMute);
   document.getElementById("btn-pause-mute").addEventListener("click", toggleMute);
+  const pauseHaptics = document.getElementById("btn-pause-haptics");
+  if (pauseHaptics) pauseHaptics.addEventListener("click", toggleHaptics);
   const pauseKeys = document.getElementById("btn-pause-keys");
   if (pauseKeys) pauseKeys.addEventListener("click", toggleKeys);
   document.querySelectorAll("[data-diff]").forEach((btn) => {
@@ -4064,7 +4197,15 @@
     player.x = clamp(player.x, minX, maxX);
 
     if (era === 3 && player.onGround && moving && !perfLow && (time % 3 === 0)) {
-      muds.push({ x: player.x - player.facing * 8, y: GROUND - 2, vx: -player.facing * rand(0.4, 1.2), vy: -rand(0.6, 1.8), life: 14 });
+      const mud = takePool(mudPool);
+      if (mud) {
+        mud.x = player.x - player.facing * 8;
+        mud.y = GROUND - 2;
+        mud.vx = -player.facing * rand(0.4, 1.2);
+        mud.vy = -rand(0.6, 1.8);
+        mud.life = 14;
+        muds.push(mud);
+      }
     }
     if (player.onGround && moving && !player.rolling) {
       player.gait = (player.gait || 0) + Math.max(0.7, Math.abs(player.vx));
@@ -4077,7 +4218,15 @@
       spawnDust(player.x - player.facing * 8, player.y - 1, mounted ? 3 : 2);
     }
     if (mounted && player.onGround && moving && !perfLow && time % 2 === 0) {
-      muds.push({ x: player.x - player.facing * 10, y: GROUND - 1, vx: -player.facing * rand(0.5, 1.6), vy: -rand(0.4, 1.4), life: 12 });
+      const mud = takePool(mudPool);
+      if (mud) {
+        mud.x = player.x - player.facing * 10;
+        mud.y = GROUND - 1;
+        mud.vx = -player.facing * rand(0.5, 1.6);
+        mud.vy = -rand(0.4, 1.4);
+        mud.life = 12;
+        muds.push(mud);
+      }
     }
 
     if (player.rolling) player.anim = "run";
@@ -4209,6 +4358,7 @@
         sparkBurst(box.x + box.w / 2, box.y + box.h * 0.3, 16, true);
         bloodBurst(box.x + box.w / 2, box.y + box.h * 0.4, dir, 12, e.hits >= 3);
         sfx("hit");
+        haptic(30);
         hitFreeze(HIT_HEAVY_MS);
         microShake(dir, power ? 3 : 2);
         if (e.hits >= 3) killEnemy(e);
@@ -4226,6 +4376,7 @@
         eraStrikeBurst(e.x, e.y - e.h * 0.5, dir, power || player.combo === 3);
         floatText(e.x + dir * 6, e.y - e.h - 6, "-" + dealt, "#d23a3a");
         sfx("hit");
+        haptic(power ? 30 : 12);
         if (mega) {
           hitFreeze(HIT_MEGA_MS);
           microShake(dir, 3);
@@ -4304,6 +4455,7 @@
       ensureHorse(5, 48);
       horse.hp = horse.maxHp;
       floatText(player.x, player.y - 52, "MOUNT READY", "#f3e2a0");
+      haptic([10, 40, 12]);
     }
     if (e.type === "armorcar" || e.type === "ifv") {
       lock = null;
@@ -4318,6 +4470,7 @@
       horse.hp = horse.maxHp;
       floatText(player.x, player.y - 52, "MOUNT READY", "#f3e2a0");
       sfx("checkpoint");
+      haptic([10, 40, 12]);
     }
   }
 
@@ -5441,17 +5594,15 @@
       s.vy += 0.12;
       s.life--;
     }
-    for (let i = sparks.length - 1; i >= 0; i--) {
-      if (sparks[i].life <= 0) sparkPool.push(sparks.splice(i, 1)[0]);
-    }
+    recycleDead(sparks, sparkPool);
     const sparkCap = perfLow ? 40 : 96;
-    while (sparks.length > sparkCap) sparkPool.push(sparks.shift());
+    while (sparks.length > sparkCap) sparkPool.push(sparks.pop());
     for (const st of stains) st.life--;
-    for (let i = stains.length - 1; i >= 0; i--) if (stains[i].life <= 0) stains.splice(i, 1);
+    recycleDead(stains, stainPool);
     if (hurtFlash > 0) hurtFlash--;
     if ((player.parryFlash || 0) > 0) player.parryFlash--;
     for (const f of floats) { f.y -= 0.45; f.life--; }
-    for (let i = floats.length - 1; i >= 0; i--) if (floats[i].life <= 0) floats.splice(i, 1);
+    recycleDead(floats, floatPool);
     if (banner.t > 0) banner.t--;
     FEEL.shakeX *= FEEL.decay;
     FEEL.shakeY *= FEEL.decay;
@@ -5465,53 +5616,74 @@
       b.rot += b.spin || 0;
       b.life--;
     }
-    for (let i = bits.length - 1; i >= 0; i--) {
-      if (bits[i].life <= 0) bitPool.push(bits.splice(i, 1)[0]);
-    }
+    recycleDead(bits, bitPool);
     if (era === 4 && mode === "play") {
       const n = perfLow ? 1 : 2;
       for (let i = 0; i < n; i++) {
-        snows.push({ x: camX + rand(-10, VW + 10), y: rand(-12, 20), vy: rand(0.6, 1.4), vx: rand(-0.3, 0.2), life: 70 });
+        if (snows.length >= 80) break;
+        const p = takePool(snowPool);
+        if (!p) break;
+        p.x = camX + rand(-10, VW + 10);
+        p.y = rand(-12, 20);
+        p.vy = rand(0.6, 1.4);
+        p.vx = rand(-0.3, 0.2);
+        p.life = 70;
+        snows.push(p);
       }
       for (const r of snows) { r.y += r.vy; r.x += r.vx; r.life--; }
       for (let i = snows.length - 1; i >= 0; i--) {
-        if (snows[i].life <= 0 || snows[i].y > GROUND) snows.splice(i, 1);
+        if (snows[i].life <= 0 || snows[i].y > GROUND) {
+          snowPool.push(snows[i]);
+          snows[i] = snows[snows.length - 1];
+          snows.pop();
+        }
       }
-      if (snows.length > 80) snows.splice(0, snows.length - 80);
-    } else snows.length = 0;
+    } else drainToPool(snows, snowPool);
     if (era === 3 && mode === "play") {
       const n = perfLow ? 1 : 3;
       for (let i = 0; i < n; i++) {
-        rain.push({ x: camX + rand(-20, VW + 20), y: rand(-20, 40), vy: rand(4.2, 6.4), life: 40 });
+        if (rain.length >= 90) break;
+        const p = takePool(rainPool);
+        if (!p) break;
+        p.x = camX + rand(-20, VW + 20);
+        p.y = rand(-20, 40);
+        p.vy = rand(4.2, 6.4);
+        p.life = 40;
+        rain.push(p);
       }
       for (const r of rain) { r.y += r.vy; r.x += 0.35; r.life--; }
       for (let i = rain.length - 1; i >= 0; i--) {
         if (rain[i].y > GROUND && rain[i].life > 2) spawnDust(rain[i].x, GROUND - 1, 1);
-        if (rain[i].life <= 0 || rain[i].y > GROUND) rain.splice(i, 1);
+        if (rain[i].life <= 0 || rain[i].y > GROUND) {
+          rainPool.push(rain[i]);
+          rain[i] = rain[rain.length - 1];
+          rain.pop();
+        }
       }
-      if (rain.length > 90) rain.splice(0, rain.length - 90);
       for (const m of muds) { m.x += m.vx; m.y += m.vy; m.vy += 0.18; m.life--; }
-      for (let i = muds.length - 1; i >= 0; i--) if (muds[i].life <= 0) muds.splice(i, 1);
+      recycleDead(muds, mudPool);
     } else {
-      rain.length = 0;
-      muds.length = 0;
+      drainToPool(rain, rainPool);
+      drainToPool(muds, mudPool);
     }
     for (const d of dusts) { d.x += d.vx; d.y += d.vy; d.vy += 0.08; d.life--; }
-    for (let i = dusts.length - 1; i >= 0; i--) if (dusts[i].life <= 0) dusts.splice(i, 1);
+    recycleDead(dusts, dustPool);
     if (!perfLow && motes.length < 16 && time % 5 === 0 && (mode === "play" || mode === "pause")) {
-      motes.push({
-        x: camX + rand(-20, VW + 20),
-        y: rand(18, GROUND - 24),
-        vx: rand(-0.18, 0.18),
-        vy: rand(-0.16, 0.08),
-        life: rand(70, 140),
-        max: 140,
-        s: rand(0.7, 1.6),
-      });
+      const m = takePool(motePool);
+      if (m) {
+        m.x = camX + rand(-20, VW + 20);
+        m.y = rand(18, GROUND - 24);
+        m.vx = rand(-0.18, 0.18);
+        m.vy = rand(-0.16, 0.08);
+        m.life = rand(70, 140);
+        m.max = 140;
+        m.s = rand(0.7, 1.6);
+        motes.push(m);
+      }
     }
     for (const m of motes) { m.x += m.vx; m.y += m.vy; m.life--; }
-    for (let i = motes.length - 1; i >= 0; i--) if (motes[i].life <= 0) motes.splice(i, 1);
-    if (motes.length > 24) motes.splice(0, motes.length - 24);
+    recycleDead(motes, motePool);
+    while (motes.length > 24) motePool.push(motes.pop());
   }
 
   function lookAheadDist() {
@@ -8187,6 +8359,10 @@
       cannonState: cannons.map((c) => ({ x: c.x | 0, hp: c.hp | 0, dead: !!c.dead, breakT: c.breakT | 0 })),
       rolling: !!player.rolling,
       ducking: !!player.ducking,
+      haptics: !!hapticsOn,
+      autoPaused: !!autoPaused,
+      wideHud: !!(document.getElementById("stage") && document.getElementById("stage").classList.contains("wide-hud")),
+      pools: { dust: dusts.length, dustFree: dustPool.length, spark: sparks.length, sparkFree: sparkPool.length, mote: motes.length, moteFree: motePool.length, rain: rain.length, rainFree: rainPool.length },
       pad: { left: !!pad.left, right: !!pad.right, jump: !!pad.jump, roll: !!pad.roll, light: !!pad.light, heavy: !!pad.heavy, block: !!pad.block, mount: !!pad.mount },
       onGround: !!player.onGround,
       vy: +(player.vy || 0).toFixed(2),
@@ -8412,12 +8588,22 @@
       hide(screens.load);
       bindTouch();
       layoutStage();
+      refreshHapticsButton();
       window.addEventListener("resize", layoutStage);
       window.addEventListener("orientationchange", layoutStage);
       if (window.visualViewport) {
         window.visualViewport.addEventListener("resize", layoutStage);
         window.visualViewport.addEventListener("scroll", layoutStage);
       }
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) autoPause();
+      });
+      window.addEventListener("blur", () => {
+        if (document.hidden || !isLocalPreview()) autoPause();
+      });
+      window.addEventListener("pagehide", autoPause);
+      window.addEventListener("pointerdown", unlockAudio, true);
+      window.addEventListener("keydown", unlockAudio, true);
       if ("ontouchstart" in window || navigator.maxTouchPoints > 0) {
         document.getElementById("stage").classList.add("show-touch");
       }
