@@ -2166,6 +2166,11 @@
     return { x: sx + camX + player.facing * rx, y: sy + ry * seat.squash };
   }
 
+  function footShotY() {
+    if (isMounted() || !firearmEra()) return null;
+    return isDucking() ? player.y - 14 : player.y - 20;
+  }
+
   function gunMuzzles() {
     if (isMounted() && horse.kind === 6) return hueyGunTips();
     if (isMounted() && horse.kind === 5) return jeepGunTips();
@@ -2180,7 +2185,8 @@
     }
     const spr = footGunSprite();
     const dh = footDrawH();
-    if (!spr) return [{ x: player.x + player.facing * 28, y: player.y - (isDucking() ? 16 : 30) }];
+    const aimY = footShotY();
+    if (!spr) return [{ x: player.x + player.facing * 28, y: aimY != null ? aimY : player.y - 30 }];
     const m = spriteMuzzle(spr, 0.62);
     if (isMounted()) {
       const seat = riderSeat();
@@ -2191,8 +2197,7 @@
       }
     }
     const pt = spritePoint(player.x + footLunge(), player.y, spr, dh, player.facing, m.u, m.v, gunDrawKick());
-    if (isDucking()) pt.y = Math.max(pt.y + 14, player.y - 18);
-    else if (firearmEra() && !isMounted()) pt.y = Math.max(pt.y, player.y - 28);
+    if (aimY != null) pt.y = aimY;
     return [pt];
   }
 
@@ -6028,7 +6033,7 @@
       }
       return { sx, sy, rot, yOff: 0.76 };
     }
-    let sx = 1, sy = 1, rot = 0;
+    let sx = 1, sy = 1, rot = 0, yOff = 1;
     const sm = player.squashMs || 0;
     if (sm > 0) {
       const t = 1 - sm / SQUASH_MS;
@@ -6082,14 +6087,18 @@
       }
     } else if (player.attacking && gunPose) {
       const rec = player.gunRecoilT || 0;
-      if (player.phase === "wu") { rot += -0.08; sx *= 0.98; sy *= 1.03; }
+      if (!isMounted() && firearmEra()) {
+        rot += 0.2;
+        yOff = 0.92;
+      }
+      if (player.phase === "wu") { rot += -0.04; sx *= 0.98; sy *= 1.03; }
       else if (player.phase === "active" || rec > 0) {
         rot += 0.06;
         sx *= 1.04;
         sy *= 0.96;
       }
     }
-    return { sx, sy, rot, yOff: 1 };
+    return { sx, sy, rot, yOff };
   }
 
   function drawBlobShadow(wx, footY, rw) {
