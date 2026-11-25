@@ -1965,7 +1965,7 @@
 
   function footDrawH() {
     if (player.rolling) return 48;
-    if (isDucking()) return 44;
+    if (isDucking()) return 58;
     if (player.anim === "death") return 38;
     return 62;
   }
@@ -2191,7 +2191,8 @@
       }
     }
     const pt = spritePoint(player.x + footLunge(), player.y, spr, dh, player.facing, m.u, m.v, gunDrawKick());
-    if (isDucking()) pt.y += 16;
+    if (isDucking()) pt.y = Math.max(pt.y + 14, player.y - 18);
+    else if (firearmEra() && !isMounted()) pt.y = Math.max(pt.y, player.y - 28);
     return [pt];
   }
 
@@ -4006,8 +4007,9 @@
       spawnDustPuff(player.x, player.y - 2, 10);
     }
 
-    if (duckHold && canAct && isLightRec() && !player.rolling && !mounted && !player.blocking && !isMounting()) cancelLightRec();
-    player.ducking = duckHold && canAct && !player.rolling && !mounted && !player.blocking && !isMounting() && !player.attacking;
+    const wasDucking = player.ducking;
+    if (duckHold && canAct && isLightRec() && !wasDucking && !player.rolling && !mounted && !player.blocking && !isMounting()) cancelLightRec();
+    player.ducking = duckHold && canAct && !player.rolling && !mounted && !player.blocking && !isMounting();
     if (!player.rolling) player.h = player.ducking ? 24 : 40;
 
     if (canAct && !player.rolling && !isMounting()) {
@@ -5468,7 +5470,7 @@
           if (!boom && e.type === "mgnest" && s.x < e.x) continue;
           if (!boom && e.type === "modinf" && e.guarded && s.x < e.x) continue;
           const box = bodyBox(e);
-          const direct = aabb(s.x - 6, s.y - 4, 14, 8, box.x, box.y, box.w, box.h);
+          const direct = aabb(s.x - 6, s.y - 8, 14, 16, box.x, box.y, box.w, box.h);
           const splash = boom && Math.abs(e.x - s.x) < boom && Math.abs(e.y - e.h * 0.45 - s.y) < boom * 0.65;
           if (!direct && !splash) continue;
           if (!direct && shotHitsCover(s.x, e.x, e.y - 16)) continue;
@@ -5488,8 +5490,8 @@
         if (!hit && era === 4) {
           for (const c of cannons) {
             if (c.dead) continue;
-            const box = { x: c.x - 26, y: GROUND - 26, w: 52, h: 26 };
-            const direct = aabb(s.x - 6, s.y - 4, 14, 8, box.x, box.y, box.w, box.h);
+            const box = { x: c.x - 26, y: GROUND - 28, w: 52, h: 28 };
+            const direct = aabb(s.x - 6, s.y - 8, 14, 16, box.x, box.y, box.w, box.h);
             const splash = boom && Math.abs(c.x - s.x) < boom && Math.abs(GROUND - 14 - s.y) < boom * 0.65;
             if (!direct && !splash) continue;
             c.hp = (c.hp == null ? 36 : c.hp) - (direct ? s.dmg : Math.ceil(s.dmg * 0.4));
@@ -6015,7 +6017,17 @@
       const p = 1 - player.rollT / Math.max(1, player.rollMax);
       return { sx: 1.08, sy: 0.7, rot: player.facing * p * Math.PI * 2.1, yOff: 0.55 };
     }
-    if (isDucking()) return { sx: 1, sy: 0.82, rot: 0, yOff: 0.9 };
+    if (isDucking()) {
+      let rot = player.facing * 0.22;
+      let sx = 1.06;
+      let sy = 1;
+      const spec = player.attacking ? currentSpec() : null;
+      if (spec && isGunSpec(spec) && (player.phase === "active" || (player.gunRecoilT || 0) > 0)) {
+        rot += player.facing * 0.04;
+        sx *= 1.03;
+      }
+      return { sx, sy, rot, yOff: 0.76 };
+    }
     let sx = 1, sy = 1, rot = 0;
     const sm = player.squashMs || 0;
     if (sm > 0) {
@@ -6252,55 +6264,97 @@
     }
   }
 
+  function drawCoverCrate(x, y, w, h) {
+    ctx.fillStyle = "#1a1008";
+    ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+    ctx.fillStyle = "#8a5a28";
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "#c48a48";
+    ctx.fillRect(x, y, w, 5);
+    ctx.fillStyle = "#6a4018";
+    ctx.fillRect(x, y + h - 5, w, 5);
+    ctx.fillStyle = "#d4af37";
+    ctx.fillRect(x, y + 6, w, 3);
+    ctx.fillRect(x, y + h - 9, w, 3);
+    ctx.fillStyle = "#3a2410";
+    ctx.fillRect(x + w * 0.48, y, 3, h);
+    ctx.strokeStyle = "#5a3814";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 6, y + 8);
+    ctx.lineTo(x + w - 6, y + h - 8);
+    ctx.moveTo(x + w - 6, y + 8);
+    ctx.lineTo(x + 6, y + h - 8);
+    ctx.stroke();
+    ctx.strokeStyle = "#f0e0b0";
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    ctx.strokeStyle = "#e6c35c";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x - 1.5, y - 1.5, w + 3, h + 3);
+  }
+
   function drawCovers() {
     for (const c of covers) {
       const x = c.x - camX;
       if (x + c.w < -8 || x > VW + 8) continue;
+      const y = c.y;
+      const w = c.w;
+      const h = c.h;
+      ctx.save();
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.beginPath();
+      ctx.ellipse(x + w * 0.5, GROUND + 3, w * 0.52, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
       if (c.kind === "frond") {
-        ctx.fillStyle = "rgba(0,0,0,0.3)";
-        ctx.fillRect(x + 2, c.y + c.h - 6, c.w, 8);
-        ctx.fillStyle = "#5a3a18";
-        ctx.fillRect(x, c.y + c.h - 10, c.w, 8);
-        ctx.fillStyle = "#2a6a28";
+        drawCoverCrate(x, y + 10, w, h - 10);
+        ctx.fillStyle = "#0e3a14";
+        ctx.fillRect(x + w * 0.45, y + 2, 5, h - 4);
+        ctx.fillStyle = "#1f7a32";
         ctx.beginPath();
-        ctx.moveTo(x + 4, c.y + c.h - 8);
-        ctx.lineTo(x + 16, c.y);
-        ctx.lineTo(x + 28, c.y + c.h - 8);
+        ctx.moveTo(x + 2, y + h - 8);
+        ctx.lineTo(x + 18, y - 8);
+        ctx.lineTo(x + 28, y + h - 10);
         ctx.fill();
+        ctx.fillStyle = "#3cb44a";
         ctx.beginPath();
-        ctx.moveTo(x + 18, c.y + c.h - 6);
-        ctx.lineTo(x + 32, c.y + 4);
-        ctx.lineTo(x + c.w - 4, c.y + c.h - 6);
+        ctx.moveTo(x + 16, y + h - 6);
+        ctx.lineTo(x + 34, y - 4);
+        ctx.lineTo(x + w - 2, y + h - 8);
         ctx.fill();
+        ctx.strokeStyle = "#e6c35c";
+        ctx.lineWidth = 1.4;
+        ctx.strokeRect(x - 1.5, y + 8.5, w + 3, h - 9);
       } else if (c.kind === "bags") {
-        ctx.fillStyle = "rgba(0,0,0,0.35)";
-        ctx.fillRect(x + 3, c.y + 4, c.w, c.h);
+        ctx.fillStyle = "#1a1208";
+        ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
         const rows = 3;
         for (let row = 0; row < rows; row++) {
           const n = row === 1 ? 2 : 3;
           for (let i = 0; i < n; i++) {
-            const bw = c.w / n;
-            const bx = x + i * bw + (row === 1 ? bw * 0.35 : 0);
-            const by = c.y + row * (c.h / rows);
-            ctx.fillStyle = row % 2 ? "#8a7a48" : "#a89058";
+            const bw = w / n;
+            const bx = x + i * bw + (row === 1 ? bw * 0.22 : 0);
+            const by = y + row * (h / rows);
+            ctx.fillStyle = row % 2 ? "#c4a86a" : "#e2cc88";
             ctx.beginPath();
-            ctx.ellipse(bx + bw * 0.35, by + c.h / rows * 0.55, bw * 0.42, c.h / rows * 0.42, 0, 0, Math.PI * 2);
+            ctx.ellipse(bx + bw * 0.42, by + h / rows * 0.55, bw * 0.44, h / rows * 0.46, 0, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = "#5a4a28";
+            ctx.strokeStyle = "#2a1c0c";
+            ctx.lineWidth = 1.2;
             ctx.stroke();
+            ctx.fillStyle = "rgba(255,245,210,0.4)";
+            ctx.beginPath();
+            ctx.ellipse(bx + bw * 0.32, by + h / rows * 0.38, bw * 0.16, h / rows * 0.14, 0, 0, Math.PI * 2);
+            ctx.fill();
           }
         }
+        ctx.strokeStyle = "#e6c35c";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x - 1.5, y - 1.5, w + 3, h + 3);
       } else {
-        ctx.fillStyle = "rgba(0,0,0,0.35)";
-        ctx.fillRect(x + 3, c.y + 4, c.w, c.h);
-        ctx.fillStyle = "#6a4424";
-        ctx.fillRect(x, c.y, c.w, c.h);
-        ctx.fillStyle = "#8a5a30";
-        ctx.fillRect(x, c.y, c.w, 6);
-        ctx.fillStyle = "#3a2414";
-        ctx.fillRect(x, c.y + c.h * 0.45, c.w, 2);
-        ctx.fillRect(x + c.w * 0.5, c.y, 2, c.h);
+        drawCoverCrate(x, y, w, h);
       }
+      ctx.restore();
     }
   }
 
@@ -7791,24 +7845,24 @@
       if (e.type === "knight") { spr = SPR.knight; dh = 68; }
       if (e.type === "gate") { spr = SPR.gate; dh = 110; }
       if (e.type === "baron") { spr = SPR.baron; dh = 92; }
-      if (e.type === "lineinf") { spr = SPR.lineinf; dh = 54; }
-      if (e.type === "voltigeur") { spr = SPR.lineinf; dh = 54; }
-      if (e.type === "lancer") { spr = SPR.lancer; dh = 70; }
+      if (e.type === "lineinf") { spr = SPR.lineinf; dh = 64; }
+      if (e.type === "voltigeur") { spr = SPR.lineinf; dh = 64; }
+      if (e.type === "lancer") { spr = SPR.lancer; dh = 74; }
       if (e.type === "powder") { spr = SPR.powder; dh = 90; }
-      if (e.type === "rifleinf") { spr = SPR.rifleinf; dh = 54; }
-      if (e.type === "duneinf") { spr = SPR.duneinf || SPR.rifleinf; dh = 54; }
-      if (e.type === "sniper") { spr = SPR.duneinf || SPR.rifleinf; dh = 54; }
+      if (e.type === "rifleinf") { spr = SPR.rifleinf; dh = 64; }
+      if (e.type === "duneinf") { spr = SPR.duneinf || SPR.rifleinf; dh = 64; }
+      if (e.type === "sniper") { spr = SPR.duneinf || SPR.rifleinf; dh = 64; }
       if (e.type === "raptor") { spr = SPR.raptor || SPR.elephant; dh = 50; }
       if (e.type === "hunter") { spr = SPR.hunter || SPR.elephant; dh = 72; }
       if (e.type === "rex") { spr = SPR.rex || SPR.boss; dh = 100; }
       if (e.type === "mgnest") { spr = SPR.mgnest; dh = 70; }
       if (e.type === "armorcar") { spr = SPR.armorcar; dh = 56; }
       if (e.type === "colonel") { spr = SPR.colonel; dh = 88; }
-      if (e.type === "nva") { spr = SPR.nva || SPR.rifleinf; dh = 54; }
-      if (e.type === "vc") { spr = SPR.vc || SPR.rifleinf; dh = 54; }
+      if (e.type === "nva") { spr = SPR.nva || SPR.rifleinf; dh = 64; }
+      if (e.type === "vc") { spr = SPR.vc || SPR.rifleinf; dh = 64; }
       if (e.type === "cadre") { spr = SPR.cadre || SPR.colonel; dh = 90; }
-      if (e.type === "modinf") { spr = SPR.modinf; dh = 54; }
-      if (e.type === "marksman") { spr = SPR.modinf; dh = 54; }
+      if (e.type === "modinf") { spr = SPR.modinf; dh = 64; }
+      if (e.type === "marksman") { spr = SPR.modinf; dh = 64; }
       if (e.type === "ifv") { spr = SPR.ifv; dh = 58; }
       if (e.type === "fracture") { spr = SPR.fracture; dh = 92; }
       const deadSink = e.deadT > 0 ? (40 - Math.min(40, e.deadT)) * 0.4 : 0;
@@ -7955,7 +8009,9 @@
           const seat = riderSeat();
           drawHairBeard(Math.round(player.x - camX + seat.saddle), Math.round(player.y - seat.lift), player.facing, seat.sitH, 0.75);
         } else {
-          drawHairBeard(Math.round(player.x + lunge - camX), Math.round(player.y + bob), player.facing, dh, 1);
+          const hairH = isDucking() ? dh * 0.62 : dh;
+          const hairX = isDucking() ? player.facing * 10 : 0;
+          drawHairBeard(Math.round(player.x + lunge + hairX - camX), Math.round(player.y + bob), player.facing, hairH, 1);
         }
       }
       if (player.blocking) {
@@ -8344,7 +8400,7 @@
       gait: +(player.gait || 0).toFixed(1),
       vx: +(player.vx || 0).toFixed(2),
       struckT: player.struckT | 0,
-      enemies: enemies.map((e) => ({ type: e.type, x: e.x | 0, y: e.y | 0, hp: e.hp, facing: e.facing, state: e.state, hits: e.hits, guarded: e.guarded, aim: e.aim || null, flashT: e.flashT | 0, windMax: e.windMax | 0, aimCue: !!e.aimCue })),
+      enemies: enemies.map((e) => ({ type: e.type, x: e.x | 0, y: e.y | 0, h: e.h | 0, hp: e.hp, facing: e.facing, state: e.state, hits: e.hits, guarded: e.guarded, aim: e.aim || null, flashT: e.flashT | 0, windMax: e.windMax | 0, aimCue: !!e.aimCue })),
       lock,
       doorOpen,
       doorX: door.x | 0,
@@ -8374,6 +8430,8 @@
       poseSx: +kaelPose().sx.toFixed(3),
       poseSy: +kaelPose().sy.toFixed(3),
       poseRot: +kaelPose().rot.toFixed(3),
+      poseYOff: +kaelPose().yOff.toFixed(3),
+      playerH: player.h | 0,
       hitstop: hitstop | 0,
       gunRecoilT: player.gunRecoilT | 0,
       shakeX: +FEEL.shakeX.toFixed(2),
@@ -8404,6 +8462,8 @@
       swordLoaded: swordLoaded(),
       flightReady: !!(window.ROHCliffs && window.ROHCliffs.ready && window.ROHCliffs.ready()),
       covers: covers.length,
+      coverList: covers.map((c) => ({ x: c.x | 0, y: c.y | 0, w: c.w | 0, h: c.h | 0, kind: c.kind || "crate" })),
+      pitList: pits.map((p) => ({ x: p.x | 0, w: p.w | 0 })),
       shots: shots.filter((s) => !s.dead).map((s) => ({ type: s.type, x: s.x | 0, y: s.y | 0, vx: +(s.vx || 0).toFixed(1), vy: +(s.vy || 0).toFixed(1), friendly: !!s.friendly, life: s.life | 0, duck: s.duck || null })),
       nestCleared,
       pits: pits.length,
@@ -8509,6 +8569,14 @@
     title: () => toTitle(),
     dumpHorse: () => dumpHorse(),
     die: () => { player.hp = 0; progress.currentHealth = 0; loseLife(); },
+    clearFoes: () => {
+      for (const e of enemies) {
+        if (e.hp <= 0) continue;
+        e.hp = 0;
+        e.deadT = 1;
+        e.vx = 0;
+      }
+    },
     chargeMount: () => { if (horse) horse.hp = horse.maxHp; },
     setLives: (n) => {
       player.lives = clamp(n, 1, MAX_LIVES);

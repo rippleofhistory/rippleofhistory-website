@@ -104,7 +104,9 @@
   }
 
   function hops(W, x, n, pitW, land) {
-    for (let i = 0; i < n; i++) W.pits.push({ x: x + i * (pitW + land), w: pitW });
+    const w = Math.min(pitW, 64);
+    const gap = n > 1 ? Math.max(land, 56) : land;
+    for (let i = 0; i < n; i++) W.pits.push({ x: x + i * (w + gap), w });
   }
 
   function hill(W, x, w, rise) {
@@ -113,7 +115,7 @@
   }
 
   function placeCover(W, xs, kind) {
-    xs.forEach((x) => W.covers.push({ x: x - 22, y: W.GROUND - 30, w: 44, h: 30, kind }));
+    xs.forEach((x) => W.covers.push({ x: x - 26, y: W.GROUND - 36, w: 52, h: 36, kind }));
   }
 
   R.applyEra = function (n, W) {
@@ -207,7 +209,8 @@
       W.pickups.push({ type: "hourglass", x: 3340, y: G - 20, taken: false });
       W.pickups.push({ type: "plus", x: 3880, y: G - 18, taken: false });
       W.cannons.push({ x: 980, facing: -1, t: 20 }, { x: 1480, facing: 1, t: 70 }, { x: 2480, facing: -1, t: 40 }, { x: 3480, facing: 1, t: 10 });
-      placeCover(W, [700, 1180, 1760, 2320, 3080, 3680, 4080], "bags");
+      placeCover(W, [700, 1760, 3080], "crate");
+      placeCover(W, [1180, 2320, 3680, 4080], "bags");
       W.horse = { x: 0, y: G, hp: 0, maxHp: 120, facing: 1, mounted: false, alive: false, shrineX: 0, kind: 4 };
       hops(W, 1336, 1, 60, 0);
       crossing(W, 2050, 140, [
@@ -331,7 +334,8 @@
         { x: 2962, w: 40, y: 164, kind: "concrete", fragile: true },
         { x: 3024, w: 46, y: 186, kind: "concrete", moveAmp: 14, moveSpd: 0.028 },
       ]);
-      hops(W, 4270, 1, 86, 0);
+      hops(W, 4270, 1, 64, 0);
+      placeCover(W, [780, 1160, 2000, 2520, 3200, 4080], "crate");
       ledge(W, { x: 2380, w: 64, y: 176, kind: "concrete" });
       hill(W, 460, 150, 22);
       hill(W, 1080, 200, 28);
@@ -358,19 +362,19 @@
     hops(W, 1270, 2, 52, 44);
     hops(W, 1724, 2, 44, 40);
     crossing(W, 2180, 230, [
-      { x: 2194, w: 50, y: 192, kind: "sand" },
-      { x: 2260, w: 46, y: 168, kind: "sand", moveAmp: 18, moveSpd: 0.026 },
-      { x: 2334, w: 50, y: 192, kind: "sand" },
-      { x: 2396, w: 36, y: 176, kind: "sand", fragile: true },
+      { x: 2194, w: 54, y: 188, kind: "sand" },
+      { x: 2264, w: 50, y: 176, kind: "sand", moveAmp: 10, moveSpd: 0.026 },
+      { x: 2334, w: 54, y: 188, kind: "sand" },
+      { x: 2396, w: 44, y: 180, kind: "sand", fragile: true },
     ]);
-    W.pickups.push({ type: "plus", x: 2283, y: 150, taken: false });
+    W.pickups.push({ type: "plus", x: 2283, y: 158, taken: false });
     crossing(W, 2620, 220, [
-      { x: 2632, w: 48, y: 192, kind: "sand" },
-      { x: 2694, w: 42, y: 168, kind: "sand" },
-      { x: 2752, w: 40, y: 160, kind: "sand", fragile: true },
-      { x: 2810, w: 48, y: 176, kind: "sand" },
+      { x: 2632, w: 52, y: 188, kind: "sand" },
+      { x: 2694, w: 48, y: 176, kind: "sand" },
+      { x: 2752, w: 48, y: 176, kind: "sand", fragile: true },
+      { x: 2810, w: 52, y: 180, kind: "sand" },
     ]);
-    hops(W, 4240, 1, 90, 0);
+    hops(W, 4240, 1, 64, 0);
     ledge(W, { x: 1000, w: 62, y: 186, kind: "sand" });
     ledge(W, { x: 1074, w: 54, y: 164, kind: "sand" });
     W.pickups.push({ type: "plus", x: 1100, y: 146, taken: false });
