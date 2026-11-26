@@ -2168,7 +2168,22 @@
 
   function footShotY() {
     if (isMounted() || !firearmEra()) return null;
-    return isDucking() ? player.y - 14 : player.y - 20;
+    const floor = floorY(player.x);
+    if (isDucking()) return floor - 12;
+    let y = floor - 32;
+    let best = null;
+    let bestD = 220;
+    for (const e of enemies) {
+      if (e.hp <= 0 || e.deadT > 0) continue;
+      if ((e.x - player.x) * player.facing <= 16) continue;
+      const d = Math.abs(e.x - player.x);
+      if (d < bestD) { bestD = d; best = e; }
+    }
+    if (best) {
+      const chest = best.y - Math.max(26, Math.round((best.h || 56) * 0.55));
+      y = clamp(chest, floor - 38, floor - 24);
+    }
+    return y;
   }
 
   function gunMuzzles() {
@@ -5475,7 +5490,7 @@
           if (!boom && e.type === "mgnest" && s.x < e.x) continue;
           if (!boom && e.type === "modinf" && e.guarded && s.x < e.x) continue;
           const box = bodyBox(e);
-          const direct = aabb(s.x - 6, s.y - 8, 14, 16, box.x, box.y, box.w, box.h);
+          const direct = aabb(s.x - 6, s.y - 12, 14, 24, box.x, box.y, box.w, box.h);
           const splash = boom && Math.abs(e.x - s.x) < boom && Math.abs(e.y - e.h * 0.45 - s.y) < boom * 0.65;
           if (!direct && !splash) continue;
           if (!direct && shotHitsCover(s.x, e.x, e.y - 16)) continue;
@@ -6087,9 +6102,11 @@
       }
     } else if (player.attacking && gunPose) {
       const rec = player.gunRecoilT || 0;
+      let pivot = 0;
       if (!isMounted() && firearmEra()) {
-        rot += 0.2;
-        yOff = 0.92;
+        rot += era <= 4 ? 0.16 : 0.26;
+        yOff = 1;
+        pivot = 0.48;
       }
       if (player.phase === "wu") { rot += -0.04; sx *= 0.98; sy *= 1.03; }
       else if (player.phase === "active" || rec > 0) {
@@ -6097,6 +6114,7 @@
         sx *= 1.04;
         sy *= 0.96;
       }
+      return { sx, sy, rot, yOff, pivot };
     }
     return { sx, sy, rot, yOff };
   }
@@ -6130,7 +6148,12 @@
     ctx.scale(facing < 0 ? -pose.sx : pose.sx, pose.sy);
     const kick = gunDrawKick();
     if (kick) ctx.translate(kick, 0);
-    if (pose.rot) ctx.rotate(pose.rot);
+    if (pose.rot) {
+      const pivot = (pose.pivot || 0) * h * (pose.yOff || 1);
+      ctx.translate(0, -pivot);
+      ctx.rotate(pose.rot);
+      ctx.translate(0, pivot);
+    }
     ctx.shadowColor = player.rolling ? "rgba(243, 226, 160, 0.45)" : "rgba(8, 0, 6, 0.9)";
     ctx.shadowBlur = player.rolling ? 8 : (perfLow ? 0 : 6);
     ctx.drawImage(spr.canvas, -w * ax, -h * pose.yOff, w, h);
@@ -7854,24 +7877,24 @@
       if (e.type === "knight") { spr = SPR.knight; dh = 68; }
       if (e.type === "gate") { spr = SPR.gate; dh = 110; }
       if (e.type === "baron") { spr = SPR.baron; dh = 92; }
-      if (e.type === "lineinf") { spr = SPR.lineinf; dh = 64; }
-      if (e.type === "voltigeur") { spr = SPR.lineinf; dh = 64; }
-      if (e.type === "lancer") { spr = SPR.lancer; dh = 74; }
+      if (e.type === "lineinf") { spr = SPR.lineinf; dh = 76; }
+      if (e.type === "voltigeur") { spr = SPR.lineinf; dh = 76; }
+      if (e.type === "lancer") { spr = SPR.lancer; dh = 80; }
       if (e.type === "powder") { spr = SPR.powder; dh = 90; }
-      if (e.type === "rifleinf") { spr = SPR.rifleinf; dh = 64; }
-      if (e.type === "duneinf") { spr = SPR.duneinf || SPR.rifleinf; dh = 64; }
-      if (e.type === "sniper") { spr = SPR.duneinf || SPR.rifleinf; dh = 64; }
+      if (e.type === "rifleinf") { spr = SPR.rifleinf; dh = 76; }
+      if (e.type === "duneinf") { spr = SPR.duneinf || SPR.rifleinf; dh = 76; }
+      if (e.type === "sniper") { spr = SPR.duneinf || SPR.rifleinf; dh = 76; }
       if (e.type === "raptor") { spr = SPR.raptor || SPR.elephant; dh = 50; }
       if (e.type === "hunter") { spr = SPR.hunter || SPR.elephant; dh = 72; }
       if (e.type === "rex") { spr = SPR.rex || SPR.boss; dh = 100; }
       if (e.type === "mgnest") { spr = SPR.mgnest; dh = 70; }
       if (e.type === "armorcar") { spr = SPR.armorcar; dh = 56; }
       if (e.type === "colonel") { spr = SPR.colonel; dh = 88; }
-      if (e.type === "nva") { spr = SPR.nva || SPR.rifleinf; dh = 64; }
-      if (e.type === "vc") { spr = SPR.vc || SPR.rifleinf; dh = 64; }
+      if (e.type === "nva") { spr = SPR.nva || SPR.rifleinf; dh = 76; }
+      if (e.type === "vc") { spr = SPR.vc || SPR.rifleinf; dh = 76; }
       if (e.type === "cadre") { spr = SPR.cadre || SPR.colonel; dh = 90; }
-      if (e.type === "modinf") { spr = SPR.modinf; dh = 64; }
-      if (e.type === "marksman") { spr = SPR.modinf; dh = 64; }
+      if (e.type === "modinf") { spr = SPR.modinf; dh = 76; }
+      if (e.type === "marksman") { spr = SPR.modinf; dh = 76; }
       if (e.type === "ifv") { spr = SPR.ifv; dh = 58; }
       if (e.type === "fracture") { spr = SPR.fracture; dh = 92; }
       const deadSink = e.deadT > 0 ? (40 - Math.min(40, e.deadT)) * 0.4 : 0;
