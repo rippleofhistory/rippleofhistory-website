@@ -38,14 +38,8 @@
         </p>
         <h1>THE RIP IN HISTORY</h1>
         <p class="era-tag">ERA I  ·  ALEXANDER</p>
-        <div class="diff-row" role="group" aria-label="Difficulty">
-          <button type="button" class="gold-btn ghost" data-diff="easy" id="diff-easy">EASY</button>
-          <button type="button" class="gold-btn ghost on" data-diff="medium" id="diff-medium">MEDIUM</button>
-          <button type="button" class="gold-btn ghost" data-diff="hard" id="diff-hard">HARD</button>
-          <button type="button" class="gold-btn ghost" data-diff="insane" id="diff-insane" disabled>??????</button>
-        </div>
         <div class="btn-col">
-          <button type="button" id="btn-begin" class="gold-btn">BEGIN</button>
+          <button type="button" id="btn-begin" class="gold-btn">START</button>
           <button type="button" id="btn-eras" class="gold-btn ghost">ERA SELECT</button>
           <button type="button" id="btn-how" class="gold-btn ghost">HOW TO PLAY</button>
           <button type="button" id="btn-board" class="gold-btn ghost">LEADERBOARD</button>
@@ -54,6 +48,20 @@
       </div>
       <a class="privacy-link" id="btn-privacy" href="https://www.rippleofhistory.com/privacy.html" target="_blank" rel="noopener">Privacy</a>
       <p class="ver" id="game-ver">v 0.2</p>
+    </div>
+
+    <div id="diff-screen" class="screen">
+      <div class="card">
+        <h2>CHOOSE DIFFICULTY</h2>
+        <p class="hint">How hard should this war be?</p>
+        <div class="btn-col" role="group" aria-label="Difficulty">
+          <button type="button" class="gold-btn ghost" data-diff="easy" id="diff-easy">EASY</button>
+          <button type="button" class="gold-btn ghost on" data-diff="medium" id="diff-medium">MEDIUM</button>
+          <button type="button" class="gold-btn ghost" data-diff="hard" id="diff-hard">HARD</button>
+          <button type="button" class="gold-btn ghost" data-diff="insane" id="diff-insane" disabled>??????</button>
+          <button type="button" id="btn-diff-close" class="gold-btn ghost">BACK</button>
+        </div>
+      </div>
     </div>
 
     <div id="era-screen" class="screen">
@@ -91,7 +99,7 @@
           <div><dt>MUTE</dt><dd>M, menu SOUND, or on-screen ♪</dd></div>
           <div><dt>PAUSE</dt><dd>Esc or II</dd></div>
           <div><dt>KEYS</dt><dd>On PC, the list sits on screen. H or HIDE KEYS turns it off</dd></div>
-          <div><dt>DIFF</dt><dd>Easy, Medium, Hard. Beat Hard to unlock ??????</dd></div>
+          <div><dt>DIFF</dt><dd>After Start: Easy, Medium, or Hard. Beat Hard to unlock ??????</dd></div>
           <div><dt>LEVEL</dt><dd>Kills grant XP. Kael levels to 100. Health and attack rise slowly. Harder difficulties pay more XP; Easy farming of early eras falls off</dd></div>
           <div><dt>PAD</dt><dd>Stick / D-pad · A jump · X light · Y special · B block · Down roll or duck</dd></div>
           <div><dt>SCORE</dt><dd>Kills, combos, and flawless bosses. Best ten on the board.</dd></div>

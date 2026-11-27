@@ -83,6 +83,7 @@
   const screens = {
     title: document.getElementById("title-screen"),
     how: document.getElementById("how-screen"),
+    diff: document.getElementById("diff-screen"),
     eras: document.getElementById("era-screen"),
     pause: document.getElementById("pause-screen"),
     dead: document.getElementById("dead-screen"),
@@ -368,6 +369,7 @@
     hide(screens.dead);
     hide(screens.win);
     hide(screens.how);
+    if (screens.diff) hide(screens.diff);
     if (screens.eras) hide(screens.eras);
     if (screens.board) hide(screens.board);
   }
@@ -3750,6 +3752,7 @@
     startWind();
     hide(screens.title);
     hide(screens.how);
+    if (screens.diff) hide(screens.diff);
     hideAllPlay();
     if (scene === "flight") leaveFlight();
     score = 0;
@@ -3846,6 +3849,7 @@
 
   function handleBack() {
     if (screens.how && screens.how.classList.contains("active")) { hide(screens.how); return true; }
+    if (screens.diff && screens.diff.classList.contains("active")) { hide(screens.diff); return true; }
     if (screens.eras && screens.eras.classList.contains("active")) { hide(screens.eras); return true; }
     if (screens.board && screens.board.classList.contains("active")) { hide(screens.board); return true; }
     if (mode === "pause" || cliffsHeld) { resumePlay(); return true; }
@@ -3870,7 +3874,10 @@
     window.ROHNative.handleBack = handleBack;
     if (typeof window.ROHNative.boot === "function") window.ROHNative.boot();
   }
-  document.getElementById("btn-begin").addEventListener("click", () => begin(true, 1));
+  document.getElementById("btn-begin").addEventListener("click", () => {
+    refreshDiff();
+    show(screens.diff);
+  });
   document.getElementById("btn-how").addEventListener("click", () => show(screens.how));
   document.getElementById("btn-how-close").addEventListener("click", () => hide(screens.how));
   document.getElementById("btn-board").addEventListener("click", () => { renderBoard(); show(screens.board); });
@@ -3929,8 +3936,17 @@
   if (pauseHaptics) pauseHaptics.addEventListener("click", toggleHaptics);
   const pauseKeys = document.getElementById("btn-pause-keys");
   if (pauseKeys) pauseKeys.addEventListener("click", toggleKeys);
+  const diffClose = document.getElementById("btn-diff-close");
+  if (diffClose) diffClose.addEventListener("click", () => hide(screens.diff));
   document.querySelectorAll("[data-diff]").forEach((btn) => {
-    btn.addEventListener("click", () => setDifficulty(btn.getAttribute("data-diff")));
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-diff");
+      setDifficulty(id);
+      if (!screens.diff || !screens.diff.classList.contains("active")) return;
+      if (difficulty !== id) return;
+      hide(screens.diff);
+      begin(true, 1);
+    });
   });
   const keysHide = document.getElementById("btn-keys-hide");
   const keysShow = document.getElementById("btn-keys-show");

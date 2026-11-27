@@ -257,6 +257,9 @@ html.force-land #stage {
   align-items: center;
   gap: 0.2em;
   margin-bottom: 0.55em;
+  padding: 0.45em 1.2em 0.4em;
+  background: rgba(8, 10, 22, 0.82);
+  border: 1px solid rgba(232, 213, 163, 0.22);
 }
 
 .presents-line {
@@ -266,10 +269,14 @@ html.force-land #stage {
   font-size: clamp(11px, 2.4vw, 18px);
   letter-spacing: 0.22em;
   white-space: nowrap;
-  color: #d4af37;
-  -webkit-text-stroke: 0.7px #1a1430;
+  color: #f6e7a8;
+  -webkit-text-stroke: 1.4px #0a1424;
   paint-order: stroke fill;
-  text-shadow: 0 1px 0 #2e101c, 0 0 10px rgba(212, 175, 55, 0.35);
+  text-shadow:
+    0 0 4px #0a1424,
+    0 0 12px #0a1424,
+    0 1px 0 #12162a,
+    0 2px 0 #080a14;
 }
 
 .series span:last-child {
@@ -278,8 +285,10 @@ html.force-land #stage {
   letter-spacing: 0.42em;
   font-size: clamp(8px, 1.3vw, 11px);
   text-transform: lowercase;
-  color: #d4af37;
-  text-shadow: 0 1px 2px #0a0c16;
+  color: #f0e4b8;
+  -webkit-text-stroke: 0.8px #0a1424;
+  paint-order: stroke fill;
+  text-shadow: 0 0 8px #0a1424, 0 1px 0 #080a14;
 }
 
 .title-col h1 {
@@ -324,11 +333,20 @@ html.force-land #stage {
   letter-spacing: 0.12em;
 }
 
-.diff-row .gold-btn.on {
+.diff-row .gold-btn.on,
+#diff-screen .gold-btn.on {
   background: linear-gradient(#6e2440, #3a1428);
   border-color: #e6c35c;
   color: #f3e6c0;
   box-shadow: 0 0 12px rgba(230, 195, 92, 0.28);
+}
+
+#diff-screen .hint {
+  margin-bottom: 1em;
+}
+
+#diff-screen .card {
+  background: #0c0e1c;
 }
 
 .keys {
@@ -995,6 +1013,8 @@ html.force-land #stage {
   .era-tag { margin-bottom: 0.28em; font-size: clamp(10px, 3vh, 12px); }
   .diff-row { margin-bottom: 0.4em; gap: 4px; }
   .diff-row .gold-btn { padding: 4px 6px; font-size: 8px; min-height: 24px; }
+  #diff-screen .card { padding: 14px 16px 12px; }
+  #diff-screen .gold-btn { min-height: 30px; padding: 5px 16px; }
   .keys { font-size: 8px; padding: 4px 8px; }
   .ver { font-size: 8px; }
   .privacy-link { font-size: 8px; }
