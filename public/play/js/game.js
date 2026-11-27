@@ -933,11 +933,12 @@
 
   function flashShareCopied() {
     const btn = document.getElementById("btn-share");
-    if (!btn) return;
-    btn.textContent = "LINK COPIED";
+    const label = btn && btn.querySelector("span");
+    if (!label) return;
+    label.textContent = "LINK COPIED";
     if (shareCopiedTimer) clearTimeout(shareCopiedTimer);
     shareCopiedTimer = setTimeout(() => {
-      btn.textContent = "SHARE";
+      label.textContent = "SHARE";
       shareCopiedTimer = 0;
     }, 1600);
   }
@@ -4001,6 +4002,16 @@
   document.getElementById("btn-board-close").addEventListener("click", () => { hide(screens.board); maybeClaimDaily(); });
   const shareBtn = document.getElementById("btn-share");
   if (shareBtn) shareBtn.addEventListener("click", () => { sharePlayStore(); });
+  document.querySelectorAll(".social-link").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      const url = el.getAttribute("href");
+      if (!url) return;
+      if (window.ROHNative && typeof window.ROHNative.openUrl === "function") {
+        e.preventDefault();
+        window.ROHNative.openUrl(url);
+      }
+    });
+  });
   const dailyCollect = document.getElementById("btn-daily-collect");
   if (dailyCollect) dailyCollect.addEventListener("click", (e) => {
     e.preventDefault();
