@@ -31,6 +31,7 @@
         <polygon points="40,20 42,80 40,140 43,200 40,250 39,200 38,140 39,80" fill="#fff6c8" opacity="0.85" />
       </svg>
       <div class="embers" aria-hidden="true"></div>
+      <p class="credit-count" id="credit-count">CREDITS  0</p>
       <div class="title-col">
         <p class="series">
           <span class="presents-line">RIPPLE OF HISTORY</span>
@@ -43,8 +44,13 @@
           <button type="button" id="btn-eras" class="gold-btn ghost">ERA SELECT</button>
           <button type="button" id="btn-how" class="gold-btn ghost">HOW TO PLAY</button>
           <button type="button" id="btn-board" class="gold-btn ghost">LEADERBOARD</button>
+          <button type="button" id="btn-share" class="gold-btn ghost">SHARE</button>
           <button type="button" id="btn-mute" class="gold-btn ghost">SOUND ON</button>
         </div>
+      </div>
+      <div id="daily-toast" class="daily-toast" aria-live="polite" hidden>
+        <p class="daily-kicker">DAILY REWARD</p>
+        <p class="daily-amt">+100 CREDITS</p>
       </div>
       <a class="privacy-link" id="btn-privacy" href="https://www.rippleofhistory.com/privacy.html" target="_blank" rel="noopener">Privacy</a>
       <p class="ver" id="game-ver">v 0.2</p>
@@ -100,6 +106,7 @@
           <div><dt>PAUSE</dt><dd>Esc or II</dd></div>
           <div><dt>KEYS</dt><dd>On PC, the list sits on screen. H or HIDE KEYS turns it off</dd></div>
           <div><dt>DIFF</dt><dd>After Start: Easy, Medium, or Hard. Beat Hard to unlock ??????</dd></div>
+          <div><dt>CREDITS</dt><dd>A daily 100-credit tether at midnight GMT. Claimed when you open or return to the title, never mid-fight. SHARE sends the Google Play listing</dd></div>
           <div><dt>LEVEL</dt><dd>Kills grant XP. Kael levels to 100. Health and attack rise slowly. Harder difficulties pay more XP; Easy farming of early eras falls off</dd></div>
           <div><dt>PAD</dt><dd>Stick / D-pad · A jump · X light · Y special · B block · Down roll or duck</dd></div>
           <div><dt>SCORE</dt><dd>Kills, combos, and flawless bosses. Best ten on the board.</dd></div>

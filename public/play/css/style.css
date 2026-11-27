@@ -220,6 +220,70 @@ html.force-land #stage {
   padding: 7% 8%;
 }
 
+.credit-count {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 4;
+  margin: 0;
+  font-family: "Cinzel", serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: #f6e7a8;
+  text-shadow: 0 0 1px #0a1424, 0 1px 0 #0a1424, 0 0 10px rgba(212, 175, 55, 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.daily-toast {
+  position: absolute;
+  top: max(34px, calc(env(safe-area-inset-top) + 26px));
+  right: max(12px, env(safe-area-inset-right));
+  left: auto;
+  z-index: 5;
+  min-width: 168px;
+  padding: 10px 14px 9px;
+  text-align: right;
+  background: rgba(12, 14, 28, 0.94);
+  border: 1px solid #d4af37;
+  box-shadow: 0 0 18px rgba(176, 16, 40, 0.28), inset 0 1px 0 rgba(232, 213, 163, 0.12);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px) scale(0.92);
+}
+
+.daily-toast.show {
+  visibility: visible;
+  animation: dailyPop 2.8s ease-out forwards;
+}
+
+.daily-kicker {
+  margin: 0 0 4px;
+  font-family: "Cinzel", serif;
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  color: #d4af37;
+}
+
+.daily-amt {
+  margin: 0;
+  font-family: "Cinzel", serif;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 0.16em;
+  color: #f6e7a8;
+  text-shadow: 0 1px 0 #0a1424, 0 0 12px rgba(176, 16, 40, 0.45);
+}
+
+@keyframes dailyPop {
+  0% { opacity: 0; transform: translateY(-8px) scale(0.92); }
+  12% { opacity: 1; transform: translateY(0) scale(1); }
+  78% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+
 .ver {
   position: absolute;
   right: max(12px, env(safe-area-inset-right));
@@ -1018,8 +1082,12 @@ html.force-land #stage {
   .keys { font-size: 8px; padding: 4px 8px; }
   .ver { font-size: 8px; }
   .privacy-link { font-size: 8px; }
-  .btn-col { gap: 4px; }
-  .gold-btn { min-width: 160px; min-height: 30px; padding: 5px 16px; }
+  .credit-count { font-size: 9px; top: max(6px, env(safe-area-inset-top)); }
+  .daily-toast { top: max(24px, calc(env(safe-area-inset-top) + 18px)); min-width: 140px; padding: 7px 10px 6px; }
+  .daily-kicker { font-size: 8px; }
+  .daily-amt { font-size: 14px; }
+  .btn-col { gap: 3px; }
+  .gold-btn { min-width: 160px; min-height: 28px; padding: 4px 16px; }
   .dpad { width: 128px; height: 128px; }
   .dpad button { width: 42px; height: 42px; font-size: 16px; }
   .dpad-up, .dpad-down { left: 43px; }

@@ -48,6 +48,8 @@
   const SAVE_KEY = "roh.save";
   const BOARD_KEY = "roh.board";
   const TETHER_KEY = "roh.tether";
+  const PLAY_STORE = "https://play.google.com/store/apps/details?id=com.rippleofhistory.therip";
+  const DAILY_CREDITS = 100;
   const DIFF = {
     easy: { id: "easy", hp: 0.62, dmgIn: 0.5, dmgOut: 1.28, lives: 5, cap: 5, spd: 0.82, charge: 1.7, iFrames: 1.5, parry: 16, chip: 0.06, cd: 0.75, foes: 5 },
     medium: { id: "medium", hp: 1, dmgIn: 1, dmgOut: 1, lives: 3, cap: 5, spd: 1, charge: 1, iFrames: 1, parry: 10, chip: 0.12, cd: 1, foes: 6 },
@@ -58,6 +60,10 @@
   let insaneUnlocked = false;
   let keysOn = true;
   let hapticsOn = true;
+  let credits = 0;
+  let dailyClaimGmt = "";
+  let dailyToastTimer = 0;
+  let shareCopiedTimer = 0;
   let autoPaused = false;
   let cliffsHeld = false;
 
@@ -835,6 +841,8 @@
     if (difficulty === "insane" && !insaneUnlocked) difficulty = "hard";
     progress.load(s.progress);
     inventory.load(s.inventory);
+    credits = Math.max(0, parseInt(s.credits, 10) || 0);
+    dailyClaimGmt = typeof s.dailyClaimGmt === "string" ? s.dailyClaimGmt.slice(0, 10) : "";
     const d = diffCfg();
     maxLives = d.cap;
     const lv = s.lives != null ? s.lives : d.lives;
@@ -851,6 +859,8 @@
         insaneUnlocked,
         keysOn,
         haptics: hapticsOn,
+        credits: Math.max(0, credits | 0),
+        dailyClaimGmt: dailyClaimGmt || "",
         progress: progress.toJSON(),
         inventory: inventory.toJSON(),
       }));
@@ -858,6 +868,100 @@
     } catch (err) { /* ignore quota */ }
     queueTether(opts && opts.flush);
   }
+
+  function gmtDay() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function refreshCredits() {
+    const el = document.getElementById("credit-count");
+    if (el) el.textContent = "CREDITS  " + (credits | 0);
+  }
+
+  function hideDailyToast() {
+    const el = document.getElementById("daily-toast");
+    if (dailyToastTimer) {
+      clearTimeout(dailyToastTimer);
+      dailyToastTimer = 0;
+    }
+    if (!el) return;
+    el.classList.remove("show");
+    el.hidden = true;
+  }
+
+  function flashDailyToast() {
+    const el = document.getElementById("daily-toast");
+    if (!el) return;
+    el.hidden = false;
+    el.classList.remove("show");
+    void el.offsetWidth;
+    el.classList.add("show");
+    if (dailyToastTimer) clearTimeout(dailyToastTimer);
+    dailyToastTimer = setTimeout(hideDailyToast, 2800);
+  }
+
+  function titleFront() {
+    if (mode !== "title") return false;
+    if (!screens.title || !screens.title.classList.contains("active")) return false;
+    if (screens.load && screens.load.classList.contains("active")) return false;
+    if (screens.how && screens.how.classList.contains("active")) return false;
+    if (screens.diff && screens.diff.classList.contains("active")) return false;
+    if (screens.eras && screens.eras.classList.contains("active")) return false;
+    if (screens.board && screens.board.classList.contains("active")) return false;
+    return true;
+  }
+
+  function maybeClaimDaily() {
+    if (!titleFront()) return false;
+    const day = gmtDay();
+    if (dailyClaimGmt === day) return false;
+    credits = (credits | 0) + DAILY_CREDITS;
+    dailyClaimGmt = day;
+    persistSave();
+    refreshCredits();
+    flashDailyToast();
+    return true;
+  }
+
+  function flashShareCopied() {
+    const btn = document.getElementById("btn-share");
+    if (!btn) return;
+    btn.textContent = "LINK COPIED";
+    if (shareCopiedTimer) clearTimeout(shareCopiedTimer);
+    shareCopiedTimer = setTimeout(() => {
+      btn.textContent = "SHARE";
+      shareCopiedTimer = 0;
+    }, 1600);
+  }
+
+  async function sharePlayStore() {
+    const payload = {
+      title: "The Rip in History",
+      text: "Ripple of History presents The Rip in History.",
+      url: PLAY_STORE,
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share(payload);
+        return;
+      } catch (err) {
+        if (err && err.name === "AbortError") return;
+      }
+    }
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        await navigator.clipboard.writeText(PLAY_STORE);
+        flashShareCopied();
+        return;
+      }
+    } catch (err) { /* fall through */ }
+    if (window.ROHNative && typeof window.ROHNative.openUrl === "function") {
+      window.ROHNative.openUrl(PLAY_STORE);
+    } else {
+      window.open(PLAY_STORE, "_blank", "noopener");
+    }
+  }
+
   let score = 0;
   let scoreSaved = false;
   let runStartedAt = 0;
@@ -3751,6 +3855,7 @@
     applyMute();
     startWind();
     hide(screens.title);
+    hideDailyToast();
     hide(screens.how);
     if (screens.diff) hide(screens.diff);
     hideAllPlay();
@@ -3838,6 +3943,7 @@
     persistSave();
     if (scene === "flight") leaveFlight();
     hideAllPlay();
+    hideDailyToast();
     show(screens.title);
     mode = "title";
     if (ROH.musicStart && actx) ROH.musicStart(actx, master, "intro");
@@ -3845,13 +3951,15 @@
     shots.length = 0;
     refreshTitleEra();
     refreshEraSelect();
+    refreshCredits();
+    maybeClaimDaily();
   }
 
   function handleBack() {
-    if (screens.how && screens.how.classList.contains("active")) { hide(screens.how); return true; }
-    if (screens.diff && screens.diff.classList.contains("active")) { hide(screens.diff); return true; }
-    if (screens.eras && screens.eras.classList.contains("active")) { hide(screens.eras); return true; }
-    if (screens.board && screens.board.classList.contains("active")) { hide(screens.board); return true; }
+    if (screens.how && screens.how.classList.contains("active")) { hide(screens.how); maybeClaimDaily(); return true; }
+    if (screens.diff && screens.diff.classList.contains("active")) { hide(screens.diff); maybeClaimDaily(); return true; }
+    if (screens.eras && screens.eras.classList.contains("active")) { hide(screens.eras); maybeClaimDaily(); return true; }
+    if (screens.board && screens.board.classList.contains("active")) { hide(screens.board); maybeClaimDaily(); return true; }
     if (mode === "pause" || cliffsHeld) { resumePlay(); return true; }
     if (mode === "dead" || mode === "win") { toTitle(); return true; }
     if (mode === "bind") return true;
@@ -3879,9 +3987,11 @@
     show(screens.diff);
   });
   document.getElementById("btn-how").addEventListener("click", () => show(screens.how));
-  document.getElementById("btn-how-close").addEventListener("click", () => hide(screens.how));
+  document.getElementById("btn-how-close").addEventListener("click", () => { hide(screens.how); maybeClaimDaily(); });
   document.getElementById("btn-board").addEventListener("click", () => { renderBoard(); show(screens.board); });
-  document.getElementById("btn-board-close").addEventListener("click", () => hide(screens.board));
+  document.getElementById("btn-board-close").addEventListener("click", () => { hide(screens.board); maybeClaimDaily(); });
+  const shareBtn = document.getElementById("btn-share");
+  if (shareBtn) shareBtn.addEventListener("click", () => { sharePlayStore(); });
   function bindScoreForm(formId, inputId) {
     const form = document.getElementById(formId);
     if (!form) return;
@@ -3914,7 +4024,7 @@
     window.ROHCliffs.onDowned = downFromCliffs;
   }
   document.getElementById("btn-eras").addEventListener("click", () => { refreshEraSelect(); show(screens.eras); });
-  document.getElementById("btn-era-close").addEventListener("click", () => hide(screens.eras));
+  document.getElementById("btn-era-close").addEventListener("click", () => { hide(screens.eras); maybeClaimDaily(); });
   for (let i = 1; i <= 7; i++) {
     const btn = document.getElementById("era-btn-" + i);
     if (!btn) continue;
@@ -3937,7 +4047,7 @@
   const pauseKeys = document.getElementById("btn-pause-keys");
   if (pauseKeys) pauseKeys.addEventListener("click", toggleKeys);
   const diffClose = document.getElementById("btn-diff-close");
-  if (diffClose) diffClose.addEventListener("click", () => hide(screens.diff));
+  if (diffClose) diffClose.addEventListener("click", () => { hide(screens.diff); maybeClaimDaily(); });
   document.querySelectorAll("[data-diff]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-diff");
@@ -8529,6 +8639,9 @@
       lastDrawCamY: lastDrawCamY | 0,
       camLook: +camLook.toFixed(2),
       camFocus: +camFocus.toFixed(1),
+      credits: credits | 0,
+      dailyClaimGmt: dailyClaimGmt || "",
+      dailyToast: !!(document.getElementById("daily-toast") && document.getElementById("daily-toast").classList.contains("show")),
     }),
     mute: () => toggleMute(),
     back: () => handleBack(),
@@ -8615,6 +8728,12 @@
     skipCliffs: () => { skipCliffs = true; },
     scene: () => scene,
     title: () => toTitle(),
+    claimDaily: () => maybeClaimDaily(),
+    setDailyClaim: (day) => {
+      dailyClaimGmt = typeof day === "string" ? day.slice(0, 10) : "";
+      persistSave();
+      return dailyClaimGmt;
+    },
     dumpHorse: () => dumpHorse(),
     die: () => { player.hp = 0; progress.currentHealth = 0; loseLife(); },
     clearFoes: () => {
@@ -8700,8 +8819,10 @@
       refreshMuteButtons();
       refreshDiff();
       refreshKeys();
+      refreshCredits();
       pullTether();
       hide(screens.load);
+      maybeClaimDaily();
       bindTouch();
       layoutStage();
       refreshHapticsButton();
