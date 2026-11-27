@@ -445,17 +445,7 @@ html.force-land #stage {
   text-shadow:
     0 2px 0 #2e101c,
     0 0 14px rgba(18, 22, 42, 0.85);
-  margin-bottom: 0.35em;
-}
-
-.era-tag {
-  font-size: clamp(11px, 1.7vw, 15px);
-  letter-spacing: 0.28em;
-  color: #7ee0ea;
-  -webkit-text-stroke: 0.6px #0a1c28;
-  paint-order: stroke fill;
-  text-shadow: 0 1px 0 #07131f, 0 0 10px rgba(7, 19, 31, 0.9);
-  margin-bottom: 0.7em;
+  margin-bottom: 0.55em;
 }
 
 .diff-row {
@@ -1156,8 +1146,7 @@ html.force-land #stage {
   .social-link svg { width: 12px; height: 12px; }
   .series { margin-bottom: 0.15em; gap: 0.05em; }
   .presents-line { font-size: clamp(10px, 3.2vh, 14px); }
-  .title-col h1 { font-size: clamp(16px, 7.2vh, 28px); margin-bottom: 0.12em; }
-  .era-tag { margin-bottom: 0.28em; font-size: clamp(10px, 3vh, 12px); }
+  .title-col h1 { font-size: clamp(16px, 7.2vh, 28px); margin-bottom: 0.22em; }
   .diff-row { margin-bottom: 0.4em; gap: 4px; }
   .diff-row .gold-btn { padding: 4px 6px; font-size: 8px; min-height: 24px; }
   #diff-screen .card { padding: 14px 16px 12px; }
