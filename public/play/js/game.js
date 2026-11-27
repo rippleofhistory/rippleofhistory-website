@@ -62,7 +62,6 @@
   let hapticsOn = true;
   let credits = 0;
   let dailyClaimGmt = "";
-  let dailyToastTimer = 0;
   let shareCopiedTimer = 0;
   let autoPaused = false;
   let cliffsHeld = false;
@@ -878,26 +877,20 @@
     if (el) el.textContent = "CREDITS  " + (credits | 0);
   }
 
+  function dailyBox() {
+    return document.getElementById("daily-toast");
+  }
+
+  function dailyBoxOpen() {
+    const el = dailyBox();
+    return !!(el && !el.hidden && el.classList.contains("show"));
+  }
+
   function hideDailyToast() {
-    const el = document.getElementById("daily-toast");
-    if (dailyToastTimer) {
-      clearTimeout(dailyToastTimer);
-      dailyToastTimer = 0;
-    }
+    const el = dailyBox();
     if (!el) return;
     el.classList.remove("show");
     el.hidden = true;
-  }
-
-  function flashDailyToast() {
-    const el = document.getElementById("daily-toast");
-    if (!el) return;
-    el.hidden = false;
-    el.classList.remove("show");
-    void el.offsetWidth;
-    el.classList.add("show");
-    if (dailyToastTimer) clearTimeout(dailyToastTimer);
-    dailyToastTimer = setTimeout(hideDailyToast, 2800);
   }
 
   function titleFront() {
@@ -914,12 +907,27 @@
   function maybeClaimDaily() {
     if (!titleFront()) return false;
     const day = gmtDay();
-    if (dailyClaimGmt === day) return false;
-    credits = (credits | 0) + DAILY_CREDITS;
-    dailyClaimGmt = day;
-    persistSave();
-    refreshCredits();
-    flashDailyToast();
+    if (dailyClaimGmt === day) {
+      hideDailyToast();
+      return false;
+    }
+    const el = dailyBox();
+    if (!el) return false;
+    el.hidden = false;
+    el.classList.add("show");
+    return true;
+  }
+
+  function collectDaily() {
+    if (mode !== "title" || !dailyBoxOpen()) return false;
+    const day = gmtDay();
+    if (dailyClaimGmt !== day) {
+      credits = (credits | 0) + DAILY_CREDITS;
+      dailyClaimGmt = day;
+      persistSave();
+      refreshCredits();
+    }
+    hideDailyToast();
     return true;
   }
 
@@ -3956,6 +3964,7 @@
   }
 
   function handleBack() {
+    if (dailyBoxOpen()) return true;
     if (screens.how && screens.how.classList.contains("active")) { hide(screens.how); maybeClaimDaily(); return true; }
     if (screens.diff && screens.diff.classList.contains("active")) { hide(screens.diff); maybeClaimDaily(); return true; }
     if (screens.eras && screens.eras.classList.contains("active")) { hide(screens.eras); maybeClaimDaily(); return true; }
@@ -3992,6 +4001,12 @@
   document.getElementById("btn-board-close").addEventListener("click", () => { hide(screens.board); maybeClaimDaily(); });
   const shareBtn = document.getElementById("btn-share");
   if (shareBtn) shareBtn.addEventListener("click", () => { sharePlayStore(); });
+  const dailyCollect = document.getElementById("btn-daily-collect");
+  if (dailyCollect) dailyCollect.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    collectDaily();
+  });
   function bindScoreForm(formId, inputId) {
     const form = document.getElementById(formId);
     if (!form) return;
@@ -8729,6 +8744,7 @@
     scene: () => scene,
     title: () => toTitle(),
     claimDaily: () => maybeClaimDaily(),
+    collectDaily: () => collectDaily(),
     setDailyClaim: (day) => {
       dailyClaimGmt = typeof day === "string" ? day.slice(0, 10) : "";
       persistSave();

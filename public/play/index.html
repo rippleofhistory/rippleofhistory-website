@@ -48,9 +48,12 @@
           <button type="button" id="btn-mute" class="gold-btn ghost">SOUND ON</button>
         </div>
       </div>
-      <div id="daily-toast" class="daily-toast" aria-live="polite" hidden>
-        <p class="daily-kicker">DAILY REWARD</p>
-        <p class="daily-amt">+100 CREDITS</p>
+      <div id="daily-toast" class="daily-toast" role="dialog" aria-modal="true" aria-labelledby="daily-kicker" hidden>
+        <div class="daily-card">
+          <p class="daily-kicker" id="daily-kicker">DAILY REWARD</p>
+          <p class="daily-amt">+100 CREDITS</p>
+          <button type="button" id="btn-daily-collect" class="gold-btn">COLLECT</button>
+        </div>
       </div>
       <a class="privacy-link" id="btn-privacy" href="https://www.rippleofhistory.com/privacy.html" target="_blank" rel="noopener">Privacy</a>
       <p class="ver" id="game-ver">v 0.2</p>
@@ -106,7 +109,7 @@
           <div><dt>PAUSE</dt><dd>Esc or II</dd></div>
           <div><dt>KEYS</dt><dd>On PC, the list sits on screen. H or HIDE KEYS turns it off</dd></div>
           <div><dt>DIFF</dt><dd>After Start: Easy, Medium, or Hard. Beat Hard to unlock ??????</dd></div>
-          <div><dt>CREDITS</dt><dd>A daily 100-credit tether at midnight GMT. Claimed when you open or return to the title, never mid-fight. SHARE sends the Google Play listing</dd></div>
+          <div><dt>CREDITS</dt><dd>A daily 100-credit tether at midnight GMT. On the title, tap COLLECT to claim it. Never mid-fight. SHARE sends the Google Play listing</dd></div>
           <div><dt>LEVEL</dt><dd>Kills grant XP. Kael levels to 100. Health and attack rise slowly. Harder difficulties pay more XP; Easy farming of early eras falls off</dd></div>
           <div><dt>PAD</dt><dd>Stick / D-pad · A jump · X light · Y special · B block · Down roll or duck</dd></div>
           <div><dt>SCORE</dt><dd>Kills, combos, and flawless bosses. Best ten on the board.</dd></div>
