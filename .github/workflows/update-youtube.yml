@@ -1,0 +1,38 @@
+name: Update YouTube on the homepage
+
+on:
+  schedule:
+    # 07:15 UTC. In winter that is 07:15 in London; in summer it is 08:15.
+    - cron: "15 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stamp-home
+  cancel-in-progress: false
+
+jobs:
+  stamp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Stamp the homepage from the YouTube feed
+        env:
+          TZ: Europe/London
+        run: node scripts/stamp-home.mjs
+      - name: Commit when the feed changed
+        run: |
+          if git diff --quiet -- index.html src/js/site.js; then
+            echo "Homepage already matches the feed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- index.html src/js/site.js
+          git commit -m "Update the homepage with the latest YouTube shorts."
+          git push

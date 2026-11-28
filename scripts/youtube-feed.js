@@ -56,7 +56,7 @@ function tagFor(title, isShort) {
 function formatPublished(iso) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString("en-GB", { day: "numeric", month: "short" });
+  return date.toLocaleString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
 }
 
 export function displayTitle(title) {
