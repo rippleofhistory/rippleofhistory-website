@@ -6,7 +6,8 @@
 
 html, body {
   margin: 0;
-  height: 100%;
+  min-height: 100%;
+  height: auto;
   background:
     radial-gradient(ellipse at 50% 42%, #163044 0%, #0b1824 46%, #05080e 100%);
   color: var(--ivory);
@@ -14,13 +15,40 @@ html, body {
 
 body {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  justify-content: flex-start;
+  overflow: auto;
+  padding: 1rem 0 1.5rem;
+}
+
+.wings-intro {
+  width: min(40rem, calc(100% - 2rem));
+  margin: 0 0 0.75rem;
+  text-align: center;
+}
+
+.wings-intro h1 {
+  margin: 0 0 0.3rem;
+  font-family: Palatino, "Palatino Linotype", Georgia, serif;
+  font-size: 1.7rem;
+  font-weight: 500;
+  color: var(--gold);
+}
+
+.wings-intro p {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.4;
+}
+
+.wings-intro a {
+  color: var(--gold);
 }
 
 canvas {
-  height: min(96vh, 980px);
+  height: min(82vh, 900px);
   width: auto;
   max-width: 96vw;
   background: #082033;

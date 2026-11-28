@@ -1,6 +1,14 @@
 import { pad, monthName, formatOrdinal, todayParts, youtubeShortThumb, youtubeThumb } from "./site.js";
 import { ERAS, eventsFor, hasVideo, eraLabel, randomEvent } from "./events.js";
 import { shortFor, hasShort, hydrateShorts } from "./shorts.js";
+import { dayPath, hubDayLink, hubForEvent, pathForEvent } from "./paths.js";
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/"/g, "&quot;");
+}
 
 const state = {
   month: todayParts().month,
@@ -120,15 +128,15 @@ function shortBlock(month, day) {
   const fallback = youtubeThumb(short.id);
   return `
     <article class="short-card">
-      <button class="thumb" type="button" data-play="${short.id}" data-kind="short" aria-label="Play ${short.title}">
-        <img src="${thumb}" alt="" width="1080" height="1920" onerror="this.onerror=null;this.src='${fallback}'">
+      <button class="thumb" type="button" data-play="${escapeHtml(short.id)}" data-kind="short" aria-label="Play ${escapeHtml(short.title)}">
+        <img src="${thumb}" alt="${escapeHtml(short.title)}" width="1080" height="1920" onerror="this.onerror=null;this.src='${fallback}'">
         <span class="play" aria-hidden="true">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 1.5v11l10-5.5L3 1.5z"/></svg>
         </span>
       </button>
       <div class="short-copy">
         <span class="tag">Daily short</span>
-        <h3>${short.title}</h3>
+        <h3>${escapeHtml(short.title)}</h3>
         <p>The brief for ${headingFor(month, day)}.</p>
         <div class="short-actions">
           <button class="btn btn-gold" type="button" data-play="${short.id}" data-kind="short">Play</button>
@@ -148,18 +156,23 @@ function timeline(events) {
             <li class="tl-item" style="--i:${index}">
               <span class="tl-year">${yearLabel(event.y)}</span>
               <article class="tl-card ${event.more ? "has-more" : ""}">
-                <div class="meta">${event.loc} · ${eraLabel(event.era)}</div>
-                <h3>${event.title}</h3>
-                <p>${event.blurb}</p>
+                <div class="meta">${escapeHtml(event.loc)} · ${escapeHtml(eraLabel(event.era))}</div>
+                <h3><a href="${pathForEvent(event)}">${escapeHtml(event.title)}</a></h3>
+                <p>${escapeHtml(event.blurb)}</p>
                 ${
                   event.more
                     ? `<button class="more-btn" type="button" data-toggle-more>Read more</button>
-                       <p class="tl-more">${event.more}</p>`
+                       <p class="tl-more">${escapeHtml(event.more)}</p>`
                     : ""
                 }
                 ${
                   event.video
-                    ? `<a class="watch-link" href="https://www.youtube.com/watch?v=${event.video}" target="_blank" rel="noreferrer">Watch the long-form take</a>`
+                    ? `<a class="watch-link" href="https://www.youtube.com/watch?v=${escapeHtml(event.video)}" target="_blank" rel="noreferrer">Watch the long-form take</a>`
+                    : ""
+                }
+                ${
+                  hubForEvent(event)
+                    ? `<a class="watch-link" href="${hubForEvent(event).href}">${escapeHtml(hubForEvent(event).label)}</a>`
                     : ""
                 }
               </article>
@@ -176,10 +189,14 @@ function renderDetail(animate = true) {
   const all = eventsFor(state.month, state.day);
   const events = state.era === "all" ? all : all.filter((event) => event.era === state.era);
   const heading = headingFor(state.month, state.day);
+  const hubDay = all.some((event) => event.era === "ww2" && event.y >= 1939 && event.y <= 1945)
+    ? hubDayLink(state.month, state.day)
+    : null;
 
   const html = `
     <div class="detail-kicker">The living book · ${events.length} ripples</div>
-    <h2>${heading}</h2>
+    <h2><a href="${dayPath(state.month, state.day)}">${heading}</a></h2>
+    ${hubDay ? `<p class="entry-hub"><a href="${hubDay.href}">${escapeHtml(hubDay.label)}</a></p>` : ""}
     ${shortBlock(state.month, state.day)}
     <h3 class="tl-heading">Across the centuries</h3>
     ${
@@ -216,7 +233,7 @@ function renderTodayRipple() {
     </div>
     <div class="today-copy">
       <small>Today’s Ripple${short ? " · short on YouTube" : ""}</small>
-      <h3>${lead ? lead.title : headingFor(month, day)}</h3>
+      <h3>${lead ? `<a href="${pathForEvent(lead)}">${escapeHtml(lead.title)}</a>` : headingFor(month, day)}</h3>
       <p>${lead ? lead.blurb : "Open the book. The day always has a chapter."}</p>
     </div>
     <button class="btn btn-gold" type="button" data-open-today>Read today’s chapter</button>

@@ -15,6 +15,8 @@ import {
   prefersReducedMotion,
 } from "./site.js";
 import { eventsFor } from "./events.js";
+import { dayPath, filmPathForId, pathForEvent } from "./paths.js";
+import { parseOnThisDayDate } from "../../scripts/youtube-feed.js";
 import { SHOP_UNBOXINGS } from "./shop-unboxings.js";
 import { applySeo, applyShopUnboxings } from "./seo.js";
 import { inject } from "@vercel/analytics";
@@ -171,10 +173,10 @@ function renderToday() {
     </div>
     <div class="today-copy">
       <small>On this day · ${featured.y < 0 ? `${Math.abs(featured.y)} BC` : featured.y}</small>
-      <h3>${featured.title}</h3>
+      <h3><a href="${pathForEvent(featured)}">${escapeHtml(featured.title)}</a></h3>
       <p>${featured.blurb}</p>
     </div>
-    <a class="btn btn-ghost" data-nav href="on-this-day.html#${pad(month)}-${pad(day)}">Open the calendar</a>
+    <a class="btn btn-ghost" data-nav href="${pathForEvent(featured) || `on-this-day.html#${pad(month)}-${pad(day)}`}">Open the calendar</a>
   `;
 }
 renderToday();
@@ -184,6 +186,17 @@ function escapeHtml(value) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/"/g, "&quot;");
+}
+
+function cardTitle(video) {
+  const title = escapeHtml(video.title);
+  const film = filmPathForId(video.id);
+  if (film) return `<a href="${film}">${title}</a>`;
+  if (video.kind === "short") {
+    const date = parseOnThisDayDate(video.title);
+    if (date) return `<a href="${dayPath(date.month, date.day)}">${title}</a>`;
+  }
+  return title;
 }
 
 function videoCard(video, large = false) {
@@ -203,7 +216,7 @@ function videoCard(video, large = false) {
       </button>
       <div class="video-meta">
         <span class="tag">${escapeHtml(meta)}</span>
-        <h3>${title}</h3>
+        <h3>${cardTitle(video)}</h3>
         ${video.blurb && large ? `<p>${escapeHtml(video.blurb)}</p>` : ""}
         ${large ? `<button class="btn btn-gold play-inline" type="button" data-play="${video.id}">Play episode</button>` : ""}
       </div>
@@ -234,7 +247,7 @@ function spotStill(video, large) {
   const fallback = youtubeThumb(video.id, false);
   return `
     <span class="spot-still">
-      <img src="${src}" alt="" width="${large ? 1280 : 480}" height="${large ? 720 : 270}" onerror="this.onerror=null;this.src='${fallback}'">
+      <img src="${src}" alt="${escapeHtml(video.title)}" width="${large ? 1280 : 480}" height="${large ? 720 : 270}" onerror="this.onerror=null;this.src='${fallback}'">
       ${spotMark(!large)}
     </span>
   `;
@@ -257,7 +270,7 @@ function renderSpotlight(selector, lead, related) {
           ${spotStill(video, false)}
           <span class="spot-row-copy">
             <span class="spot-meta">${spotMeta(video)}</span>
-            <span class="spot-row-title">${label}</span>
+            <span class="spot-row-title">${cardTitle(video)}</span>
           </span>
         </button>
       </li>
@@ -270,7 +283,7 @@ function renderSpotlight(selector, lead, related) {
           ${spotStill(lead, true)}
         </button>
         <p class="spot-kicker">${spotMeta(lead)}</p>
-        <h3>${title}</h3>
+        <h3>${cardTitle(lead)}</h3>
         ${blurb ? `<p class="spot-blurb">${blurb}</p>` : ""}
       </article>
       <ul class="spotlight-list">${rows}</ul>
@@ -279,23 +292,31 @@ function renderSpotlight(selector, lead, related) {
 }
 
 function renderVideos() {
-  const longLead = withBlurb(FEATURED_LONGFORM.find((video) => video.id === "BcU5deW_Nys"));
-  const longRelated = ["KtxDaEX3-Sc", "NZzgGn0Icx8", "4H6sNVihsQw"].map((id) =>
-    FEATURED_LONGFORM.find((video) => video.id === id),
-  );
-  renderSpotlight("[data-long-films]", longLead, longRelated);
+  const longRoot = document.querySelector("[data-long-films]");
+  if (longRoot && !longRoot.children.length) {
+    const longLead = withBlurb(FEATURED_LONGFORM.find((video) => video.id === "BcU5deW_Nys"));
+    const longRelated = ["KtxDaEX3-Sc", "NZzgGn0Icx8", "4H6sNVihsQw"].map((id) =>
+      FEATURED_LONGFORM.find((video) => video.id === id),
+    );
+    renderSpotlight("[data-long-films]", longLead, longRelated);
+  }
 
-  const voiceLead = withBlurb(DEEP_DIVES.find((video) => video.id === "K-Y2gQodq6I"));
-  const voiceRelated = ["3Cd0_aBSK8w", "QVxGPC4LUT8", "O7klZ8fY2MA"].map((id) =>
-    DEEP_DIVES.find((video) => video.id === id),
-  );
-  renderSpotlight("[data-voices]", voiceLead, voiceRelated);
+  const voiceRoot = document.querySelector("[data-voices]");
+  if (voiceRoot && !voiceRoot.children.length) {
+    const voiceLead = withBlurb(DEEP_DIVES.find((video) => video.id === "K-Y2gQodq6I"));
+    const voiceRelated = ["3Cd0_aBSK8w", "QVxGPC4LUT8", "O7klZ8fY2MA"].map((id) =>
+      DEEP_DIVES.find((video) => video.id === id),
+    );
+    renderSpotlight("[data-voices]", voiceLead, voiceRelated);
+  }
   const airshowFeatured = document.querySelector("[data-airshow-featured]");
-  if (airshowFeatured && AIRSHOWS[0]) {
+  if (airshowFeatured && !airshowFeatured.children.length && AIRSHOWS[0]) {
     airshowFeatured.innerHTML = videoCard(AIRSHOWS[0], true);
   }
-  fillRail("[data-airshows]", AIRSHOWS.slice(1));
-  fillRail("[data-latest]", LATEST_VIDEOS);
+  const airshows = document.querySelector("[data-airshows]");
+  if (airshows && !airshows.children.length) fillRail("[data-airshows]", AIRSHOWS.slice(1));
+  const latest = document.querySelector("[data-latest]");
+  if (latest && !latest.children.length) fillRail("[data-latest]", LATEST_VIDEOS);
   loadLatest();
   loadShopUnboxings();
 }

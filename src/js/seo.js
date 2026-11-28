@@ -71,7 +71,7 @@ const organization = {
   url: SITE_URL,
   email: "rippleofhistory@gmail.com",
   logo: `${SITE_URL}/images/wordmark.png`,
-  image: `${SITE_URL}/images/hero-banner.png`,
+  image: `${SITE_URL}/images/hero-banner.jpg`,
   description:
     "Daily On This Day history shorts and long-form films from Eastbourne: WW2, Churchill, Airbourne, Romans, Tudors and the British story.",
   foundingLocation: {
@@ -107,7 +107,7 @@ const website = {
 function pageMeta(pathname) {
   const path = pathname.replace(/index\.html$/, "") || "/";
   if (path === "/" || path === "") {
-    return { id: "home", type: "WebPage", crumb: null, image: "hero-banner.png", url: `${SITE_URL}/` };
+    return { id: "home", type: "WebPage", crumb: null, image: "hero-banner.jpg", url: `${SITE_URL}/` };
   }
   const pages = [
     ["on-this-day", { id: "day", type: "WebPage", crumb: "On This Day", image: "on-this-day.jpg", url: `${SITE_URL}/on-this-day.html` }],
@@ -123,7 +123,7 @@ function pageMeta(pathname) {
   const match = pages.find(([key]) => path.includes(key));
   return match
     ? match[1]
-    : { id: "home", type: "WebPage", crumb: null, image: "hero-banner.png", url: `${SITE_URL}/` };
+    : { id: "home", type: "WebPage", crumb: null, image: "hero-banner.jpg", url: `${SITE_URL}/` };
 }
 
 export function applySeo() {

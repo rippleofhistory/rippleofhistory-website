@@ -3,6 +3,19 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "redirects": [
+    { "source": "/index.html", "destination": "/", "permanent": true },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "rippleofhistory.com" }],
+      "destination": "https://www.rippleofhistory.com/",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "rippleofhistory.com" }],
+      "destination": "https://www.rippleofhistory.com/:path*",
+      "permanent": true
+    },
     { "source": "/play", "destination": "/play/", "permanent": true },
     { "source": "/wings", "destination": "/wings/", "permanent": true }
   ],

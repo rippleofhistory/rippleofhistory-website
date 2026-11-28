@@ -9,6 +9,7 @@ export const ERAS = [
   { id: "tudors", label: "Tudors" },
   { id: "civil-war", label: "Civil Wars" },
   { id: "british", label: "Britain" },
+  { id: "ww1", label: "First World War" },
   { id: "ww2", label: "World Wars" },
   { id: "world", label: "Wider world" },
 ];
@@ -343,7 +344,7 @@ export const EVENTS = [
   { m: 11, d: 8, y: 1923, title: "The Beer Hall Putsch", era: "ww2", loc: "Munich", blurb: "Hitler’s rehearsal coup fails. Prison gives him a book. Germany, later, will give him rather more." },
   { m: 11, d: 9, y: 1989, title: "The Berlin Wall opens", era: "world", loc: "Berlin", blurb: "A bungled press conference, a night of hammers. The Cold War ends in a traffic jam of Trabants." },
   { m: 11, d: 10, y: 1871, title: "Stanley finds Livingstone", era: "british", loc: "Ujiji", blurb: "‘Dr Livingstone, I presume?’ The understatement of the Victorian age, in a village by a lake." },
-  { m: 11, d: 11, y: 1918, title: "Armistice", era: "ww2", loc: "Compiègne", blurb: "Eleven o’clock. The guns stop. The peace will be badly written; the silence, for a morning, is enough." },
+  { m: 11, d: 11, y: 1918, title: "Armistice", era: "ww1", loc: "Compiègne", blurb: "Eleven o’clock. The guns stop. The peace will be badly written; the silence, for a morning, is enough." },
   { m: 11, d: 12, y: 1944, title: "Tirpitz sunk", era: "ww2", loc: "Tromsø", blurb: "Lancasters and Tallboys. The last German battleship is turned over in a Norwegian fjord. The Home Fleet can breathe." },
   { m: 11, d: 13, y: 1002, title: "St Brice’s Day massacre", era: "british", loc: "England", blurb: "Æthelred orders the killing of Danes in England. Sweyn Forkbeard will take this personally. The unready king lives up to the nickname." },
   { m: 11, d: 14, y: 1940, title: "Coventry blitzed", era: "ww2", loc: "Coventry", blurb: "The cathedral burns. A new verb, to coventrate, is briefly coined. The city rebuilds a modern nave beside the ruin." },

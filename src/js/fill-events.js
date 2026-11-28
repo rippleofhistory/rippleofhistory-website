@@ -313,7 +313,7 @@ export const FILL = [
   x(11,4,1956,"Tanks in Pest","world","Hungary","The revolution is over. Kádár will last decades."),
   x(11,5,1911,"A war for Tripoli","world","Libya","Italy and the Ottomans. Airplanes will bomb, as a method."),
   x(11,6,1429,"A child at Westminster","british","England","Henry VI. France will have to wait."),
-  x(11,7,1918,"A rumour on the front","ww2","France","The false armistice. Men still die."),
+  x(11,7,1918,"A rumour on the front","ww1","France","The false armistice. Men still die."),
   x(11,8,1602,"A library that will not lend","british","Oxford","The Bodleian. Scholars must come to the books."),
   x(11,9,1799,"A coup in a greenhouse","world","Paris","Brumaire. The Revolution, Napoleon says, is over."),
   x(11,10,1483,"A birth in Eisleben","world","Germany","Luther. Still an infant."),

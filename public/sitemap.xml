@@ -3,12 +3,12 @@
         xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
-    <loc>https://rippleofhistory.com/</loc>
+    <loc>https://www.rippleofhistory.com/</loc>
     <lastmod>2026-08-23</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://rippleofhistory.com/images/hero-banner.png</image:loc>
+      <image:loc>https://www.rippleofhistory.com/images/hero-banner.jpg</image:loc>
       <image:title>Ripple of History</image:title>
     </image:image>
     <video:video>
@@ -61,95 +61,95 @@
     </video:video>
   </url>
   <url>
-    <loc>https://rippleofhistory.com/on-this-day.html</loc>
+    <loc>https://www.rippleofhistory.com/on-this-day.html</loc>
     <lastmod>2026-08-23</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
     <image:image>
-      <image:loc>https://rippleofhistory.com/images/on-this-day.jpg</image:loc>
+      <image:loc>https://www.rippleofhistory.com/images/on-this-day.jpg</image:loc>
       <image:title>On This Day — Ripple of History</image:title>
     </image:image>
   </url>
   <url>
-    <loc>https://rippleofhistory.com/about.html</loc>
+    <loc>https://www.rippleofhistory.com/about.html</loc>
     <lastmod>2026-09-02</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://rippleofhistory.com/images/support.jpg</image:loc>
+      <image:loc>https://www.rippleofhistory.com/images/support.jpg</image:loc>
       <image:title>Daniel Sellings — Ripple of History</image:title>
     </image:image>
   </url>
   <url>
-    <loc>https://rippleofhistory.com/shop.html</loc>
+    <loc>https://www.rippleofhistory.com/shop.html</loc>
     <lastmod>2026-09-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
-      <image:loc>https://rippleofhistory.com/images/still-crown.jpg</image:loc>
+      <image:loc>https://www.rippleofhistory.com/images/still-crown.jpg</image:loc>
       <image:title>Ripple of History shop</image:title>
     </image:image>
   </url>
   <url>
-    <loc>https://rippleofhistory.com/games.html</loc>
+    <loc>https://www.rippleofhistory.com/games.html</loc>
     <lastmod>2026-09-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://rippleofhistory.com/images/the-rip-title.png</image:loc>
+      <image:loc>https://www.rippleofhistory.com/images/the-rip-title.png</image:loc>
       <image:title>The Rip in History</image:title>
     </image:image>
   </url>
   <url>
-    <loc>https://rippleofhistory.com/play/</loc>
+    <loc>https://www.rippleofhistory.com/play/</loc>
     <lastmod>2026-11-14</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
-      <image:loc>https://rippleofhistory.com/images/the-rip-title.png</image:loc>
+      <image:loc>https://www.rippleofhistory.com/images/the-rip-title.png</image:loc>
       <image:title>Play The Rip in History</image:title>
     </image:image>
   </url>
   <url>
-    <loc>https://rippleofhistory.com/wings/</loc>
+    <loc>https://www.rippleofhistory.com/wings/</loc>
     <lastmod>2026-11-14</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://rippleofhistory.com/images/wings-title.png</image:loc>
+      <image:loc>https://www.rippleofhistory.com/images/wings-title.png</image:loc>
       <image:title>Wings of WW2</image:title>
     </image:image>
   </url>
   <url>
-    <loc>https://rippleofhistory.com/support.html</loc>
+    <loc>https://www.rippleofhistory.com/support.html</loc>
     <lastmod>2026-08-23</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <image:image>
-      <image:loc>https://rippleofhistory.com/images/support.jpg</image:loc>
+      <image:loc>https://www.rippleofhistory.com/images/support.jpg</image:loc>
       <image:title>Support Ripple of History</image:title>
     </image:image>
   </url>
   <url>
-    <loc>https://rippleofhistory.com/contact.html</loc>
+    <loc>https://www.rippleofhistory.com/contact.html</loc>
     <lastmod>2026-09-02</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://rippleofhistory.com/disclaimer.html</loc>
+    <loc>https://www.rippleofhistory.com/disclaimer.html</loc>
     <lastmod>2026-09-02</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://rippleofhistory.com/privacy.html</loc>
+    <loc>https://www.rippleofhistory.com/privacy.html</loc>
     <lastmod>2026-09-02</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://rippleofhistory.com/terms.html</loc>
+    <loc>https://www.rippleofhistory.com/terms.html</loc>
     <lastmod>2026-09-02</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>

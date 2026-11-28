@@ -16,6 +16,7 @@ if (root) initShop();
 let storeHost = SHOPIFY_STORE_URL.replace(/^https?:\/\//, "");
 let gallery = [];
 let galleryIndex = 0;
+let galleryAlt = "Product photograph";
 
 function escapeHtml(value) {
   return String(value)
@@ -110,7 +111,7 @@ function renderCart() {
         .map(
           (item) => `
         <article class="cart-line">
-          <img src="${escapeHtml(item.image)}" alt="" width="72" height="72">
+          <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}" width="72" height="72">
           <div>
             <h3>${escapeHtml(item.title)}</h3>
             <p>${escapeHtml(formatMoney(item.amount, item.currency))} each</p>
@@ -204,7 +205,7 @@ function renderThumbs() {
     .map(
       (src, index) =>
         `<button type="button" class="product-thumb${index === galleryIndex ? " is-active" : ""}" data-thumb="${index}" aria-label="View ${index + 1}">
-          <img src="${escapeHtml(src)}" alt="">
+          <img src="${escapeHtml(src)}" alt="${escapeHtml(galleryAlt)}">
         </button>`,
     )
     .join("");
@@ -214,6 +215,7 @@ function showGalleryImage() {
   const img = document.querySelector("[data-zoom-image]");
   if (!img || !gallery.length) return;
   img.src = gallery[galleryIndex];
+  img.alt = galleryAlt;
   renderThumbs();
   const prev = document.querySelector("[data-gallery-prev]");
   const next = document.querySelector("[data-gallery-next]");
@@ -291,7 +293,8 @@ function openProduct(product, byId) {
   const zoomImg = document.querySelector("[data-zoom-image]");
   if (!dialog || !sheet) return;
   dialog.setAttribute("data-product-id", product.id);
-  if (zoomImg) zoomImg.alt = product.title;
+  galleryAlt = product.title || "Product photograph";
+  if (zoomImg) zoomImg.alt = galleryAlt;
   sheet.innerHTML = `
     <span class="tag">${product.collection === "ww2hub" ? "WW2Hub" : "Ripple of History"}</span>
     <h2>${escapeHtml(product.title)}</h2>

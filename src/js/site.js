@@ -1,4 +1,4 @@
-export const SITE_URL = "https://rippleofhistory.com";
+export const SITE_URL = "https://www.rippleofhistory.com";
 export const SITE_NAME = "Ripple of History";
 export const CHANNEL_ID = "UClKb54sR_nVBVudB9JoE81g";
 
@@ -135,16 +135,16 @@ export const DEEP_DIVES = [
   { id: "qbuXRiEbGFo", title: "Battle of Britain 1940", tag: "Forgotten Voices", length: "29:46" },
 ];
 
-/** Fallback if the live YouTube feed cannot be reached. */
+/** Fallback if the live YouTube feed cannot be reached. Kept current so a failed fetch is not the October list. */
 export const LATEST_VIDEOS = [
-  { id: "Gq2jeUi-GsU", title: "RoH Shop Unboxing #3 - Hobart's Tank School", tag: "Shop", length: "15 Oct", kind: "video" },
-  { id: "xWWqlxBsKtg", title: "On this day in history. October 14th. Battle of Hastings 1066. Black Thursday Mighty 8th USAAF.", tag: "Short", length: "14 Oct", kind: "short" },
-  { id: "u3Gaqn4O7GQ", title: "On this day in history. October 13th. Black Friday Canadian Black Watch.", tag: "Short", length: "13 Oct", kind: "short" },
-  { id: "-ZGqX-bDAZQ", title: "on this day in history. October 12th. Edith Cavell Executed. Desmond Doss Medal of Honor.", tag: "Short", length: "12 Oct", kind: "short" },
-  { id: "XhvQfTHqIa4", title: "On this day in history. October 11th. Einstein warns FDR of German Atom Project.", tag: "Short", length: "12 Oct", kind: "short" },
-  { id: "knAymtkrXW4", title: "On this day in history. October 10th. USAAF Black Week Munster Raid.", tag: "Short", length: "11 Oct", kind: "short" },
-  { id: "YVWG27TE8FM", title: "on this day in history. October 9th. destruction of Warsaw. RIP Che Guevara.", tag: "Short", length: "10 Oct", kind: "short" },
-  { id: "ANuCmVH3X5E", title: "On this day in history. October 8th. 2 medal of honors. 3 greats fires. 1 che Guevara captured.", tag: "Short", length: "8 Oct", kind: "short" },
+  { id: "i-tk9BO5Quk", title: "On this day in history. November 25th. Natural disaster day. Earthquakes, tsunamis, tornado", tag: "Short", length: "26 Nov", kind: "short" },
+  { id: "I5A4IH82C_o", title: "On this day in history. November 24th. Ghengis Khan conquest. Darwin's evolution. Bristol Blitz!", tag: "Short", length: "24 Nov", kind: "short" },
+  { id: "ly_HIIny3oE", title: "On this day. November 23rd. HMS Rawalpindi. Stalingrad Pocket closed. Freddie Mercury", tag: "Short", length: "23 Nov", kind: "short" },
+  { id: "OJF2p6OxRjc", title: "On this day in history. November 22nd. JFK Assassinated. Blackbeard Killed. We are surrounded!", tag: "Short", length: "22 Nov", kind: "short" },
+  { id: "_5OPLBBtmPE", title: "On this day in history. November 21st. Hanukkah. Bloody Sunday. Rostov-on-Don captured.", tag: "Short", length: "22 Nov", kind: "short" },
+  { id: "mjEKlvFmpbw", title: "On this day in history. November 20th. Battle of Tarawa. Princess Elizabeth wedding.", tag: "Short", length: "21 Nov", kind: "short" },
+  { id: "NZwczJ2V_Bg", title: "On this day in history. November 19th. Gettysburg Address. Operation Uranus Stalingrad. Pele 1000", tag: "Short", length: "20 Nov", kind: "short" },
+  { id: "ubiZQvndzow", title: "On this day in history. November 18th. Napoleon nearly destroyed at Krasnoi. Somme over. Berlin raid", tag: "Short", length: "18 Nov", kind: "short" },
 ];
 
 export const VIDEO_FILTERS = [
